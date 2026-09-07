@@ -20,7 +20,7 @@
 
 ###> symfony/asset-mapper ###
 /public/assets/
-/assets/vendor/
+# /assets/vendor/ : versionne volontairement, voir publier.sh
 ###< symfony/asset-mapper ###
 
 ###> friendsofphp/php-cs-fixer ###

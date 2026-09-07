@@ -9,3 +9,10 @@ when@prod:
     framework:
         asset_mapper:
             missing_import_mode: warn
+
+# L'environnement de demonstration est un environnement de PRODUCTION : il tourne
+# sur un hebergeur, devant un jury. Il reprend donc les memes reglages que prod.
+when@demo:
+    framework:
+        asset_mapper:
+            missing_import_mode: warn

@@ -6,7 +6,7 @@ REM cette adresse (aucun vrai client). --limit borne le volume pendant la montee
 REM l'augmenter puis le retirer une fois confiant (plafond 500/run sans limite).
 REM Sortie journalisee dans var\log\preparer.log.
 REM -d memory_limit=1G : preparer charge toute la selection v_impayes en RAM (OOM a 128 Mo par defaut).
-cd /d "C:\cheminerspplication"
+cd /d "C:\chemin\vers\application"
 echo ===== %date% %time% ===== >> var\log\preparer.log
 "C:\php\php.exe" -d memory_limit=1G bin\console app:recouvrement:preparer --limit=25 >> var\log\preparer.log 2>&1
 REM Genere le PDF complet (releve + factures) des courriers papier prepares. Sage

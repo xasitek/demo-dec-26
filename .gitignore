@@ -16,11 +16,15 @@ node_modules/
 /app/.env.example
 /app/config/secrets/prod/prod.decrypt.private.php
 
+# NOTE : assets/vendor/ EST versionne, volontairement. La plateforme refuse
+# toute sortie reseau -- y compris pendant la construction de l'image. Les deux
+# paquets front (Stimulus, Turbo) sont donc livres avec le depot : le build ne
+# telecharge rien, et l'autonomie annoncee est verifiable.
+
 # Sorties d'outils locaux
 /app/.php-cs-fixer.cache
 /app/.phpunit.cache/
 /app/phpunit.xml
 /app/public/assets/
 /app/public/bundles/
-/app/assets/vendor/
 *.log

@@ -1,0 +1,124 @@
+# Plan de deploiement de la plateforme — Render.
+#
+# CE QUE CE FICHIER FAIT. Il declare les deux services dont l'application a
+# besoin : un serveur web construit depuis `app/Dockerfile`, et une base
+# PostgreSQL. Render lit ce fichier et cree tout d'un coup ; il n'y a aucun
+# reglage a cliquer un par un, et rien a se rappeler dans six mois.
+#
+# COMMENT ON S'EN SERT. Sur Render : New > Blueprint, puis pointer ce depot.
+# Les etapes qui suivent — variables d'environnement, migrations, chargement du
+# monde synthetique — sont dans `DEPLOIEMENT.md`, et elles se font UNE fois.
+#
+# CE QU'IL NE CONTIENT PAS, ET DELIBEREMENT. Aucun identifiant. Le mot de passe
+# de la porte d'acces se pose a la main dans Render, parce que ce depot est
+# public : `sync: false` demande a Render de le reclamer sans jamais l'ecrire
+# ici.
+#
+# LE CONTEXTE DE BUILD EST `app/`. L'image ne contient donc que l'application,
+# pas les quarante megaoctets de monde synthetique : ceux-la se chargent une
+# fois en base, depuis un poste, par la connexion externe de la base. Une image
+# legere se reconstruit vite, et le monde n'a aucune raison d'y vivre.
+
+databases:
+  - name: demo-dec-26-base
+    databaseName: finance_demo
+    user: demo
+    plan: basic-256mb          # 143 Mo apres chargement complet : la marge suffit
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: demo-dec-26-app
+    runtime: docker
+    plan: starter              # voir DEPLOIEMENT.md : le plan gratuit s'endort
+    region: frankfurt          # au plus pres, et les donnees restent en Europe
+    dockerfilePath: app/Dockerfile
+    dockerContext: app
+    healthCheckPath: /acces
+    autoDeployTrigger: commit
+
+    envVars:
+      # ------------------------------------------------ l'environnement
+      # « demo » et non « prod » : les commandes de demonstration (remise a
+      # l'etat initial du dossier vedette, notamment) refusent de tourner
+      # ailleurs. Les reglages de production sont dupliques sous `when@demo`,
+      # si bien que l'environnement de demonstration est aussi serieux que la
+      # production — et identique a celui du poste de travail.
+      - key: APP_ENV
+        value: demo
+      - key: APP_DEBUG
+        value: "0"
+      - key: APP_SECRET
+        generateValue: true
+
+      # ------------------------------------------------ la base
+      - key: DATABASE_URL
+        fromDatabase:
+          name: demo-dec-26-base
+          property: connectionString
+
+      # ------------------------------------------------ la porte d'acces
+      # L'identifiant peut vivre ici ; l'empreinte du mot de passe, non. Render
+      # la reclamera a la creation du plan. Pour la fabriquer :
+      #   php -r 'echo base64_encode(password_hash("VOTRE-MOT-DE-PASSE", PASSWORD_BCRYPT));'
+      - key: DEMO_ACCES_IDENTIFIANT
+        value: jury
+      - key: DEMO_ACCES_EMPREINTE_B64
+        sync: false
+      - key: DEMO_ACCES_DUREE_MINUTES
+        value: "480"
+
+      # Compteur de visites : l'ecran /demo/visites/<clef>. Genere une fois,
+      # jamais ecrit dans le depot.
+      - key: DEMO_VISITES_CLE
+        generateValue: true
+
+      # ------------------------------------------------ ce qui reste muet
+      # Aucun courrier ne peut partir : le transport est un puits. C'est une
+      # garantie, pas une limitation — une demonstration n'ecrit a personne.
+      - key: MAILER_DSN
+        value: "null://null"
+      - key: MAILER_COPILOTE_DSN
+        value: "null://null"
+      - key: MAILER_RELANCES_DSN
+        value: "null://null"
+      - key: MAILER_FROM_EMAIL
+        value: demonstration@exemple.invalid
+      - key: MAILER_FROM_NAME
+        value: "Finance Creances - Demonstration"
+      - key: MAIL_PASSTHROUGH
+        value: "0"
+      - key: REMBOURSEMENT_FORCE_TO
+        value: demonstration@exemple.invalid
+      - key: RECOUVREMENT_FORCE_TO
+        value: demonstration@exemple.invalid
+
+      # Aucun service exterieur : ni feuille de calcul, ni modele de langue, ni
+      # boite aux lettres. La lecture des pieces est locale et deterministe.
+      - key: REMBOURSEMENT_OCR_PROVIDER
+        value: simule
+      - key: GEMINI_API_KEY
+        value: ""
+      - key: GOOGLE_CLIENT_ID
+        value: ""
+      - key: GOOGLE_CLIENT_SECRET
+        value: ""
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON
+        value: ""
+      - key: BONUS_ECO_SHEET_ID
+        value: ""
+      - key: GARANTIES_API_TOKEN
+        value: ""
+      - key: IMAP_DSN
+        value: ""
+      - key: REDIS_URL
+        value: ""
+      - key: SAGE_DATABASE_URL
+        value: ""
+
+      # Le temps reel n'est pas necessaire a la demonstration : l'inerte suffit
+      # et evite un service de plus.
+      - key: MERCURE_PUBLIC_URL
+        value: /demo/mercure
+      - key: MERCURE_JWT_SECRET
+        generateValue: true
