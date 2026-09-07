@@ -1,0 +1,26 @@
+{# La barre des cinq etats. Chaque etat dit QUI doit agir : c'est ce qui
+   distingue une file de travail d'un compteur. #}
+<div class="mb-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
+  {% for f in sommaire %}
+    <a href="{{ path(route, {etat: f.code}) }}"
+       class="rounded-xl border bg-white px-3 py-2.5 shadow-sm transition hover:shadow
+              {{ f.code == etat ? 'border-2 border-navy' : 'border-hairline hover:border-navy/40' }}">
+      <div class="text-[10px] font-semibold uppercase leading-tight tracking-wider
+                  {{ f.teinte == 'negative' ? 'text-negative'
+                   : f.teinte == 'warning' ? 'text-warning'
+                   : f.teinte == 'gold' ? 'text-gold'
+                   : f.teinte == 'positive' ? 'text-positive' : 'text-navy' }}">
+        {{ f.libelle }}
+      </div>
+      <div class="mt-0.5 flex items-baseline gap-1.5">
+        <span class="font-mono text-xl font-bold text-ink">{{ f.n|number_format(0, ',', ' ') }}</span>
+        <span class="font-mono text-[11.5px] text-ink/50">
+          {{ (f.montant / 1000000)|number_format(2, ',', ' ') }} M€
+        </span>
+      </div>
+      <div class="text-[10.5px] text-ink/40">
+        {{ etats[f.code].qui }}
+      </div>
+    </a>
+  {% endfor %}
+</div>

@@ -1,0 +1,4 @@
+{# Tranche de cartes : rendu initial et pages suivantes du scroll infini. #}
+{% for suggestion in suggestions %}
+    {% include 'suggestions/_carte.html.twig' with { suggestion: suggestion, votes_utilisateur: votes_utilisateur } only %}
+{% endfor %}

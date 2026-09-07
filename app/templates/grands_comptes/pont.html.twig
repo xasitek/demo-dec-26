@@ -1,0 +1,200 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Créances suivies par un dossier{% endblock %}
+{% block page_title %}Dossiers grands comptes{% endblock %}
+{% block topbar_nav %}{% include 'grands_comptes/_nav.html.twig' with { active: 'pont' } %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1620px]">
+
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="mb-2 flex flex-wrap items-center gap-2 text-[12.5px]">
+      <a href="{{ path('app_cockpit') }}" class="font-semibold text-ink/50 hover:text-navy">← Cockpit de l'outil 6</a>
+      <span class="text-ink/30">›</span>
+      <b>Créances bloquées par une pièce, suivies par un dossier documentaire</b>
+      <span class="ml-auto text-[11px] text-ink/45">
+        arrêté au {{ arrete|date('d/m/Y') }}
+        {%- if perimetre %} · périmètre {{ perimetre }}{% endif %} · {{ ms|number_format(0, ',', ' ') }} ms
+      </span>
+    </div>
+    <p class="max-w-4xl text-[12.5px] leading-relaxed text-ink/70">
+      L'outil 6 dit qu'une créance est bloquée par une pièce manquante. Il ne dit pas
+      <b>laquelle</b>. C'est le rôle de l'outil 7, et cette page est le pont : à gauche la créance
+      du cockpit, à droite le dossier documentaire qui la débloque, et au milieu <b>le niveau de
+      preuve du rapprochement</b>.
+    </p>
+  </section>
+
+  {# ------------------------------------------------- la part, et sa composition #}
+  <div class="mb-4 grid gap-3 lg:grid-cols-4">
+    <div class="rounded-xl border-2 border-ink/20 bg-surface px-4 py-3">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/45">
+        Créances bloquées par une pièce — outil 6
+      </div>
+      <div class="font-mono text-2xl font-bold text-ink">{{ pont.total_cause|number_format(0, ',', ' ') }}</div>
+      <div class="font-mono text-[12px] text-ink/55">{{ (pont.montant_cause / 1000000)|number_format(2, ',', ' ') }} M€</div>
+      <a href="{{ path('app_travail', {file: 'grands_comptes_bloques'}) }}"
+         class="mt-1 inline-block text-[11.5px] font-semibold text-navy hover:underline">
+        Voir la file de l'outil 6 →</a>
+    </div>
+    <div class="rounded-xl border-2 border-navy/40 bg-navy/5 px-4 py-3">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-navy">
+        Dont suivies par un dossier de l'outil 7
+      </div>
+      <div class="font-mono text-2xl font-bold text-navy">{{ pont.creances|number_format(0, ',', ' ') }}</div>
+      <div class="font-mono text-[12px] text-ink/55">{{ (pont.montant / 1000000)|number_format(2, ',', ' ') }} M€</div>
+      <div class="text-[10.5px] text-ink/45">
+        {{ pont.total_cause > 0 ? (pont.creances / pont.total_cause * 100)|number_format(1, ',', ' ') : '0,0' }} %
+        de la cause
+      </div>
+    </div>
+    <div class="rounded-xl border-2 border-positive/40 bg-positive/5 px-4 py-3">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-positive">
+        Résolues dans la session
+      </div>
+      <div class="font-mono text-2xl font-bold text-positive">{{ pont.resolus|number_format(0, ',', ' ') }}</div>
+      <div class="font-mono text-[12px] text-ink/55">{{ (pont.montant_resolu / 1000)|number_format(0, ',', ' ') }} k€</div>
+      <div class="text-[10.5px] leading-snug text-ink/45">
+        Le dossier a été validé ici. <b>Le monde arrêté n'a pas bougé</b> : les huit réconciliations
+        de l'outil 6 portent sur l'arrêté.
+      </div>
+    </div>
+    <div class="rounded-xl border border-hairline bg-white px-4 py-3">
+      <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink/45">
+        Par niveau de preuve
+      </div>
+      {% for q in pont.par_qualite %}
+        <a href="{{ path('app_gc_pont', {qualite: q.qualite}) }}"
+           class="flex items-baseline justify-between border-b border-hairline py-0.5 text-[11.5px]
+                  last:border-0 hover:bg-navy/5">
+          <span class="font-semibold {{ qualites[q.qualite].nature != 'association' ? 'text-positive' : 'text-navy' }}">
+            {{ qualites[q.qualite].libelle }}</span>
+          <span class="font-mono">{{ q.n }}</span>
+        </a>
+      {% endfor %}
+      {% if filtres.qualite|default('') %}
+        <a href="{{ path('app_gc_pont') }}" class="mt-1 block text-[11px] font-semibold text-navy hover:underline">
+          Retirer le filtre</a>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ------------------------------------------------- ce que chaque niveau affirme #}
+  <section class="mb-4 rounded-xl border border-hairline bg-surface p-4">
+    <h3 class="mb-2 text-sm font-bold uppercase tracking-wide text-ink/70">
+      Ce que chaque niveau affirme, et ce qu'il n'affirme pas
+    </h3>
+    <div class="grid gap-2 lg:grid-cols-2">
+      {% for code, q in qualites %}
+        <div class="rounded-lg border bg-white px-3 py-2
+                    {{ q.nature != 'association' ? 'border-positive/40' : 'border-navy/25' }}">
+          <div class="flex flex-wrap items-baseline gap-2">
+            <b class="text-[12.5px] {{ q.nature != 'association' ? 'text-positive' : 'text-navy' }}">{{ q.libelle }}</b>
+            <span class="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider
+                         {{ q.nature != 'association' ? 'bg-positive/15 text-positive' : 'bg-navy/10 text-navy' }}">
+              {{ q.nature }}</span>
+          </div>
+          <p class="text-[11.5px] leading-snug text-ink/65">{{ q.explication }}</p>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {# ------------------------------------------------- les lignes #}
+  <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="mb-3 flex flex-wrap items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">
+        Créance de l'outil 6 → dossier de l'outil 7
+      </h3>
+      <div class="ml-auto flex flex-wrap gap-1.5 text-[11.5px]">
+        {% for code, libelle in {'': 'toutes', 'non': 'encore bloquées', 'oui': 'résolues dans la session'} %}
+          <a href="{{ path('app_gc_pont', (filtres|merge({resolus: code}))|filter(v => v != '')) }}"
+             class="rounded-full border px-2.5 py-0.5 font-semibold transition
+                    {{ (filtres.resolus|default('')) == code
+                       ? 'border-navy bg-navy text-white' : 'border-hairline text-navy hover:bg-navy/5' }}">
+            {{ libelle }}</a>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if lignes is empty %}
+      <p class="rounded-lg border border-hairline bg-surface px-3 py-6 text-center text-[12.5px] text-ink/50">
+        Aucun lien sur ce filtre.
+      </p>
+    {% else %}
+      <div class="overflow-x-auto">
+        <table class="fc-table-comptable w-full">
+          <thead><tr>
+            <th>Créance — outil 6</th><th>Payeur</th><th>Site</th>
+            <th class="text-right">Montant bloqué</th><th>Échéance</th>
+            <th>Niveau de preuve</th>
+            <th>Dossier — outil 7</th><th>Véhicule</th>
+            <th class="text-center">Pièces</th><th>Verdict</th><th class="text-right">Ouvrir</th>
+          </tr></thead>
+          <tbody>
+            {% for l in lignes %}
+              <tr class="{{ l.resolu_session ? 'bg-positive/5' : (l.manquantes > 0 ? 'bg-warning/5' : '') }}">
+                <td class="font-mono text-[11.5px] font-semibold">{{ l.facture_id }}</td>
+                <td class="text-[12px]">{{ l.client_nom ?: l.client_id }}
+                  <span class="ml-1 font-mono text-[10px] text-ink/40">{{ l.client_id }}</span></td>
+                <td class="text-[11.5px] text-ink/60">{{ l.etablissement_nom ?: l.etablissement_id }}</td>
+                <td class="text-right font-mono text-[12px] font-semibold">{{ l.montant_creance|number_format(2, ',', ' ') }} €</td>
+                <td class="text-[11.5px] text-ink/60">{{ l.echeance ? l.echeance|date('d/m/Y') : '—' }}</td>
+                <td>
+                  <span title="{{ qualites[l.qualite].explication }}"
+                        class="rounded px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wider
+                               {{ qualites[l.qualite].nature != 'association'
+                                  ? 'bg-positive/15 text-positive' : 'bg-navy/10 text-navy' }}">
+                    {{ qualites[l.qualite].nature }}
+                  </span>
+                  <span class="mt-0.5 block text-[10.5px] leading-snug text-ink/50">{{ qualites[l.qualite].libelle }}</span>
+                </td>
+                <td class="font-mono text-[11.5px] font-semibold">{{ l.dossier_id }}</td>
+                <td class="text-[11.5px]">
+                  <b>{{ l.immatriculation }}</b>
+                  <span class="ml-1 text-[10.5px] text-ink/50">{{ l.energie }}</span>
+                </td>
+                <td class="text-center font-mono text-[12px]">
+                  {% if l.manquantes > 0 %}
+                    <b class="text-warning">{{ l.manquantes }}</b>
+                    <span class="block text-[10px] text-ink/45">manquante{{ l.manquantes > 1 ? 's' }}</span>
+                  {% else %}
+                    <span class="text-positive">complet</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if l.resolu_session %}
+                    <span class="rounded bg-positive/15 px-1.5 py-0.5 text-[10.5px] font-bold text-positive">
+                      résolue dans la session</span>
+                    <span class="mt-0.5 block text-[10px] text-ink/45">le {{ l.resolu_le|date('d/m/Y à H\\hi') }}</span>
+                  {% elseif l.verdict %}
+                    <span class="rounded px-1.5 py-0.5 text-[10.5px] font-semibold
+                                 {{ verdicts[l.verdict].teinte == 'negative' ? 'bg-negative/10 text-negative'
+                                  : verdicts[l.verdict].teinte == 'warning' ? 'bg-warning/15 text-warning'
+                                  : 'bg-positive/10 text-positive' }}">{{ verdicts[l.verdict].libelle }}</span>
+                  {% else %}
+                    <span class="text-[11px] text-ink/40">—</span>
+                  {% endif %}
+                </td>
+                <td class="text-right">
+                  <a href="{{ path('app_gc_controle_dossier', {id: l.dossier_id}) }}"
+                     class="whitespace-nowrap rounded-md border border-navy/40 px-2.5 py-1 text-[11.5px]
+                            font-semibold text-navy transition hover:bg-navy/5">Le dossier →</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="mt-2 text-[11px] leading-relaxed text-ink/45">
+        La colonne « niveau de preuve » n'est pas décorative. Deux niveaux sont des
+        <b>identités portées par le monde</b> — même facture, même véhicule et même site. Les deux
+        autres sont des <b>appariements de démonstration</b> : même payeur, même site ou même
+        société, sur un dossier lui-même incomplet. Cohérents, pas prouvés — et l'écran le dit
+        plutôt que de les confondre.
+      </p>
+    {% endif %}
+  </section>
+
+</div>
+{% endblock %}

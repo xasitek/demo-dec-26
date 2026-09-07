@@ -1,0 +1,63 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Factures sans PDF - Recouvrement - Finance Créances{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+{% block topbar_nav %}{% include 'recouvrement/_topbar_nav.html.twig' with {active: 'factures-pdf'} %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full px-3"
+     data-controller="factures-sans-pdf"
+     data-factures-sans-pdf-upload-url-value="{{ path('app_recouvrement_facture_upload') }}"
+     data-factures-sans-pdf-fragment-url-value="{{ path('app_recouvrement_factures_sans_pdf', {fragment: 1}) }}"
+     data-factures-sans-pdf-csrf-value="{{ csrf_token('facture-upload') }}"
+     data-action="recouvrement:facture-sans-pdf@document->factures-sans-pdf#onRealtime">
+
+    <h1 class="mb-1 text-2xl font-bold text-navy">Factures sans PDF</h1>
+    <p class="mb-5 max-w-3xl text-sm text-ink/60">
+        Factures échues dont le PDF n'est pas disponible dans Progiciel. Téléversez le PDF manquant&nbsp;:
+        la ligne disparaît et le PDF sera automatiquement joint aux relances. Une nouvelle facture sans
+        PDF apparaît ici dès qu'elle arrive.
+    </p>
+
+    <form method="get" action="{{ path('app_recouvrement_factures_sans_pdf') }}" class="mb-4 flex flex-wrap items-end gap-3">
+        <div>
+            <label class="mb-1 block text-xs font-medium text-ink/60">Recherche</label>
+            <input type="search" name="q" value="{{ q }}" placeholder="Compte, société, n° pièce"
+                   class="w-64 rounded-md border border-hairline px-3 py-1.5 text-sm focus:border-navy focus:outline-none">
+        </div>
+        <button type="submit" class="rounded-md bg-navy px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-navy-light">Filtrer</button>
+        {% if q %}<a href="{{ path('app_recouvrement_factures_sans_pdf') }}" class="text-sm text-ink/55 hover:text-navy">Réinitialiser</a>{% endif %}
+    </form>
+
+    <p class="mb-3 text-sm text-ink/60"><span class="font-semibold text-navy" data-factures-sans-pdf-target="compteur">{{ total }}</span> facture(s) sans PDF</p>
+
+    <div data-factures-sans-pdf-target="tableau"{% if factures is empty %} style="display:none"{% endif %}
+         class="overflow-x-auto rounded-lg border border-hairline">
+        <table class="w-full border-collapse text-sm">
+            <thead>
+                <tr class="bg-navy text-left text-xs uppercase tracking-wide text-white">
+                    <th class="px-3 py-2 font-semibold">Journal</th>
+                    <th class="px-3 py-2 font-semibold">N° pièce</th>
+                    <th class="px-3 py-2 font-semibold">Compte / Société</th>
+                    <th class="px-3 py-2 font-semibold">Échéance</th>
+                    <th class="px-3 py-2 font-semibold">Retard</th>
+                    <th class="px-3 py-2 text-right font-semibold">Montant TTC</th>
+                    <th class="px-3 py-2 font-semibold">PDF</th>
+                </tr>
+            </thead>
+            <tbody data-factures-sans-pdf-target="items">
+                {% include 'recouvrement/factures_sans_pdf/_lignes.html.twig' %}
+            </tbody>
+        </table>
+    </div>
+
+    <div data-factures-sans-pdf-target="vide"{% if factures is not empty %} style="display:none"{% endif %}
+         class="flex flex-col items-center justify-center rounded-lg border border-dashed border-hairline bg-surface/50 py-16 text-center">
+        <span class="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-navy/5 text-navy/45">
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>
+        </span>
+        <h3 class="text-base font-semibold text-navy">Toutes les factures ont leur PDF</h3>
+        <p class="mt-1 text-sm text-ink/55">Aucune facture relançable sans PDF. Rien à téléverser pour le moment.</p>
+    </div>
+</div>
+{% endblock %}

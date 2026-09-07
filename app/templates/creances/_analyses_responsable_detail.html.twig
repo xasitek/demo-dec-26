@@ -1,0 +1,159 @@
+{# Panneau lateral : detail d'un responsable (vendeur / secretaire / etablissement).
+   Affiche synthese KPI, etablissements, top 10 comptes, top 20 creances. #}
+
+{% set axe_libelle = {
+    'vendeur': 'Vendeur',
+    'secretaire': 'Secretariat',
+    'etablissement': 'Etablissement'
+}[detail.axe]|default(detail.axe) %}
+
+{% set tranche_classes = {
+    '<30':  'bg-sky-50 text-sky-700 ring-sky-200',
+    '>30':  'bg-amber-50 text-amber-700 ring-amber-200',
+    '>60':  'bg-orange-50 text-orange-700 ring-orange-200',
+    '>90':  'bg-red-50 text-red-700 ring-red-200',
+    '>120': 'bg-rose-100 text-rose-700 ring-rose-200',
+    '>180': 'bg-rose-200 text-rose-900 ring-rose-300',
+    '>240': 'bg-rose-300 text-rose-950 ring-rose-400'
+} %}
+
+{% set txt_taux = detail.synthese.taux_echu > 50 ? 'text-rose-600' : (detail.synthese.taux_echu > 25 ? 'text-amber-600' : 'text-emerald-600') %}
+
+<div class="space-y-5">
+    {# Entete : axe + nom #}
+    <div>
+        <p class="font-mono text-[0.62rem] uppercase tracking-[0.12em] text-ink/45">{{ axe_libelle }}</p>
+        <h3 class="mt-1 text-[1.25rem] font-semibold leading-tight text-navy">{{ detail.cle }}</h3>
+    </div>
+
+    {# KPI synthese — 4 cellules sur une ligne avec divide-x #}
+    <div class="flex divide-x divide-hairline border-y border-hairline">
+        <div class="flex-1 py-3 pr-4">
+            <p class="text-[0.62rem] uppercase tracking-[0.1em] text-ink/45">Encours</p>
+            <p class="mt-1 font-mono text-[1.05rem] font-semibold tabular-nums text-navy">{{ detail.synthese.encours|number_format(0, ',', ' ') }}<span class="ml-1 text-[0.65rem] font-normal text-ink/35">EUR</span></p>
+            <p class="mt-0.5 text-[0.65rem] text-ink/50">{{ detail.synthese.nb_creances }} creance{{ detail.synthese.nb_creances > 1 ? 's' : '' }}</p>
+        </div>
+        <div class="flex-1 px-4 py-3">
+            <p class="text-[0.62rem] uppercase tracking-[0.1em] text-ink/45">Echu</p>
+            <p class="mt-1 font-mono text-[1.05rem] font-semibold tabular-nums {{ txt_taux }}">{{ detail.synthese.encours_echu|number_format(0, ',', ' ') }}<span class="ml-1 text-[0.65rem] font-normal text-ink/35">EUR</span></p>
+            <p class="mt-0.5 text-[0.65rem] {{ txt_taux }}">{{ detail.synthese.taux_echu|number_format(0) }}% du total</p>
+        </div>
+        <div class="flex-1 px-4 py-3">
+            <p class="text-[0.62rem] uppercase tracking-[0.1em] text-ink/45">Clients</p>
+            <p class="mt-1 font-mono text-[1.05rem] font-semibold tabular-nums text-navy">{{ detail.synthese.nb_comptes }}</p>
+            <p class="mt-0.5 text-[0.65rem] text-ink/50">comptes attribues</p>
+        </div>
+        <div class="flex-1 pl-4 py-3">
+            <p class="text-[0.62rem] uppercase tracking-[0.1em] text-ink/45">Anciennete</p>
+            <p class="mt-1 font-mono text-[1.05rem] font-semibold tabular-nums text-navy">{{ detail.synthese.anciennete_moyenne_jours|number_format(0) }}<span class="ml-1 text-[0.65rem] font-normal text-ink/35">j</span></p>
+            <p class="mt-0.5 text-[0.65rem] text-ink/50">moyenne ponderee</p>
+        </div>
+    </div>
+
+    {# Etablissements #}
+    {% if detail.etablissements|length > 0 %}
+        <div class="text-[0.78rem]">
+            <span class="text-[0.62rem] uppercase tracking-[0.1em] text-ink/45">Sites</span>
+            <div class="mt-1 flex flex-wrap gap-1">
+                {% for e in detail.etablissements %}
+                    <span class="inline-flex items-center rounded-md border border-hairline bg-surface px-2 py-0.5 font-mono text-[0.7rem] text-ink/70">{{ e }}</span>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    {# Top comptes #}
+    {% if detail.top_comptes|length > 0 %}
+        <div>
+            <p class="mb-2 text-[0.62rem] font-medium uppercase tracking-[0.12em] text-ink/45">Clients les plus en difficulte ({{ detail.top_comptes|length }})</p>
+            <div class="overflow-hidden rounded-md border border-hairline">
+                <table class="w-full text-[0.78rem]">
+                    <thead class="bg-surface text-[0.62rem] uppercase tracking-[0.1em] text-ink/55">
+                        <tr>
+                            <th class="px-3 py-1.5 text-left">Compte</th>
+                            <th class="px-3 py-1.5 text-left">Client</th>
+                            <th class="px-3 py-1.5 text-right">Echu</th>
+                            <th class="px-3 py-1.5 text-center">Pire</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-hairline">
+                        {% for c in detail.top_comptes %}
+                            <tr class="hover:bg-surface/40">
+                                <td class="px-3 py-1.5 font-mono text-[0.72rem] tabular-nums text-ink/65">
+                                    <a href="{{ path('app_creances_fiche', { code: c.compte }) }}" class="hover:underline">{{ c.compte }}</a>
+                                </td>
+                                <td class="px-3 py-1.5 font-medium text-navy">{{ c.nom ?: '—' }}</td>
+                                <td class="px-3 py-1.5 text-right font-mono tabular-nums {{ c.encours_echu > 0 ? 'text-rose-600' : 'text-ink/40' }}">{{ c.encours_echu|number_format(0, ',', ' ') }}</td>
+                                <td class="px-3 py-1.5 text-center">
+                                    {% if c.pire_tranche %}
+                                        <span class="inline-flex items-center rounded-full px-1.5 py-0 text-[0.6rem] font-medium ring-1 ring-inset {{ tranche_classes[c.pire_tranche]|default('bg-surface text-ink/60 ring-hairline') }}">{{ c.pire_tranche }}</span>
+                                    {% else %}
+                                        <span class="text-ink/40">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+
+    {# Top creances #}
+    {% if detail.top_creances|length > 0 %}
+        <div>
+            <p class="mb-2 text-[0.62rem] font-medium uppercase tracking-[0.12em] text-ink/45">Creances les plus critiques ({{ detail.top_creances|length }})</p>
+            <div class="overflow-hidden rounded-md border border-hairline">
+                <table class="w-full text-[0.78rem]">
+                    <thead class="bg-surface text-[0.62rem] uppercase tracking-[0.1em] text-ink/55">
+                        <tr>
+                            <th class="px-3 py-1.5 text-left">Piece</th>
+                            <th class="px-3 py-1.5 text-left">Client</th>
+                            <th class="px-3 py-1.5 text-left">Vehicule</th>
+                            <th class="px-3 py-1.5 text-right">Montant</th>
+                            <th class="px-3 py-1.5 text-center">Anc.</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-hairline">
+                        {% for cr in detail.top_creances %}
+                            <tr class="hover:bg-surface/40">
+                                <td class="px-3 py-1.5">
+                                    <p class="font-mono text-[0.72rem] tabular-nums text-ink/70">{{ cr.numpiece ?: '—' }}</p>
+                                    {% if cr.dateecriture %}<p class="text-[0.65rem] text-ink/50">{{ cr.dateecriture|slice(0, 10)|replace({'-': '/'}) }}</p>{% endif %}
+                                </td>
+                                <td class="px-3 py-1.5">
+                                    <a href="{{ path('app_creances_fiche', { code: cr.compte }) }}" class="text-navy hover:underline">{{ cr.nom ?: cr.compte }}</a>
+                                </td>
+                                <td class="px-3 py-1.5 text-[0.72rem] text-ink/65">
+                                    {% if cr.marque or cr.numimmat %}
+                                        <p>{{ cr.marque }}</p>
+                                        <p class="font-mono text-[0.65rem] text-ink/50">{{ cr.numimmat }}</p>
+                                    {% else %}—{% endif %}
+                                </td>
+                                <td class="px-3 py-1.5 text-right font-mono font-semibold tabular-nums text-navy">{{ cr.montant|number_format(0, ',', ' ') }}</td>
+                                <td class="px-3 py-1.5 text-center">
+                                    {% if cr.tranche %}
+                                        <span class="inline-flex items-center rounded-full px-1.5 py-0 text-[0.6rem] font-medium ring-1 ring-inset {{ tranche_classes[cr.tranche]|default('bg-surface text-ink/60 ring-hairline') }}">{{ cr.tranche == '0' ? 'OK' : cr.tranche }}</span>
+                                    {% else %}—{% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+
+    {# Lien drilldown vers la liste filtree (selon l'axe) #}
+    {% set _drilldown = null %}
+    {% if detail.axe == 'vendeur' %}{% set _drilldown = path('app_creances_index', { 'vendeur[]': detail.cle }) %}{% endif %}
+    {% if detail.axe == 'etablissement' %}{% set _drilldown = path('app_creances_index', { 'etablissement[]': detail.cle }) %}{% endif %}
+    {% if _drilldown %}
+        <div class="border-t border-hairline pt-4">
+            <a href="{{ _drilldown }}" class="inline-flex items-center gap-1.5 text-[0.82rem] font-medium text-navy underline-offset-4 hover:underline">
+                Voir toutes les creances de {{ detail.cle }}
+                <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </a>
+        </div>
+    {% endif %}
+</div>

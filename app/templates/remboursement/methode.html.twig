@@ -1,0 +1,115 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Contrôles et renforcements{% endblock %}
+{% block page_title %}Remboursement — méthode{% endblock %}
+{% block topbar_nav %}{% include 'remboursement/_nav.html.twig' with { active: 'methode', nbAVerifier: nbAVerifier } %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1500px]">
+
+  {# ------------------------------------------------- ce que la page sert à dire #}
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">Deux ensembles, et on ne les additionne pas</h3>
+    <p class="mt-1.5 max-w-4xl text-[12.5px] leading-relaxed text-ink/70">
+      Un dossier de remboursement traverse des contrôles qui viennent du circuit de production, et
+      d'autres qui ont été ajoutés dans cette copie de démonstration. Les deux ensembles ne se
+      confondent pas. Présenter un renforcement comme une fonctionnalité historique serait faux, et
+      un jury a le droit de savoir qui a écrit quoi.
+    </p>
+  </section>
+
+  {# ------------------------------------------------------------- socle hérité #}
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="flex flex-wrap items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">Socle hérité du circuit de production</h3>
+      <span class="ml-auto rounded-full bg-navy/10 px-2 py-0.5 text-[11px] font-bold text-navy">{{ herites.total }} contrôles</span>
+    </div>
+    <p class="mt-1.5 max-w-4xl text-[12px] leading-relaxed text-ink/65">
+      Un contrôle est une condition évaluée sur une donnée, qui change le sort du dossier : elle le
+      bloque, elle alerte quelqu'un, ou elle l'informe. Deux conditions distinctes font deux
+      contrôles ; la même condition écrite à deux endroits n'en fait qu'un. Le décompte a été
+      recompté sur le code, et chaque ligne du registre porte son fichier et son fragment.
+    </p>
+    <div class="mt-3 grid gap-2 sm:grid-cols-3">
+      <div class="rounded-lg border border-hairline bg-surface/50 px-3 py-2">
+        <div class="text-xl font-bold text-navy">{{ herites.bloquant }}</div>
+        <div class="text-[11.5px] text-ink/70">bloquants — le dossier n'avance pas</div>
+      </div>
+      <div class="rounded-lg border border-hairline bg-surface/50 px-3 py-2">
+        <div class="text-xl font-bold text-navy">{{ herites.alerte }}</div>
+        <div class="text-[11.5px] text-ink/70">alertes — une personne tranche</div>
+      </div>
+      <div class="rounded-lg border border-hairline bg-surface/50 px-3 py-2">
+        <div class="text-xl font-bold text-navy">{{ herites.informatif }}</div>
+        <div class="text-[11.5px] text-ink/70">informatifs — portés à l'écran</div>
+      </div>
+    </div>
+    <p class="mt-2 rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-[12px] leading-relaxed text-ink/80">
+      <b>Ce qui ne se dit pas.</b> Les trois natures ne s'additionnent pas sous le mot
+      « bloquant » : annoncer cinquante-quatre contrôles bloquants serait faux, puisque quatorze
+      alertent et six informent.
+    </p>
+  </section>
+
+  {# --------------------------------------------------------- les renforcements #}
+  <section class="mb-4 rounded-xl border border-gold/50 bg-gold/[0.04] p-4 shadow-sm">
+    <div class="flex flex-wrap items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">Renforcements ajoutés dans la copie de démonstration</h3>
+      <span class="ml-auto rounded-full bg-gold/25 px-2 py-0.5 text-[11px] font-bold text-ink/80">{{ renforcements|length }} renforcements</span>
+    </div>
+    <p class="mt-1.5 max-w-4xl text-[12px] leading-relaxed text-ink/70">
+      Ceux-là <b>n'existent pas dans le module de production</b>. Ils ont été ajoutés ici, et ils se
+      comptent à part des {{ herites.total }} contrôles hérités.
+    </p>
+
+    <div class="mt-3 overflow-x-auto">
+      <table class="w-full min-w-[820px] text-left text-[12px]">
+        <thead class="border-b border-hairline text-[11px] uppercase tracking-wide text-ink/55">
+          <tr>
+            <th class="px-3 py-2">Code</th>
+            <th class="px-3 py-2">Ce qu'il vérifie</th>
+            <th class="px-3 py-2">Quand</th>
+            <th class="px-3 py-2">Ce qu'il fait</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for code, r in renforcements %}
+            <tr class="border-t border-hairline/70">
+              <td class="px-3 py-2 font-mono text-xs font-bold text-navy">{{ code }}</td>
+              <td class="px-3 py-2 text-ink/80">{{ r.donnee }}</td>
+              <td class="px-3 py-2 text-ink/65">{{ r.moment }}</td>
+              <td class="px-3 py-2 text-ink/70">{{ r.resultat }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# -------------------------------------------------- R04, et son histoire #}
+    <div class="mt-3 rounded-lg border border-hairline bg-white px-3 py-2.5">
+      <h4 class="text-[12.5px] font-bold text-navy">R04 — la clé de contrôle de l'IBAN</h4>
+      <p class="mt-1 max-w-4xl text-[12px] leading-relaxed text-ink/75">
+        L'analyse du circuit a également permis d'identifier qu'un IBAN structurellement recevable
+        pouvait conserver une clé de contrôle erronée. Un contrôle MOD 97 a donc été ajouté dans la
+        copie de démonstration comme renforcement proposé.
+      </p>
+      <p class="mt-1.5 max-w-4xl text-[12px] leading-relaxed text-ink/65">
+        Il travaille à deux endroits : à l'entrée, où un IBAN dont la clé est fausse ne fait pas
+        progresser le dossier, et devant la génération du paiement, en dernier ressort, pour les
+        dossiers qui n'ont jamais franchi le premier étage. Il ne remplace pas les contrôles de
+        structure hérités : ceux-là restent en place.
+      </p>
+    </div>
+
+    <p class="mt-2 rounded-lg border border-hairline bg-white px-3 py-2 text-[12px] leading-relaxed text-ink/70">
+      <b>Les limites, dites franchement.</b> L'idempotence forte porte sur le circuit applicatif
+      normal de génération via la file de messages : elle ne protège pas un appel technique direct au
+      service qui contournerait le bus. La chaîne d'intégrité protège une exploitation, pas une
+      machine à remonter le temps. Et la lecture des pièces est une lecture locale déterministe de
+      documents synthétiques, dans un environnement hors réseau : ni océrisation, ni appel à un
+      modèle.
+    </p>
+  </section>
+
+</div>
+{% endblock %}

@@ -1,0 +1,338 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ id }} — contrôle{% endblock %}
+{% block page_title %}Dossiers grands comptes{% endblock %}
+{% block topbar_nav %}{% include 'grands_comptes/_nav.html.twig' with { active: 'controle' } %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1720px]">
+
+  {# ------------------------------------------------------ l'entete du dossier #}
+  <section class="mb-3 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="mb-2 flex flex-wrap items-center gap-2 text-[12.5px]">
+      <a href="{{ path('app_gc_controle') }}" class="font-semibold text-ink/50 hover:text-navy">← À vérifier</a>
+      <span class="text-ink/30">›</span>
+      <span class="rounded bg-navy/5 px-2 py-0.5 font-mono text-[11.5px] font-semibold text-navy">{{ id }}</span>
+      {% set v = verdicts[analyse.verdict] %}
+      <span class="rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider
+                   {{ v.teinte == 'negative' ? 'bg-negative/10 text-negative'
+                    : v.teinte == 'warning' ? 'bg-warning/15 text-warning' : 'bg-positive/10 text-positive' }}">
+        {{ v.libelle }}
+        {%- if analyse.anomalies|length > 0 %} — {{ analyse.anomalies|length }} anomalie{{ analyse.anomalies|length > 1 ? 's' }}{% endif %}
+      </span>
+      <span class="ml-auto text-[11px] text-ink/45">
+        contrôlé en {{ analyse.duree_ms|number_format(2, ',', ' ') }} ms · écran en {{ ms|number_format(0, ',', ' ') }} ms
+      </span>
+    </div>
+
+    <div class="flex flex-wrap items-start gap-5">
+      <div class="min-w-[13rem]">
+        <h3 class="text-lg font-bold text-navy">{{ dossier.immatriculation }}</h3>
+        <p class="text-[11.5px] text-ink/55">{{ dossier.modele }} · {{ dossier.energie }}<br>
+          VIN <span class="font-mono">{{ dossier.vin }}</span></p>
+      </div>
+      <div class="min-w-[13rem]">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Loueur et sa grille</div>
+        <div class="text-[13px] font-semibold">{{ dossier.loueur_nom }}</div>
+        <div class="text-[11px] leading-snug text-ink/55">
+          {{ analyse.pieces_attendues }} pièces exigées ·
+          {{ dossier.exige_tampon ? 'tampon exigé' : 'tampon non exigé' }} ·
+          tolérance {{ dossier.tolerance_centimes }} centime{{ dossier.tolerance_centimes > 1 ? 's' }}
+        </div>
+      </div>
+      <div class="min-w-[10rem]">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Facture</div>
+        <div class="font-mono text-[12.5px]">{{ dossier.numero_facture }}</div>
+        <div class="font-mono text-[14px] font-bold">{{ dossier.montant_facture|number_format(2, ',', ' ') }} €</div>
+      </div>
+      <div class="min-w-[9rem]">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Site et date</div>
+        <div class="text-[12.5px] font-semibold">{{ dossier.etablissement_nom ?: dossier.etablissement_id }}</div>
+        <div class="text-[11.5px] text-ink/55">livré le {{ dossier.date_livraison|date('d/m/Y') }}</div>
+      </div>
+      <div class="min-w-[16rem] flex-1 rounded-lg border px-3 py-2
+                  {{ v.teinte == 'negative' ? 'border-negative/40 bg-negative/5'
+                   : v.teinte == 'warning' ? 'border-warning/40 bg-warning/5' : 'border-positive/40 bg-positive/5' }}">
+        <div class="text-[11px] font-bold uppercase tracking-wider
+                    {{ v.teinte == 'negative' ? 'text-negative' : v.teinte == 'warning' ? 'text-warning' : 'text-positive' }}">
+          Ce que le contrôle conclut
+        </div>
+        <p class="text-[11.5px] leading-relaxed text-ink/75">{{ v.definition }}</p>
+        <p class="mt-1 text-[11.5px] font-semibold leading-relaxed text-ink/80">{{ v.suite }}</p>
+      </div>
+    </div>
+
+    {% for message in app.flashes('erreur') %}
+      <p class="mt-2 rounded-lg border border-negative/40 bg-negative/5 px-3 py-2 text-[12.5px] font-semibold text-negative">{{ message }}</p>
+    {% endfor %}
+    {% for message in app.flashes('fait') %}
+      <p class="mt-2 rounded-lg border border-positive/40 bg-positive/5 px-3 py-2 text-[12.5px] font-semibold text-positive">{{ message }}</p>
+    {% endfor %}
+  </section>
+
+  {% include 'grands_comptes/_creance_liee.html.twig' %}
+
+  {# ============================================ les deux volets : pièces | document #}
+  <div class="mb-3 grid gap-3 xl:grid-cols-[1fr_1fr]">
+
+    {# ------------------------------------------------- volet gauche : les pièces #}
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <div class="mb-3 flex flex-wrap items-baseline gap-2">
+        <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">Pièce par pièce</h3>
+        <span class="ml-auto text-[11px] text-ink/45">
+          {{ analyse.pieces_presentes }} présente(s) sur {{ pieces|length }} attendue(s)
+        </span>
+      </div>
+
+      <div class="space-y-2">
+        {% for p in pieces %}
+          {% set ex = exigences[p.exigence] %}
+          {% set anos = anomalies_par_piece[p.type_piece]|default([]) %}
+          <div class="rounded-xl border
+                      {{ anos|length > 0 ? 'border-negative/40 bg-negative/[0.03]'
+                       : (not p.presente and ex.bloquant) ? 'border-warning/50 bg-warning/5'
+                       : 'border-hairline' }}">
+            <div class="flex flex-wrap items-center gap-2 px-3 py-2">
+              <b class="text-[12.5px]">{{ p.type_libelle }}</b>
+              <span class="rounded bg-ink/5 px-1.5 font-mono text-[10px] text-ink/55">{{ p.type_piece }}</span>
+              <span class="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider
+                           {{ ex.bloquant ? 'bg-navy/10 text-navy' : 'bg-ink/5 text-ink/50' }}">{{ ex.libelle }}</span>
+              {% if anos|length > 0 %}
+                <span class="rounded bg-negative/10 px-1.5 py-0.5 text-[10px] font-bold text-negative">
+                  {{ anos|length }} / {{ anos|length }} anomalie{{ anos|length > 1 ? 's' }} retenue{{ anos|length > 1 ? 's' }}
+                </span>
+              {% elseif not p.presente %}
+                <span class="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-bold text-warning">absente</span>
+              {% elseif not p.lisible %}
+                <span class="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-bold text-warning">illisible</span>
+              {% else %}
+                <span class="rounded bg-positive/10 px-1.5 py-0.5 text-[10px] font-bold text-positive">conforme</span>
+              {% endif %}
+              {% if p.presente %}
+                <a href="{{ path('app_gc_controle_dossier', {id: id, piece: p.id}) }}"
+                   class="ml-auto whitespace-nowrap text-[11.5px] font-semibold text-navy hover:underline">
+                  Voir le document →</a>
+              {% endif %}
+            </div>
+
+            {# --------------- le triptyque : déclaré / lu / retenu #}
+            {% if p.presente and (p.numero_declare or p.montant_declare or p.date_declaree) %}
+              <div class="border-t border-hairline px-3 py-2">
+                <div class="mb-1 text-[10px] font-bold uppercase tracking-wider text-ink/45">
+                  Déclaré au dépôt · lu sur la pièce · valeur retenue
+                </div>
+                <table class="fc-table-comptable w-full">
+                  <thead><tr><th>Champ</th><th>Déclaré</th><th>Lu sur la pièce</th><th>Retenu</th></tr></thead>
+                  <tbody>
+                    {% set trip = [
+                      {'quoi': 'Numéro', 'd': p.numero_declare, 'l': p.numero_lu},
+                      {'quoi': 'Montant', 'd': p.montant_declare, 'l': p.montant_lu},
+                      {'quoi': 'Date', 'd': p.date_declaree, 'l': p.date_lue}
+                    ] %}
+                    {% for t in trip %}
+                      {% if t.d is not null or t.l is not null %}
+                        {% set concorde = t.d is not null and t.l is not null and t.d == t.l %}
+                        <tr>
+                          <td class="text-[11.5px] text-ink/60">{{ t.quoi }}</td>
+                          <td class="font-mono text-[11.5px]">
+                            {{ t.quoi == 'Montant' and t.d is not null ? t.d|number_format(2, ',', ' ') ~ ' €'
+                             : (t.quoi == 'Date' and t.d ? t.d|date('d/m/Y') : (t.d ?: '—')) }}</td>
+                          <td class="font-mono text-[11.5px] {{ concorde ? '' : 'font-bold text-negative' }}">
+                            {{ t.quoi == 'Montant' and t.l is not null ? t.l|number_format(2, ',', ' ') ~ ' €'
+                             : (t.quoi == 'Date' and t.l ? t.l|date('d/m/Y') : (t.l ?: 'illisible')) }}</td>
+                          <td class="font-mono text-[11.5px] font-semibold">
+                            {{ t.quoi == 'Montant' and t.l is not null ? t.l|number_format(2, ',', ' ') ~ ' €'
+                             : (t.quoi == 'Date' and t.l ? t.l|date('d/m/Y') : (t.l ?: '—')) }}</td>
+                        </tr>
+                      {% endif %}
+                    {% endfor %}
+                  </tbody>
+                </table>
+                <p class="mt-1 text-[10.5px] leading-snug text-ink/45">
+                  La valeur retenue est celle <b>lue sur la pièce</b>, jamais la valeur déclarée :
+                  une saisie ne fait pas preuve contre un document.
+                </p>
+              </div>
+            {% endif %}
+
+            {# --------------- les anomalies : attendu / trouvé / règle #}
+            {% for a in anos %}
+              <div class="border-t border-negative/25 bg-negative/[0.04] px-3 py-2">
+                <div class="flex flex-wrap items-baseline gap-2">
+                  <span class="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider
+                               {{ a.gravite == 'bloquante' ? 'bg-negative text-white'
+                                : a.gravite == 'majeure' ? 'bg-warning text-white' : 'bg-ink/20 text-ink/70' }}">
+                    {{ a.gravite }}
+                  </span>
+                  <b class="text-[12.5px] text-negative">{{ a.libelle }}</b>
+                  <span class="rounded bg-white px-1.5 font-mono text-[10px] text-ink/50">{{ a.code }}</span>
+                </div>
+                <table class="fc-table-comptable mt-1 w-full">
+                  <tbody>
+                    <tr>
+                      <td class="w-[7rem] text-[11px] text-ink/55">Attendu</td>
+                      <td class="font-mono text-[11.5px]">{{ a.attendu ?: '—' }}</td>
+                    </tr>
+                    <tr>
+                      <td class="text-[11px] text-ink/55">Trouvé</td>
+                      <td class="font-mono text-[11.5px] font-bold text-negative">{{ a.trouve ?: '—' }}</td>
+                    </tr>
+                    <tr>
+                      <td class="text-[11px] text-ink/55">Pourquoi</td>
+                      <td class="text-[11.5px] leading-snug text-ink/75">{{ a.motif }}</td>
+                    </tr>
+                    <tr>
+                      <td class="text-[11px] text-ink/55">Correction</td>
+                      <td class="text-[11.5px] leading-snug">
+                        <b>{{ suites[a.suite].libelle }}</b> —
+                        <span class="text-ink/70">{{ suites[a.suite].explication }}</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            {% endfor %}
+
+            {% if not p.presente %}
+              <div class="border-t border-hairline px-3 py-2 text-[11.5px] leading-relaxed text-ink/65">
+                {{ ex.bloquant
+                   ? 'Pièce exigée par la grille de ce loueur et absente du dossier : le contrôle ne peut pas conclure sur elle.'
+                   : 'Pièce non bloquante chez ce loueur : son absence ne produit aucune anomalie.' }}
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    {# ------------------------------------------------- volet droit : le document #}
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <div class="mb-2 flex flex-wrap items-center gap-2">
+        <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">La pièce</h3>
+        <div class="ml-auto flex flex-wrap gap-1">
+          {% for p in pieces %}
+            {% if p.presente %}
+              <a href="{{ path('app_gc_controle_dossier', {id: id, piece: p.id}) }}"
+                 class="rounded-md border px-2 py-1 font-mono text-[11px] font-semibold transition
+                        {{ p.id == piece_ouverte ? 'border-navy bg-navy text-white'
+                         : 'border-hairline text-navy hover:bg-navy/5' }}">{{ p.type_piece }}</a>
+            {% else %}
+              <span class="rounded-md border border-dashed border-ink/25 px-2 py-1 font-mono text-[11px] text-ink/35"
+                    title="pièce absente du dossier">{{ p.type_piece }}</span>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      {% if piece_ouverte %}
+        <iframe src="{{ path('app_gc_piece', {id: piece_ouverte}) }}" title="Document de la pièce"
+                class="h-[820px] w-full rounded-lg border border-hairline bg-surface"></iframe>
+        <p class="mt-1.5 text-[11px] leading-relaxed text-ink/45">
+          Document <b>synthétique</b>, produit pour la démonstration à partir des valeurs de la
+          pièce. Ce qu'il montre est exactement ce que la règle a lu. Aucun document réel.
+        </p>
+      {% else %}
+        <p class="rounded-lg border border-hairline bg-surface px-3 py-10 text-center text-[12.5px] text-ink/50">
+          Aucune pièce présente à afficher.
+        </p>
+      {% endif %}
+    </section>
+  </div>
+
+  {# =============================================== la décision, et ses garde-fous #}
+  <section class="mb-3 rounded-xl border-2 border-navy/30 bg-navy/[0.03] p-4 shadow-sm">
+    <div class="mb-2 flex flex-wrap items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-navy">La décision</h3>
+      <span class="ml-auto text-[11px] text-ink/50">
+        datée, nominative, et refusée si elle contredit le contrôle
+      </span>
+    </div>
+
+    <div class="grid gap-2 lg:grid-cols-3">
+      {% set choix = [
+        {'acte': 'valider', 'libelle': 'Valider la conformité', 'teinte': 'positive',
+         'ouvert': analyse.verdict == 'conforme'},
+        {'acte': 'renvoyer', 'libelle': 'Renvoyer au site', 'teinte': 'negative',
+         'ouvert': analyse.verdict == 'non_conforme'},
+        {'acte': 'instruire', 'libelle': 'Mettre à instruire', 'teinte': 'gold',
+         'ouvert': analyse.verdict == 'incomplet'}
+      ] %}
+      {% for c in choix %}
+        <form method="post" action="{{ path('app_gc_decider', {id: id}) }}"
+              class="rounded-xl border bg-white p-3 {{ c.ouvert ? 'border-hairline' : 'border-dashed border-ink/20' }}">
+          <input type="hidden" name="acte" value="{{ c.acte }}">
+          <div class="mb-1 text-[13px] font-bold
+                      {{ c.ouvert ? (c.teinte == 'positive' ? 'text-positive'
+                        : c.teinte == 'negative' ? 'text-negative' : 'text-gold') : 'text-ink/40' }}">
+            {{ c.libelle }}
+          </div>
+          <p class="mb-2 text-[11.5px] leading-relaxed text-ink/65">{{ actes[c.acte].effet }}</p>
+          <textarea name="commentaire" rows="2" maxlength="400"
+                    placeholder="Motif ou précision (facultatif)"
+                    class="mb-2 w-full rounded-lg border border-hairline px-2 py-1.5 text-[12px]"></textarea>
+          {% if c.ouvert %}
+            <button type="submit"
+                    class="w-full rounded-lg px-3 py-2 text-[12.5px] font-semibold text-white transition
+                           {{ c.teinte == 'positive' ? 'bg-positive hover:opacity-90'
+                            : c.teinte == 'negative' ? 'bg-negative hover:opacity-90' : 'bg-gold hover:opacity-90' }}">
+              {{ c.libelle }}
+            </button>
+          {% else %}
+            <div class="rounded-lg border border-dashed border-ink/25 bg-surface px-3 py-2
+                        text-[11.5px] leading-relaxed text-ink/55">
+              Fermé : le contrôle conclut « {{ verdicts[analyse.verdict].libelle }} ».
+              {% if c.acte == 'renvoyer' %}
+                Renvoyer ici serait un rejet à tort.
+              {% elseif c.acte == 'valider' %}
+                Valider ici serait conclure sur ce qu'on n'a pas établi.
+              {% else %}
+                Instruire ici n'aurait pas d'objet.
+              {% endif %}
+            </div>
+          {% endif %}
+        </form>
+      {% endfor %}
+    </div>
+    <p class="mt-2 text-[11px] leading-relaxed text-ink/50">
+      Les trois décisions ne sont pas toutes ouvertes en même temps, et c'est voulu : le contrôle a
+      conclu, et l'écran refuse la décision qui le contredirait. Le garde-fou est vérifié côté
+      serveur, pas seulement caché à l'écran.
+    </p>
+  </section>
+
+  {# --------------------------------------------------- l'historique et la limite #}
+  <div class="grid gap-3 lg:grid-cols-2">
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">Historique du dossier</h3>
+      {% if historique is empty %}
+        <p class="rounded-lg border border-hairline bg-surface px-3 py-4 text-center text-[12px] text-ink/50">
+          Aucun acte pour l'instant.
+        </p>
+      {% else %}
+        <ol class="space-y-2">
+          {% for h in historique %}
+            <li class="rounded-lg border border-hairline bg-surface px-3 py-2">
+              <div class="flex flex-wrap items-baseline gap-2">
+                <b class="text-[12.5px]">{{ actes[h.type].libelle|default(h.type) }}</b>
+                <span class="ml-auto font-mono text-[10.5px] text-ink/45">{{ h.fait_le|date('d/m/Y à H\\hi') }}</span>
+              </div>
+              <div class="text-[11px] text-ink/55">par {{ h.auteur }}{% if h.role %} · {{ h.role }}{% endif %}</div>
+              {% if h.commentaire %}
+                <p class="mt-1 text-[11.5px] italic leading-snug text-ink/70">« {{ h.commentaire }} »</p>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ol>
+      {% endif %}
+    </section>
+
+    <section class="rounded-xl border border-hairline bg-surface p-4 shadow-sm">
+      <h3 class="mb-2 text-sm font-bold uppercase tracking-wide text-ink/70">Ce que ce contrôle lit, et ce qu'il ne lit pas</h3>
+      <p class="text-[11.5px] leading-relaxed text-ink/65">{{ limite }}</p>
+      <a href="{{ path('app_gc_methode') }}"
+         class="mt-2 inline-block text-[11.5px] font-semibold text-navy hover:underline">
+        Les grilles, les quatorze règles et la contre-épreuve →</a>
+    </section>
+  </div>
+
+</div>
+{% endblock %}

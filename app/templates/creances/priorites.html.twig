@@ -1,0 +1,80 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Priorites - Recouvrement{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl">
+
+    {% include 'creances/_module_nav.html.twig' with { actif: 'priorites' } %}
+    {% include 'creances/_flashes.html.twig' %}
+
+    <div class="mb-4 flex items-baseline justify-between">
+        <h2 class="text-lg font-semibold text-navy">Comptes prioritaires</h2>
+        <p class="text-[0.7rem] text-ink/45">Score de criticite algorithmique : 45% montant + 35% anciennete + 20% incidents. Auto-ajuste au portefeuille.</p>
+    </div>
+
+    <div class="rounded-md border border-hairline bg-white shadow-sm">
+        {% if top_criticite is empty %}
+            <p class="p-6 text-sm text-ink/45">Aucun compte en creance ouverte. Tout est sous controle.</p>
+        {% else %}
+            <table class="fc-table-comptable">
+                <thead>
+                    <tr>
+                        <th>Rang</th>
+                        <th>Client</th>
+                        <th>Etab.</th>
+                        <th class="is-num">Encours</th>
+                        <th class="is-num">Anciennete</th>
+                        <th class="is-num">Incidents</th>
+                        <th>Composantes (%)</th>
+                        <th class="is-num">Criticite</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in top_criticite %}
+                        {% set couleur = c.score_criticite >= 75 ? 'bg-rose-100 text-rose-700' : (c.score_criticite >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-sky-100 text-sky-700') %}
+                        <tr class="cursor-pointer hover:bg-surface/60"
+                            onclick="window.location='{{ path('app_creances_fiche', { code: c.compte }) }}'">
+                            <td class="text-[0.7rem] font-mono text-ink/45">{{ loop.index }}</td>
+                            <td>
+                                <div class="text-[0.85rem] font-medium text-navy">{{ c.nom }}{% if c.prenom %} {{ c.prenom }}{% endif %}</div>
+                                <div class="text-[0.65rem] font-mono text-ink/45">{{ c.compte }}</div>
+                            </td>
+                            <td class="text-[0.7rem] text-ink/65">{{ c.codeetab|default('—') }}</td>
+                            <td class="is-num">
+                                <span class="font-mono font-semibold text-navy">{{ c.encours|number_format(0, ',', ' ') }}</span>
+                                <span class="text-[0.65rem] text-ink/40">EUR</span>
+                            </td>
+                            <td class="is-num text-[0.78rem]">{{ c.anciennete_max_jours }} j</td>
+                            <td class="is-num text-[0.78rem]">{{ c.nb_incidents }}</td>
+                            <td>
+                                <div class="flex items-center gap-1 text-[0.65rem]">
+                                    <span title="Poids montant" class="rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-700">M {{ c.poids_montant|number_format(0, '', '') }}</span>
+                                    <span title="Poids anciennete" class="rounded bg-amber-50 px-1.5 py-0.5 text-amber-700">A {{ c.poids_anciennete|number_format(0, '', '') }}</span>
+                                    <span title="Poids incidents" class="rounded bg-rose-50 px-1.5 py-0.5 text-rose-700">I {{ c.poids_incidents|number_format(0, '', '') }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[0.7rem] font-semibold {{ couleur }}">
+                                    {{ c.score_criticite|number_format(0, '', '') }}
+                                </span>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+
+    <div class="mt-4 rounded-md border border-hairline bg-surface/40 p-4 text-[0.78rem] text-ink/65">
+        <p class="font-semibold text-ink/80">Methode de calcul</p>
+        <p class="mt-1">
+            Chaque compte est compare aux autres via <code class="rounded bg-white px-1.5 py-0.5">PERCENT_RANK()</code> sur 3 axes : encours, anciennete max et nombre d'incidents (creances &gt; 90 jours).
+            Le score final pondere les axes a <strong>45% / 35% / 20%</strong>.
+            Un score de 100 = compte le plus critique du portefeuille ; 0 = le plus sain.
+        </p>
+        <p class="mt-1">L'avantage : pas de seuils figes. Si le portefeuille devient plus tendu, le score se recalibre automatiquement.</p>
+    </div>
+</div>
+{% endblock %}

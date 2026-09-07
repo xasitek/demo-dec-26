@@ -1,0 +1,212 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Strategie {{ strategie.libelle }} - Recouvrement{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl">
+
+    <div class="mb-3 text-sm">
+        <a href="{{ path('app_creances_strategies') }}" class="text-ink/55 hover:text-navy">← Retour aux strategies</a>
+    </div>
+
+    {% include 'creances/_flashes.html.twig' %}
+
+    {# Entete : edition strategie #}
+    <form method="post" action="{{ path('app_creances_strategie_modifier', { id: strategie.id }) }}"
+          class="mb-4 rounded-md border border-hairline bg-white p-4 shadow-sm">
+        <input type="hidden" name="_token" value="{{ csrf_token('creances_strategie_modifier_' ~ strategie.id) }}">
+        <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0 flex-1">
+                <div class="flex items-baseline gap-2">
+                    <span class="rounded bg-surface px-1.5 py-0.5 font-mono text-[0.7rem] text-ink/65">{{ strategie.code }}</span>
+                    <input type="text" name="libelle" required maxlength="255" value="{{ strategie.libelle }}"
+                           class="flex-1 rounded-md border border-transparent px-2 py-1 text-lg font-bold text-navy hover:border-hairline focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/30">
+                </div>
+                <textarea name="description" rows="2" maxlength="2000" placeholder="Description / contexte d'usage de cette strategie..."
+                          class="mt-2 w-full rounded-md border border-transparent px-2 py-1 text-sm text-ink/70 hover:border-hairline focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/30">{{ strategie.description }}</textarea>
+            </div>
+            <div class="flex shrink-0 flex-col items-end gap-2">
+                <label class="inline-flex items-center gap-2 text-sm text-ink/70">
+                    <input type="checkbox" name="active" value="1" {{ strategie.active ? 'checked' }}> Active
+                </label>
+                <button type="submit" class="rounded-md border border-navy bg-navy px-3 py-1.5 text-sm font-medium text-white hover:bg-navy-light">Enregistrer</button>
+            </div>
+        </div>
+    </form>
+
+    {# ===== WORKFLOW PIPELINE — style n8n vertical =====
+       Chaque etape = une card avec icone du type d'action, libelle, delai,
+       boutons modifier/supprimer. Reliees par une ligne verticale + chevron. #}
+    {% set icones_action = {
+        'email': '<path d="M4 4h16c1 0 2 .9 2 2v12c0 1-.9 2-2 2H4c-1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>',
+        'telephone': '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
+        'courrier': '<rect x="3" y="4" width="18" height="14" rx="2"/><polyline points="3 8 12 13 21 8"/>',
+        'sms': '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
+        'visite': '<path d="M3 9l9-6 9 6v11H3z"/><path d="M9 21V13h6v8"/>',
+        'autre': '<circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'
+    } %}
+    {% set couleurs_action = {
+        'email': 'bg-sky-50 text-sky-700 ring-sky-200',
+        'telephone': 'bg-amber-50 text-amber-700 ring-amber-200',
+        'courrier': 'bg-purple-50 text-purple-700 ring-purple-200',
+        'sms': 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+        'visite': 'bg-rose-50 text-rose-700 ring-rose-200',
+        'autre': 'bg-surface text-ink/65 ring-hairline'
+    } %}
+
+    <div class="rounded-md border border-hairline bg-white p-6 shadow-sm">
+        <div class="mb-5 flex items-baseline justify-between">
+            <h3 class="text-[0.65rem] font-medium uppercase tracking-[0.12em] text-ink/45">Workflow de relance</h3>
+            <span class="rounded-full bg-ink/[0.06] px-2 py-0.5 text-[0.7rem] font-semibold tabular-nums text-ink/70">{{ pluriel(strategie.niveaux|length, 'etape', 'etapes') }}</span>
+        </div>
+
+        {% if strategie.niveaux|length == 0 %}
+            <p class="rounded-md border border-dashed border-hairline px-4 py-6 text-center text-[0.85rem] text-ink/45">
+                Aucune etape pour l'instant. Ajoute la premiere ci-dessous.
+            </p>
+        {% else %}
+            <ol class="space-y-0">
+                {% for n in strategie.niveaux %}
+                    {% set type_val = n.typeAction.value %}
+                    {% set classe_type = couleurs_action[type_val]|default('bg-surface text-ink/65 ring-hairline') %}
+                    <li class="relative">
+                        <div class="flex items-start gap-4 py-3">
+                            {# Cercle de niveau + ligne verticale connectrice (sauf dernier) #}
+                            <div class="relative flex shrink-0 flex-col items-center">
+                                <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-navy text-[0.78rem] font-semibold tabular-nums text-white">
+                                    {{ n.ordre }}
+                                </span>
+                                {% if not loop.last %}
+                                    <span class="absolute left-1/2 top-9 h-full w-px -translate-x-1/2 bg-hairline" aria-hidden="true"></span>
+                                {% endif %}
+                            </div>
+
+                            {# Card etape #}
+                            <div class="flex-1 rounded-lg border border-hairline bg-white px-4 py-3 transition hover:border-navy/30 hover:shadow-sm">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.7rem] font-medium ring-1 ring-inset {{ classe_type }}">
+                                                <svg viewBox="0 0 24 24" class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">{{ icones_action[type_val]|default(icones_action['autre'])|raw }}</svg>
+                                                {{ n.typeAction.libelle }}
+                                            </span>
+                                            <span class="font-mono text-[0.72rem] font-medium tabular-nums text-ink/60">
+                                                {{ n.joursDelai > 0 ? 'J+' : (n.joursDelai < 0 ? 'J' : 'J+0') }}{{ n.joursDelai != 0 ? n.joursDelai : '' }}
+                                            </span>
+                                        </div>
+                                        <p class="mt-1.5 text-[0.95rem] font-semibold text-navy">{{ n.libelle }}</p>
+                                        {% if n.conditionLibelle %}
+                                            <p class="mt-1 text-[0.78rem] text-ink/55">
+                                                <span class="text-[0.62rem] uppercase tracking-[0.1em] text-ink/40">Condition</span>
+                                                <span class="ml-1.5">{{ n.conditionLibelle }}</span>
+                                            </p>
+                                        {% endif %}
+                                    </div>
+
+                                    {# Actions : modifier / supprimer #}
+                                    <div class="flex shrink-0 items-center gap-2">
+                                        <details class="relative">
+                                            <summary class="inline-flex cursor-pointer list-none items-center gap-1 rounded border border-hairline bg-white px-2 py-1 text-[0.7rem] text-ink/65 hover:border-navy/40 hover:text-navy">
+                                                <svg viewBox="0 0 24 24" class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+                                                Modifier
+                                            </summary>
+                                            <form method="post" action="{{ path('app_creances_niveau_modifier', { id: strategie.id, niveauId: n.id }) }}"
+                                                  class="absolute right-0 z-10 mt-1 w-72 space-y-2 rounded-md border border-hairline bg-white p-3 shadow-lg shadow-navy/10">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('creances_niveau_modifier_' ~ n.id) }}">
+                                                <div>
+                                                    <label class="block text-[0.62rem] font-medium uppercase tracking-[0.1em] text-ink/55">Libelle</label>
+                                                    <input type="text" name="libelle" value="{{ n.libelle }}" required maxlength="255" class="mt-1 w-full rounded border border-hairline px-2 py-1 text-[0.78rem]">
+                                                </div>
+                                                <div>
+                                                    <label class="block text-[0.62rem] font-medium uppercase tracking-[0.1em] text-ink/55">Type</label>
+                                                    <select name="type" class="mt-1 w-full rounded border border-hairline px-2 py-1 text-[0.78rem]">
+                                                        <option value="telephone" {{ n.typeAction.value == 'telephone' ? 'selected' }}>Appel</option>
+                                                        <option value="email" {{ n.typeAction.value == 'email' ? 'selected' }}>E-mail</option>
+                                                        <option value="courrier" {{ n.typeAction.value == 'courrier' ? 'selected' }}>Courrier</option>
+                                                        <option value="sms" {{ n.typeAction.value == 'sms' ? 'selected' }}>SMS</option>
+                                                        <option value="visite" {{ n.typeAction.value == 'visite' ? 'selected' }}>Visite</option>
+                                                        <option value="autre" {{ n.typeAction.value == 'autre' ? 'selected' }}>Autre</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label class="block text-[0.62rem] font-medium uppercase tracking-[0.1em] text-ink/55">Delai (j depuis echeance)</label>
+                                                    <input type="number" name="jours_delai" value="{{ n.joursDelai }}" class="mt-1 w-full rounded border border-hairline px-2 py-1 text-[0.78rem]">
+                                                </div>
+                                                <div>
+                                                    <label class="block text-[0.62rem] font-medium uppercase tracking-[0.1em] text-ink/55">Condition (optionnel)</label>
+                                                    <input type="text" name="condition_libelle" value="{{ n.conditionLibelle }}" maxlength="255" class="mt-1 w-full rounded border border-hairline px-2 py-1 text-[0.78rem]">
+                                                </div>
+                                                <button type="submit" class="mt-1 w-full rounded border border-navy bg-navy px-2 py-1 text-[0.7rem] font-medium text-white">Enregistrer</button>
+                                            </form>
+                                        </details>
+                                        <form method="post" action="{{ path('app_creances_niveau_supprimer', { id: strategie.id, niveauId: n.id }) }}" class="inline"
+                                              onsubmit="return confirm('Supprimer cette etape ?')">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('creances_niveau_supprimer_' ~ n.id) }}">
+                                            <button type="submit" class="inline-flex items-center gap-1 rounded border border-hairline bg-white px-2 py-1 text-[0.7rem] text-rose-700 hover:border-rose-300 hover:bg-rose-50">
+                                                <svg viewBox="0 0 24 24" class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
+                                                Supprimer
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ol>
+        {% endif %}
+
+        {# Formulaire ajout etape — sous le pipeline, en card pointillee #}
+        <details class="mt-4 rounded-lg border border-dashed border-navy/25 transition hover:border-navy/40 open:border-navy/60 open:bg-white">
+            <summary class="flex cursor-pointer list-none items-center justify-center gap-2 px-4 py-3 text-[0.82rem] font-medium text-navy hover:bg-navy/[0.03]">
+                <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                Ajouter une etape
+            </summary>
+            <form method="post" action="{{ path('app_creances_niveau_creer', { id: strategie.id }) }}"
+                  class="space-y-3 border-t border-navy/15 p-4">
+                <input type="hidden" name="_token" value="{{ csrf_token('creances_niveau_' ~ strategie.id) }}">
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-4">
+                    <div>
+                        <label class="block text-[0.62rem] font-medium uppercase tracking-[0.1em] text-ink/55">Libelle</label>
+                        <input type="text" name="libelle" required maxlength="255" placeholder="Ex: Mise en demeure"
+                               class="mt-1 w-full rounded-md border border-hairline px-2 py-1.5 text-sm focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/30">
+                    </div>
+                    <div>
+                        <label class="block text-[0.62rem] font-medium uppercase tracking-[0.1em] text-ink/55">Type</label>
+                        <select name="type" required class="mt-1 w-full rounded-md border border-hairline px-2 py-1.5 text-sm focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/30">
+                            <option value="email">E-mail</option>
+                            <option value="telephone">Appel telephonique</option>
+                            <option value="courrier">Courrier postal</option>
+                            <option value="sms">SMS</option>
+                            <option value="visite">Visite</option>
+                            <option value="autre">Autre</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[0.62rem] font-medium uppercase tracking-[0.1em] text-ink/55">Delai (J)</label>
+                        <input type="number" name="jours_delai" value="0" class="mt-1 w-full rounded-md border border-hairline px-2 py-1.5 text-sm focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/30">
+                    </div>
+                    <div>
+                        <label class="block text-[0.62rem] font-medium uppercase tracking-[0.1em] text-ink/55">Condition (optionnel)</label>
+                        <input type="text" name="condition_libelle" maxlength="255" placeholder="Ex: montant &gt; 1000 EUR"
+                               class="mt-1 w-full rounded-md border border-hairline px-2 py-1.5 text-sm focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/30">
+                    </div>
+                </div>
+                <div class="flex justify-end">
+                    <button type="submit" class="rounded-md border border-navy bg-navy px-3 py-1.5 text-sm font-medium text-white transition hover:bg-navy-light">Ajouter l'etape</button>
+                </div>
+            </form>
+        </details>
+    </div>
+
+    {# Suppression strategie #}
+    <div class="mt-4 text-right">
+        <form method="post" action="{{ path('app_creances_strategie_supprimer', { id: strategie.id }) }}" class="inline"
+              onsubmit="return confirm('Supprimer cette strategie ? Les niveaux seront aussi supprimes. Les comptes affectes auront leur strategie a null.')">
+            <input type="hidden" name="_token" value="{{ csrf_token('creances_strategie_supprimer_' ~ strategie.id) }}">
+            <button type="submit" class="text-[0.7rem] text-rose-700 hover:text-rose-900 underline">Supprimer cette strategie</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

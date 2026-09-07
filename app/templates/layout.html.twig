@@ -1,0 +1,279 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+{# La presence a deux populations qui ne se melangent pas : le poste secretaire
+   d'un cote, l'application complete de l'autre. On le determine ici parce que
+   l'abonnement Mercure se decide avant le rendu de la barre laterale. #}
+{% set route_courante = app.request.attributes.get('_route') %}
+{% set vue_secretaire = poste_secretaire(route_courante) %}
+{% set presence_voir = is_granted('ROLE_USER') %}
+{% set presence_track = is_granted('ROLE_USER') %}
+{% set rt_topics = [] %}
+{% if is_granted('ROLE_ADMIN') %}{% set rt_topics = rt_topics|merge([constant('App\\Shared\\Service\\NotificationService::TOPIC_ADMIN_DEMANDES')]) %}{% endif %}
+{% if presence_voir %}{% set rt_topics = rt_topics|merge([
+    vue_secretaire ? constant('App\\Shared\\Service\\PresenceService::TOPIC_PRESENCE_SECRETAIRE')
+                   : constant('App\\Shared\\Service\\PresenceService::TOPIC_PRESENCE')
+]) %}{% endif %}
+{% if app.user %}{% set rt_topics = rt_topics|merge([constant('App\\Shared\\Service\\NotificationService::TOPIC_NOTIF_PREFIX') ~ app.user.id]) %}{% endif %}
+{% if is_granted('MODULE_RECOUVREMENT') %}{% set rt_topics = rt_topics|merge([constant('App\\Recouvrement\\Service\\RecouvrementRealtime::TOPIC_RETOURS'), constant('App\\Recouvrement\\Service\\RecouvrementRealtime::TOPIC_FACTURES_SANS_PDF'), constant('App\\Recouvrement\\Service\\RecouvrementRealtime::TOPIC_PREPARATION')]) %}{% endif %}
+{% if app.user and is_granted('MODULE_REMBOURSEMENT') %}{% set rt_topics = rt_topics|merge([constant('App\\Remboursement\\Service\\RemboursementRealtime::TOPIC_SECRETAIRE_PREFIX') ~ app.user.userIdentifier]) %}{% endif %}
+{% if is_granted('MODULE_REMBOURSEMENT') and (is_granted('ROLE_COMPTABLE') or is_granted('ROLE_DIRECTEUR') or is_granted('ROLE_MANAGER')) %}{% set rt_topics = rt_topics|merge([constant('App\\Remboursement\\Service\\RemboursementRealtime::TOPIC_A_VERIFIER'), constant('App\\Remboursement\\Service\\RemboursementRealtime::TOPIC_STATUTS')]) %}{% endif %}
+{# Mur des idees : topic abonne UNIQUEMENT sur cette page. Ailleurs, l'onglet
+   recevrait des evenements qu'aucun element n'affiche. #}
+{% if app.user and app.request.attributes.get('_route')|default('') == 'app_suggestions_index' %}{% set rt_topics = rt_topics|merge([constant('App\\Shared\\Service\\SuggestionService::TOPIC_MUR')]) %}{% endif %}
+<div class="app-shell flex font-sans text-ink"
+     data-controller="sidebar{% if rt_topics is not empty %} realtime{% endif %}"
+     {% if rt_topics is not empty %}
+     data-realtime-mercure-url-value="{{ mercure(rt_topics) }}"
+     data-realtime-track-value="{{ presence_track ? 'true' : 'false' }}"
+     data-realtime-presence-value="{{ presence_voir ? 'true' : 'false' }}"
+     data-realtime-self-id-value="{{ app.user.id }}"
+     data-realtime-ping-url-value="{{ path('app_presence_ping') }}"
+     data-realtime-list-url-value="{{ path('app_presence_list') }}"
+     data-realtime-disconnect-url-value="{{ path('app_presence_disconnect') }}"
+     data-realtime-notif-lues-url-value="{{ path('app_notification_tout_lu') }}"
+     data-realtime-notif-lues-csrf-value="{{ csrf_token('notifications_lues') }}"
+     data-realtime-notif-icon-value="{{ absolute_url(asset('images/logo-menu.png')) }}"
+     {% endif %}>
+
+    {# Voile mobile #}
+    <div class="fixed inset-0 z-30 hidden bg-navy-deep/60 lg:hidden" data-sidebar-target="overlay" data-action="click->sidebar#close"></div>
+
+    {# Barre laterale (mini, s'etend au survol) #}
+    <aside class="app-sidebar" data-sidebar-target="panel">
+        <div class="relative flex h-16 items-center overflow-hidden px-4">
+            <span class="logo-mini shrink-0">{% include 'demo/_marque.html.twig' with { taille: 34 } only %}</span>
+            <span class="logo-full nav-label absolute left-4 flex items-center gap-2 whitespace-nowrap text-[13px] font-semibold tracking-wide text-white">
+                {% include 'demo/_marque.html.twig' with { taille: 26 } only %}Finance Créances</span>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto overflow-x-hidden py-3">
+            {% set route = app.request.attributes.get('_route') %}
+            {# Poste secretaire : la barre laterale liste ses ESPACES, declares par les
+               modules (RegistreEspaces). Vrai pour une secretaire pure, et pour un
+               visiteur anonyme des qu'il est sur un ecran d'espace — les formulaires de
+               depot sont publics. Les comptables et au-dessus gardent l'application
+               complete, meme en visitant un ecran de secretaire. #}
+            {% set vue_secretaire = poste_secretaire(route) %}
+
+            {% if not vue_secretaire %}
+                <a href="{{ path('app_dashboard') }}" class="nav-item {{ route == 'app_dashboard' ? 'is-active' }}">
+                    <span class="nav-icon text-gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span>
+                    <span class="nav-label">Tableau de bord</span>
+                </a>
+            {% endif %}
+
+            {# Poste secretaire : ses espaces de depot d'abord — c'est son travail du
+               jour, et « Mon espace » doit rester la premiere chose qu'elle voit. #}
+            {% if vue_secretaire %}
+                {% include '_secretaire_espaces.html.twig' with { route: route } only %}
+            {% endif %}
+
+            {# Puis les modules accessibles. AUCUNE liste ici : elle vient de l'enum
+               App\Shared\Enum\Module via `modules_accessibles()`, dont l'ordre des cas
+               est l'ordre du menu. Ajouter ou retirer un module ne touche donc ni ce
+               fichier ni le partiel — et chez la secretaire, ceux deja offerts comme
+               espace de depot sont retires tout seuls. #}
+            {% include '_modules_nav.html.twig' only %}
+
+            {% if is_granted('ROLE_ADMIN') %}
+                <div class="my-2 border-t border-white/10"></div>
+                <a href="{{ path('app_admin_users') }}" class="nav-item {{ route starts with 'app_admin_users' ? 'is-active' }}">
+                    <span class="nav-icon text-white/70"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+                    <span class="nav-label">Utilisateurs</span>
+                </a>
+                <a href="{{ path('app_admin_demandes') }}" class="nav-item {{ route starts with 'app_admin_demandes' ? 'is-active' }}">
+                    <span class="nav-icon text-white/70"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+                    <span class="nav-label">Demandes d'acces</span>
+                    {% set nb_demandes = demandes_en_attente() %}
+                    <span class="nav-label ml-auto inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-gold px-1.5 text-xs font-bold text-navy-deep" data-realtime-target="badge"{% if nb_demandes == 0 %} style="display:none"{% endif %}>{{ nb_demandes }}</span>
+                </a>
+                <a href="{{ path('app_admin_suggestions') }}" class="nav-item {{ route starts with 'app_admin_suggestions' ? 'is-active' }}">
+                    <span class="nav-icon text-white/70"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5a6 6 0 0 0-12 0c0 1.3.5 2.6 1.5 3.5.8.8 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg></span>
+                    <span class="nav-label">Boîte à idées</span>
+                    {# COUNT indexe, paye par les seuls administrateurs (bloc ROLE_ADMIN). #}
+                    {% set nb_suggestions = suggestions_nouvelles() %}
+                    <span class="nav-label ml-auto inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-gold px-1.5 text-xs font-bold text-navy-deep"{% if nb_suggestions == 0 %} style="display:none"{% endif %}>{{ nb_suggestions }}</span>
+                </a>
+            {% endif %}
+        </nav>
+
+        {# Bas de la barre laterale. Le nav etant flex-1, ce bloc est pousse en bas.
+           Parametres reste reserve a l'application complete ; la boite a idees est
+           ouverte a tous les connectes, poste secretaire compris : proposer une idee
+           ne depend pas du role. #}
+        {% if app.user or not vue_secretaire %}
+        <div class="border-t border-white/10 py-2">
+            {% if not vue_secretaire %}
+                <a href="{{ path('app_parametres') }}" class="nav-item {{ route starts with 'app_parametres' or route starts with 'app_etablissements' ? 'is-active' }}">
+                    <span class="nav-icon text-white/70"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+                    <span class="nav-label">Paramètres</span>
+                </a>
+            {% endif %}
+
+            {# Derniere ligne de la barre : ouvre le panneau rendu en pied de page. #}
+            {% if app.user %}
+                {% include '_suggestion_nav.html.twig' %}
+            {% endif %}
+        </div>
+        {% endif %}
+    </aside>
+
+    {# Colonne principale #}
+    <div class="app-content flex flex-1 flex-col">
+        <header class="flex h-16 items-center gap-4 border-b border-hairline bg-white px-5 lg:px-8">
+            <button type="button" class="text-navy lg:hidden" data-action="sidebar#open" aria-label="Ouvrir le menu">
+                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+            </button>
+            <h1 class="shrink-0 text-lg font-bold text-navy">{% block page_title %}{% endblock %}</h1>
+
+            {# Nav specifique au module (ex. Recouvrement) : occupe l'espace entre le
+               titre et les actions globales (avatars / cloche / profil). #}
+            {% block topbar_nav %}{% endblock %}
+
+            {# Actions du header : reservees aux connectes (les pages publiques, ex.
+               depot remboursement, utilisent le meme layout sans utilisateur). #}
+            {% if app.user %}
+            <div class="ml-auto flex items-center gap-3">
+                {# La pile est rendue AUSSI cote secretaire, mais avec sa propre
+                   population : les secretaires ne se voient qu'entre elles et
+                   n'apparaissent pas dans celle des comptables (PresenceService).
+                   La cloche, elle, reste reservee a l'application complete. #}
+                {% if presence_voir %}
+                    {# `peer-empty` : une secretaire seule en ligne aurait une pile vide
+                       suivie d'un separateur orphelin. #}
+                    <span class="presence-stack peer" data-realtime-target="avatars"></span>
+                    <span class="topbar-sep peer-empty:hidden"></span>
+                {% endif %}
+
+                {% if not vue_secretaire %}
+
+                {# Centre de notifications (panneau lateral coulissant) #}
+                {% set nb_notif = notifications_non_lues() %}
+                <div data-controller="drawer">
+                    <button type="button" data-action="drawer#open realtime#marquerNotifsLues" class="relative rounded-lg p-2 text-ink/55 transition hover:bg-surface hover:text-navy" aria-label="Notifications" title="Notifications">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+                        <span data-realtime-target="notifBadge" class="absolute -right-0.5 -top-0.5 inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-gold px-1 text-[0.65rem] font-bold text-navy-deep"{% if nb_notif == 0 %} style="display:none"{% endif %}>{{ nb_notif }}</span>
+                    </button>
+
+                    <div data-drawer-target="backdrop" data-action="click->drawer#close" class="fixed inset-0 z-40 hidden bg-navy-deep/30"></div>
+
+                    <aside data-drawer-target="panel" class="fixed right-0 top-0 z-50 flex h-full w-96 max-w-[90vw] translate-x-full transform flex-col bg-white shadow-2xl transition-transform duration-300 ease-out">
+                        <div class="flex items-center justify-between border-b border-hairline px-5 py-4">
+                            <h2 class="text-base font-bold text-navy">Notifications</h2>
+                            <div class="flex items-center gap-3">
+                                <form method="post" action="{{ path('app_notification_tout_lu') }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('notifications_lues') }}">
+                                    <button type="submit" class="text-xs text-ink/50 transition hover:text-navy">Tout marquer lu</button>
+                                </form>
+                                <button type="button" data-action="drawer#close" class="rounded-lg p-1 text-ink/50 transition hover:bg-surface hover:text-navy" aria-label="Fermer">
+                                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        {% set notif_par_page = constant('App\\Shared\\Repository\\NotificationRepository::PAR_PAGE') %}
+                        {% set notif_pages = (notifications_total() / notif_par_page)|round(0, 'ceil') %}
+                        <div class="flex-1 overflow-y-auto"
+                             data-controller="infinite-scroll"
+                             data-infinite-scroll-url-value="{{ path('app_notification_list') }}"
+                             data-infinite-scroll-page-value="1"
+                             data-infinite-scroll-total-pages-value="{{ notif_pages }}"
+                             data-infinite-scroll-manual-value="true">
+                            <div data-realtime-target="notifList" data-infinite-scroll-target="items">
+                                {% include 'notifications/_rows.html.twig' with { notifications: notifications_recentes() } %}
+                            </div>
+                            <p data-realtime-target="notifEmpty" class="px-5 py-10 text-center text-sm text-ink/50"{% if notifications_recentes() is not empty %} style="display:none"{% endif %}>Aucune notification.</p>
+                            <p data-infinite-scroll-target="loading" class="py-3 text-center text-sm text-ink/50" style="display:none">Chargement...</p>
+                            {% if notif_pages > 1 %}
+                                <div class="p-4 text-center">
+                                    <button type="button" data-action="infinite-scroll#loadMore" data-infinite-scroll-target="trigger" class="rounded-lg border border-ink/15 bg-white px-5 py-2 text-sm font-medium text-navy transition hover:bg-surface">Voir plus</button>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </aside>
+                </div>
+                {% endif %}
+
+                {# Menu profil #}
+                <div class="relative" data-controller="dropdown">
+                    <button type="button" data-action="dropdown#toggle" data-realtime-target="self" class="presence-self flex cursor-pointer items-center transition" aria-label="Mon compte">
+                        {% if app.user.avatarUrl %}
+                            <img src="{{ app.user.avatarUrl }}" alt="" class="h-9 w-9 rounded-full object-cover" referrerpolicy="no-referrer">
+                        {% else %}
+                            <span class="flex h-9 w-9 items-center justify-center rounded-full bg-navy text-sm font-bold text-gold">{{ app.user.firstName|first|upper }}{{ app.user.lastName|first|upper }}</span>
+                        {% endif %}
+                    </button>
+                    <div data-dropdown-target="menu" hidden class="absolute right-0 z-50 mt-2 w-60 rounded-xl border border-hairline bg-white p-1 shadow-lg shadow-navy/10">
+                        <div class="border-b border-hairline px-3 py-2.5">
+                            <p class="truncate text-sm font-semibold text-navy">{{ app.user.fullName }}</p>
+                            <p class="truncate text-xs text-ink/50">{{ app.user.email }}</p>
+                        </div>
+                        <a href="{{ path('app_mon_activite') }}" class="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink transition hover:bg-surface hover:text-navy">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                            Mon activité
+                        </a>
+                        {% if is_granted('ROLE_MANAGER') %}
+                            <form method="post" action="{{ path('app_presence_forcer') }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token('presence_forcer') }}">
+                                <button type="submit" class="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink transition hover:bg-surface hover:text-navy">
+                                    <svg class="h-4 w-4 {{ app.user.presenceForceeEnLigne ? 'text-positive' : '' }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/></svg>
+                                    <span>Présence en ligne</span>
+                                    <span class="ml-auto inline-flex h-4 w-7 items-center rounded-full px-0.5 transition {{ app.user.presenceForceeEnLigne ? 'bg-positive' : 'bg-ink/20' }}">
+                                        <span class="h-3 w-3 rounded-full bg-white transition {{ app.user.presenceForceeEnLigne ? 'translate-x-3' : '' }}"></span>
+                                    </span>
+                                </button>
+                            </form>
+                        {% endif %}
+                        <a href="{{ path('app_logout') }}" class="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink transition hover:bg-surface hover:text-navy">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+                            Se deconnecter
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </header>
+
+        <main class="flex-1 px-5 py-8 lg:px-8">
+            {% block content %}{% endblock %}
+        </main>
+
+        {# Pied de page legal : uniquement sur le tableau de bord (evite de rogner les pages
+           plein-hauteur et de creer une barre de scroll). #}
+        {# Les mentions legales sur les deux pages d'ARRIVEE, et elles seules : le
+           tableau de bord de l'application, et l'accueil du poste secretaire. Une
+           secretaire n'a pas d'autre page ou les trouver, son poste etant confine a
+           ses espaces. Les mettre partout alourdirait chaque ecran de travail. #}
+        {% if route == 'app_dashboard' or route == 'app_poste_secretaire' %}
+        <footer class="border-t border-hairline bg-white px-5 py-2 text-center text-[0.7rem] text-ink/45 lg:px-8">
+            <a href="{{ path('app_legal_cgu') }}" class="hover:text-navy">CGU</a>
+            <span class="mx-2 text-ink/25">·</span>
+            <a href="{{ path('app_legal_confidentialite') }}" class="hover:text-navy">Confidentialité</a>
+            <span class="mx-2 text-ink/25">·</span>
+            <a href="{{ path('app_legal_mentions') }}" class="hover:text-navy">Mentions légales</a>
+        </footer>
+        {% endif %}
+    </div>
+</div>
+
+{% if app.user and legal_manquants() is not empty and not (app.request.attributes.get('_route')|default('') starts with 'app_legal') %}
+    {% include 'legal/_modal.html.twig' with { manquants: legal_manquants() } %}
+{% endif %}
+
+{# Barre de progression GLOBALE d'un lancement manuel de strategie (persistante,
+   visible sur toutes les pages du module ; alimentee en temps reel Mercure). #}
+{% if is_granted('MODULE_RECOUVREMENT') %}
+    {% include 'recouvrement/_barre_preparation.html.twig' %}
+{% endif %}
+
+{# Boite a idees : le panneau, ancre en bas a gauche le long de la barre
+   laterale. Son declencheur est la derniere ligne de la barre elle-meme (cf.
+   _suggestion_nav.html.twig) ; les deux sont separes parce que la barre est en
+   overflow:hidden. Rendu pour tout connecte, tous roles confondus, poste
+   secretaire compris. Les pages publiques (formulaires de depot, reponse
+   client) n'exposent pas de formulaire d'envoi sans authentification.
+   Aucune requete SQL ici : le panneau est charge au clic. #}
+{% if app.user %}
+    {% include '_suggestion_panneau_flottant.html.twig' %}
+{% endif %}
+{% endblock %}

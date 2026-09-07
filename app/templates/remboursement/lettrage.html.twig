@@ -1,0 +1,138 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{% if synthese.total > 0 %}({{ synthese.total }}) {% endif %}Lettrage - Remboursement client{% endblock %}
+{% block page_title %}Remboursement client{% endblock %}
+{% block topbar_nav %}{% include 'remboursement/_nav.html.twig' with { active: 'lettrage', nbAVerifier: nbAVerifier } %}{% endblock %}
+
+{% import '_ui.html.twig' as ui %}
+{% set champ = 'w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink transition focus:border-navy focus:outline-none focus:ring-4 focus:ring-navy/10' %}
+
+{% set typeOptions = {'': 'Tous', 'RBC': 'Rachat sec', 'TP': 'Trop-perçu'} %}
+{% set retardOptions = {'': 'Toutes'} %}
+{% for r in retards %}{% set retardOptions = retardOptions|merge({(r): r == '<15' ? 'Moins de 15 jours' : 'Plus de ' ~ r|slice(1) ~ ' jours'}) %}{% endfor %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1500px]" data-controller="lettrage"
+     data-lettrage-url-value="{{ path('app_remboursement_lettrage_commentaire', {cle: '__CLE__'}) }}"
+     data-lettrage-rapprochement-url-value="{{ path('app_remboursement_lettrage_rapprochement', {cle: '__CLE__'}) }}"
+     data-lettrage-csrf-value="{{ csrf_token('lettrage_commentaire') }}"
+     data-lettrage-max-value="500">
+
+    {# Synthese de la selection courante. #}
+    <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">À lettrer</div>
+            <div class="text-lg font-bold text-navy">{{ synthese.total }} <span class="text-xs font-medium text-ink/45">ligne{{ synthese.total > 1 ? 's' }}</span></div>
+            <div class="text-[11px] text-ink/45">{{ synthese.montant|number_format(2, ',', ' ') }} €</div>
+        </div>
+        <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Rachat sec</div>
+            <div class="text-lg font-bold text-navy">{{ synthese.rbc }}</div>
+            <div class="text-[11px] text-ink/45">{{ synthese.rbc_montant|number_format(2, ',', ' ') }} €</div>
+        </div>
+        <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Trop-perçu</div>
+            <div class="text-lg font-bold text-navy">{{ synthese.tp }}</div>
+            <div class="text-[11px] text-ink/45">{{ synthese.tp_montant|number_format(2, ',', ' ') }} €</div>
+        </div>
+        <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Plus de 30 jours</div>
+            <div class="text-lg font-bold {{ synthese.retard > 0 ? 'text-negative' : 'text-positive' }}">{{ synthese.retard }}</div>
+            <div class="text-[11px] text-ink/45">{{ synthese.commentes }} ligne{{ synthese.commentes > 1 ? 's' }} commentée{{ synthese.commentes > 1 ? 's' }}</div>
+        </div>
+    </div>
+
+    {# Recherche + filtres (GET, auto-soumission). #}
+    <form method="get" class="mb-3 flex flex-wrap items-end gap-3">
+        <label class="min-w-[16rem] flex-1">
+            <span class="mb-1 block text-xs font-medium text-ink/55">Recherche</span>
+            <input type="search" name="q" value="{{ q }}" placeholder="Client, compte, établissement, immat, pièce, commentaire…" class="{{ champ }}"
+                   data-controller="search-debounce" data-action="input->search-debounce#submit">
+        </label>
+        <label>
+            <span class="mb-1 block text-xs font-medium text-ink/55">Type</span>
+            {{ ui.fc_select('type', typeOptions, type ?: '') }}
+        </label>
+        <label>
+            <span class="mb-1 block text-xs font-medium text-ink/55">Ancienneté</span>
+            {{ ui.fc_select('retard', retardOptions, retard ?: '', true, {}) }}
+        </label>
+        <noscript><button type="submit" class="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white">Filtrer</button></noscript>
+    </form>
+
+    {# Table + scroll infini #}
+    <div class="overflow-x-auto rounded-xl border border-hairline bg-white shadow-sm"
+         data-controller="infinite-scroll"
+         data-infinite-scroll-url-value="{{ path('app_remboursement_lettrage', {q: q, type: type, retard: retard}) }}"
+         data-infinite-scroll-page-value="1"
+         data-infinite-scroll-total-pages-value="{{ pages }}">
+        <table class="w-full text-sm">
+            <thead class="bg-surface/60">
+                <tr class="border-b border-hairline text-left text-[10px] uppercase tracking-wider text-ink/50">
+                    <th class="px-3 py-2.5 font-semibold">Type</th>
+                    <th class="px-3 py-2.5 font-semibold">Ancienneté</th>
+                    <th class="px-3 py-2.5 font-semibold">Date pièce</th>
+                    <th class="px-3 py-2.5 font-semibold">Établissement</th>
+                    <th class="px-3 py-2.5 font-semibold">Client</th>
+                    <th class="px-3 py-2.5 font-semibold">Libellé</th>
+                    <th class="px-3 py-2.5 text-right font-semibold">Montant</th>
+                    <th class="px-3 py-2.5 font-semibold">Immat / VIN</th>
+                    <th class="px-3 py-2.5 font-semibold">Commentaire compta</th>
+                </tr>
+            </thead>
+            <tbody data-infinite-scroll-target="items">
+                {% include 'remboursement/_lettrage_rows.html.twig' with { lignes: lignes } only %}
+            </tbody>
+        </table>
+        {% if lignes is empty %}
+            <p class="px-4 py-10 text-center text-sm text-ink/50">
+                {{ q is not empty or type or retard ? 'Aucune ligne pour ces critères.' : 'Tout est lettré. Rien à faire ici.' }}
+            </p>
+        {% endif %}
+        <div data-infinite-scroll-target="sentinel"></div>
+        <p data-infinite-scroll-target="loading" class="border-t border-hairline py-3 text-center text-sm text-ink/50" style="display:none">Chargement…</p>
+    </div>
+
+    {# Panneau glissant : rapprochement de la ligne cliquee avec un dossier paye. #}
+    <div data-lettrage-target="backdrop" hidden class="fixed inset-0 z-40 bg-navy-deep/20" data-action="click->lettrage#fermerPanneau"></div>
+    <aside data-lettrage-target="panneau"
+           class="fixed inset-y-0 right-0 z-50 w-full max-w-md translate-x-full transform overflow-y-auto bg-white shadow-2xl shadow-navy/20 transition-transform duration-200">
+        <div class="flex items-center gap-2 border-b border-hairline px-5 py-3">
+            <h2 class="flex-1 text-sm font-bold text-navy">Rapprochement</h2>
+            <button type="button" data-action="lettrage#fermerPanneau" class="rounded-md p-1.5 text-ink/55 transition hover:bg-surface hover:text-navy" aria-label="Fermer (Échap)" title="Fermer (Échap)">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div data-lettrage-target="panneauContenu">
+            <p class="px-5 py-6 text-sm text-ink/55">Sélectionnez une ligne pour voir le dossier le plus probable.</p>
+        </div>
+    </aside>
+
+    {# Modale de saisie du commentaire (une seule pour toute la table). #}
+    <div data-lettrage-target="modale" hidden class="fixed inset-0 z-50 flex items-center justify-center bg-navy-deep/40 px-4">
+        <div class="w-full max-w-lg overflow-hidden rounded-xl border border-hairline bg-white shadow-2xl shadow-navy/20">
+            <div class="flex items-center gap-2 border-b border-hairline px-5 py-3">
+                <h2 class="flex-1 text-sm font-bold text-navy">Commentaire de lettrage</h2>
+                <button type="button" data-action="lettrage#fermer" class="rounded-md p-1.5 text-ink/55 transition hover:bg-surface hover:text-navy" aria-label="Fermer (Échap)">
+                    <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="px-5 py-4">
+                <p data-lettrage-target="info" class="mb-3 text-xs leading-relaxed text-ink/60"></p>
+                <textarea data-lettrage-target="texte" rows="4" maxlength="500"
+                          placeholder="Ex. : en attente du relevé bancaire, à rapprocher du dossier RBC-2026-0142…"
+                          class="w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink transition focus:border-navy focus:outline-none focus:ring-4 focus:ring-navy/10"></textarea>
+                <p data-lettrage-target="erreur" hidden class="mt-2 rounded-md border border-negative/30 bg-negative/10 px-3 py-2 text-xs text-negative"></p>
+            </div>
+            <div class="flex items-center justify-between gap-3 border-t border-hairline bg-surface/50 px-5 py-3">
+                <p class="text-[11px] text-ink/45">Vider le champ retire le commentaire.</p>
+                <div class="flex items-center gap-2">
+                    <button type="button" data-action="lettrage#fermer" class="rounded-lg border border-ink/15 bg-white px-3 py-2 text-sm font-medium text-ink/70 transition hover:bg-surface">Annuler</button>
+                    <button type="button" data-action="lettrage#enregistrer" data-lettrage-target="valider"
+                            class="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy-deep">Enregistrer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

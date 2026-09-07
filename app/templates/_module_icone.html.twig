@@ -1,0 +1,29 @@
+{# Icone d'un module, par VALEUR d'enum (`App\Shared\Enum\Module`).
+
+   Cle sur la valeur et non sur le libelle : renommer « Creances » en « Creances
+   clients » ne doit pas faire disparaitre l'icone.
+
+   C'est le seul endroit, avec l'enum, ou un module nouveau demande une ligne. Le
+   repli est un carre neutre : un module sans trace reste cliquable plutot que de
+   laisser un trou.
+
+   Param : module (valeur, ex. 'garanties').
+
+   Icones Lucide, stroke 1.8 comme le menu. Aucun caractere emoji. #}
+{% if module == 'garanties' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
+{% elseif module == 'creances' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l3 3v17l-3-2-3 2-3-2-3 2V2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>
+{% elseif module == 'recouvrement' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M3 7l2 13a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1l2-13"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M12 11v6M9.5 13.5h5"/></svg>
+{% elseif module == 'remboursement' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h18M3 10l1-4a2 2 0 0 1 2-1.5h12A2 2 0 0 1 20 6l1 4M3 10v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8"/><path d="M14 15l-2 2-2-2M12 17V11"/></svg>
+{% elseif module == 'livraison' %}
+    {% include '_secretaire_icone.html.twig' with { icone: 'camion' } only %}
+{% elseif module == 'affectation' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h13l-3-3M21 17H8l3 3"/><circle cx="18" cy="7" r="2.5"/><circle cx="6" cy="17" r="2.5"/></svg>
+{% elseif module == 'bonus_eco' %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>
+{% else %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+{% endif %}

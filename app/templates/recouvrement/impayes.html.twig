@@ -1,0 +1,73 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Factures impayées - Recouvrement - Finance Créances{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl">
+    {# Bascule : retours à traiter / factures impayées (vue courante) / courriers #}
+    <div class="mb-4 inline-flex rounded-md border border-hairline bg-white p-1">
+        <a href="{{ path('app_recouvrement_index') }}"
+           class="rounded px-4 py-1.5 text-sm font-medium text-ink/70 transition hover:text-navy">À traiter</a>
+        <span class="rounded bg-navy px-4 py-1.5 text-sm font-medium text-white">Factures impayées</span>
+        <a href="{{ path('app_recouvrement_courriers') }}"
+           class="rounded px-4 py-1.5 text-sm font-medium text-ink/70 transition hover:text-navy">{{ pluriel(nb_courriers, 'Courrier', 'Courriers') }} ({{ nb_courriers|number_format(0, ',', ' ') }})</a>
+    </div>
+
+    <div class="mb-6">
+        <h2 class="text-xl font-bold text-navy">Factures clients impayées</h2>
+        <p class="mt-1 text-sm text-ink/70">Créances clients échues à relancer (compte collectif 411, factures non soldées).</p>
+    </div>
+
+    {# KPI #}
+    {% set pct_email = synthese.impayes > 0 ? (synthese.avec_email / synthese.impayes * 100)|round : 0 %}
+    <div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-xl border border-hairline bg-white p-5">
+            <p class="text-xs font-medium uppercase tracking-wider text-ink/50">Factures échues</p>
+            <p class="mt-1 text-2xl font-bold text-navy">{{ synthese.impayes|number_format(0, ',', ' ') }}</p>
+        </div>
+        <div class="rounded-xl border border-hairline bg-white p-5">
+            <p class="text-xs font-medium uppercase tracking-wider text-ink/50">Encours total</p>
+            <p class="mt-1 text-2xl font-bold text-navy">{{ synthese.encours|number_format(0, ',', ' ') }} €</p>
+        </div>
+        <div class="rounded-xl border border-hairline bg-white p-5">
+            <p class="text-xs font-medium uppercase tracking-wider text-ink/50">Clients concernés</p>
+            <p class="mt-1 text-2xl font-bold text-navy">{{ synthese.clients|number_format(0, ',', ' ') }}</p>
+        </div>
+        <div class="rounded-xl border border-hairline bg-white p-5">
+            <p class="text-xs font-medium uppercase tracking-wider text-ink/50">Joignables par mail</p>
+            <p class="mt-1 text-2xl font-bold text-navy">{{ pct_email }}%</p>
+            <p class="text-xs text-ink/45">{{ pluriel(synthese.avec_email, 'avec adresse mail', 'avec adresse mail') }}</p>
+        </div>
+    </div>
+
+    {# Tableau principal #}
+    <div class="overflow-hidden rounded-md border border-hairline bg-white"
+         data-controller="infinite-scroll"
+         data-infinite-scroll-url-value="{{ path('app_recouvrement_impayes') }}"
+         data-infinite-scroll-page-value="{{ page }}"
+         data-infinite-scroll-total-pages-value="{{ total_pages }}">
+        <table class="fc-table-comptable">
+            <thead>
+                <tr>
+                    <th class="is-rownum">#</th>
+                    <th>Client</th>
+                    <th>N° pièce</th>
+                    <th>Échéance</th>
+                    <th>Retard</th>
+                    <th class="is-num">Montant dû</th>
+                    <th>Email</th>
+                    <th>Étab.</th>
+                </tr>
+            </thead>
+            <tbody data-infinite-scroll-target="items">
+                {% include 'recouvrement/_impayes_rows.html.twig' %}
+            </tbody>
+        </table>
+        <div data-infinite-scroll-target="sentinel" class="h-px"></div>
+        <p data-infinite-scroll-target="loading" class="py-4 text-center text-sm text-ink/50" style="display:none">Chargement...</p>
+    </div>
+
+    <p class="mt-4 text-center text-xs text-ink/40">{{ pluriel(total, 'facture impayée', 'factures impayées') }}</p>
+</div>
+{% endblock %}

@@ -1,0 +1,89 @@
+{#- Attestation de validation de remboursement (PDF client, dompdf). charte de la suite,
+   styles inline, mise en page par tables. Attend : reference, client, montant, motif,
+   cleLabel, cle, etabSociete, etabLibelle, date, logo (data-URI). -#}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body style="margin:0; padding:0; font-family:'DejaVu Sans',sans-serif; color:#2D3250; font-size:12px;">
+    <div style="padding:52px 60px;">
+
+        {# En-tete : logo + emetteur, filet or #}
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+            <tr>
+                <td style="vertical-align:middle;">
+                    {% if logo %}<img src="{{ logo }}" alt="SYNTHAUTO Automobile" style="height:44px;">{% else %}<span style="font-size:20px; font-weight:bold; color:#2D3250;">GROUPE SYNTHAUTO</span>{% endif %}
+                </td>
+                <td align="right" style="vertical-align:middle; font-size:10px; line-height:1.5; color:#9096A5;">
+                    <span style="display:block; font-weight:bold; color:#2D3250; font-size:11px;">{{ etabSociete }}</span>
+                    {% if etabLibelle %}<span style="display:block;">{{ etabLibelle }}</span>{% endif %}
+                    <span style="display:block;">Service Remboursement client</span>
+                </td>
+            </tr>
+        </table>
+        <div style="height:3px; background:#C8AA73; margin:16px 0 40px; font-size:0; line-height:0;">&nbsp;</div>
+
+        <p style="text-align:right; margin:0 0 30px; font-size:11px; color:#6B6F80;">Le {{ date }}</p>
+
+        {# Titre #}
+        <h1 style="margin:0 0 4px; font-size:17px; font-weight:bold; letter-spacing:0.06em; text-transform:uppercase; color:#2D3250;">Attestation de remboursement</h1>
+        <p style="margin:0 0 30px; font-size:11px; color:#9096A5;">Référence du dossier : <span style="font-weight:bold; color:#2D3250;">{{ reference }}</span></p>
+
+        {# Enonce (ton confirmation, non juridique) #}
+        <p style="margin:0 0 22px; line-height:1.8; font-size:12.5px;">
+            Nous vous confirmons que la demande de remboursement identifiée ci-dessous a bien été
+            <strong>validée</strong> par nos services. Le montant vous sera remboursé par
+            <strong>virement bancaire sous 48h jours ouvrés</strong>.
+        </p>
+
+        {# Recapitulatif #}
+        {% set lbl = 'padding:11px 0; border-bottom:1px solid #ECECF0; color:#9096A5; width:42%; vertical-align:top;' %}
+        {% set val = 'padding:11px 0; border-bottom:1px solid #ECECF0; color:#2D3250; vertical-align:top;' %}
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse; margin:0 0 30px; font-size:12.5px;">
+            <tr>
+                <td style="{{ lbl }} border-top:1px solid #ECECF0;">Bénéficiaire</td>
+                <td style="{{ val }} border-top:1px solid #ECECF0; font-weight:bold;">{{ client }}</td>
+            </tr>
+            <tr>
+                <td style="{{ lbl }}">Motif du remboursement</td>
+                <td style="{{ val }}">{{ motif }}</td>
+            </tr>
+            {% if cle %}
+                <tr>
+                    <td style="{{ lbl }}">{{ cleLabel }}</td>
+                    <td style="{{ val }} font-family:'Courier New',monospace;">{{ cle }}</td>
+                </tr>
+            {% endif %}
+            <tr>
+                <td style="{{ lbl }}">Établissement</td>
+                <td style="{{ val }}">{{ etabLibelle ?: etabSociete }}</td>
+            </tr>
+            <tr>
+                <td style="{{ lbl }} font-weight:bold; color:#2D3250;">Montant remboursé</td>
+                <td style="{{ val }} font-weight:bold; font-size:15px; color:#15803D;">{{ montant }} €</td>
+            </tr>
+        </table>
+
+        <p style="margin:0 0 60px; line-height:1.7; font-size:11px; color:#6B6F80;">
+            Ce document vous est remis en confirmation de la validation de votre remboursement. Nous restons à votre disposition pour toute question.
+        </p>
+
+        {# Signature : alignée à droite, sans trait #}
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+            <tr>
+                <td align="right" style="font-size:11px; line-height:1.5; color:#2D3250;">
+                    Service Remboursement client<br>
+                    <strong>{{ etabSociete }}</strong>
+                </td>
+            </tr>
+        </table>
+
+    </div>
+
+    {# Pied de page #}
+    <div style="position:fixed; bottom:26px; left:60px; right:60px; border-top:1px solid #EDEDED; padding-top:8px; font-size:9px; color:#B0B4BF; text-align:center;">
+        {{ etabSociete }} — Document généré automatiquement, ne nécessitant pas de signature manuscrite.
+    </div>
+</body>
+</html>

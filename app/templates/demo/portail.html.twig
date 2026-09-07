@@ -1,0 +1,83 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Suite Créances Automobile — les dix outils du mémoire DEC{% endblock %}
+
+{% block body %}
+{{ parent() }}
+<div class="min-h-screen bg-surface pb-16">
+
+  <header class="border-b border-hairline bg-white">
+    <div class="mx-auto flex max-w-[1200px] items-center gap-4 px-6 py-6">
+      <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-navy-deep">
+        <span class="text-lg font-extrabold text-gold">FC</span>
+      </div>
+      <div class="min-w-0">
+        <h1 class="text-xl font-bold tracking-tight text-navy-deep">Suite Créances Automobile</h1>
+        <p class="text-sm text-ink/60">Les dix outils du mémoire DEC — environnement de démonstration</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="mx-auto max-w-[1200px] px-6">
+
+    <p class="max-w-[70ch] py-6 text-sm leading-relaxed text-ink/70">
+      Les dix outils s'enchaînent : on diagnostique, on fiabilise la donnée, on pilote et on
+      sécurise, puis on agit. Choisissez un outil ; vous choisirez ensuite le <b>poste</b> depuis
+      lequel le découvrir, car le même écran ne se présente pas de la même façon à la secrétaire,
+      au comptable et au directeur.
+    </p>
+
+    {% for etape, libelle in etapes %}
+      <section class="mb-8">
+        <div class="mb-3 flex items-center gap-3">
+          <h2 class="eyebrow text-gold-dark">{{ libelle }}</h2>
+          <span class="h-px flex-1 bg-hairline"></span>
+        </div>
+
+        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {% for o in groupes[etape] %}
+            <article class="flex flex-col rounded-xl border border-hairline bg-white p-5 shadow-sm transition hover:border-navy/40 hover:shadow">
+              <div class="mb-2 flex items-baseline gap-2">
+                <span class="font-mono text-sm font-bold text-gold-dark">{{ o.numero }}</span>
+                <h3 class="text-[15px] font-bold leading-snug text-navy-deep">{{ o.nom }}</h3>
+              </div>
+
+              <p class="mb-4 flex-1 text-[13px] leading-relaxed text-ink/60">{{ o.probleme }}</p>
+
+              {% if chiffres[o.cle] is not empty %}
+                <div class="mb-4 flex flex-wrap gap-x-6 gap-y-2 border-t border-hairline pt-3">
+                  {% for c in chiffres[o.cle] %}
+                    <div>
+                      <div class="text-lg font-bold leading-none text-navy">{{ c.valeur }}</div>
+                      <div class="mt-1 text-[10px] font-semibold uppercase tracking-wider text-ink/40">{{ c.libelle }}</div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+
+              <div class="flex items-center justify-between gap-3">
+                <a href="{{ path('demo_outil_profils', {cle: o.cle}) }}"
+                   class="inline-flex items-center gap-2 rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy-deep">
+                  Ouvrir
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                </a>
+                {% if not o.disponible %}
+                  <span class="text-[11px] font-medium text-ink/40">écran d'attente</span>
+                {% endif %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      </section>
+    {% endfor %}
+
+    <p class="mt-10 border-t border-hairline pt-6 text-xs leading-relaxed text-ink/50">
+      Les données présentées sont fictives et ont été construites pour reproduire les mécanismes
+      métier rencontrés dans les groupes automobiles multimarques et multi-concessions, sans
+      exposer aucune donnée client. Les mécanismes de l'application proviennent en revanche de
+      développements réels.
+    </p>
+
+  </div>
+</div>
+{% endblock %}

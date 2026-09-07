@@ -1,0 +1,197 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Affectation des règlements{% endblock %}
+{% block page_title %}Affectation des règlements{% endblock %}
+{% block topbar_nav %}{% include 'affectation/_nav.html.twig' with { active: 'file' } %}{% endblock %}
+
+{% import '_ui.html.twig' as ui %}
+{% set champ = 'w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink transition focus:border-navy focus:outline-none focus:ring-4 focus:ring-navy/10' %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1500px]">
+
+  {# ---------------------------------------------------------------------
+     Le resultat du test independant final. Il est FIGE : c'est un constat
+     date, sur une population precise, mesuree une seule fois. La formulation
+     dit « precision observee sur N affectations », jamais « le moteur est
+     precis a 100 % » -- la seconde serait une generalisation que rien
+     n'autorise.
+  #}
+  <section class="mb-4 rounded-xl border-2 border-positive/40 bg-positive/5 p-4 shadow-sm">
+    <div class="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <h2 class="text-sm font-bold uppercase tracking-wide text-ink/70">Résultat du test indépendant final</h2>
+      <span class="rounded-full bg-white px-2 py-0.5 font-mono text-[11px] font-semibold text-ink/60">{{ publie.population }}</span>
+      <span class="text-[11px] text-ink/45">{{ publie.virements }} virements, mesurés une seule fois le {{ publie.date }}</span>
+    </div>
+    <p class="mb-3 text-[13.5px] leading-relaxed text-ink/80">
+      <b class="text-positive">{{ publie.precision }} % de précision observée</b> sur
+      <b>{{ publie.automatiques }}</b> affectations automatiques du test indépendant final —
+      <b class="text-positive">0 € affecté automatiquement à tort.</b>
+    </p>
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div class="rounded-lg border border-hairline bg-white px-3 py-2">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Automatisés</div>
+        <div class="text-lg font-bold text-positive">{{ publie.automatisation }} <span class="text-xs text-gold">%</span></div>
+      </div>
+      <div class="rounded-lg border border-hairline bg-white px-3 py-2">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Montants laissés au contrôle humain</div>
+        <div class="text-lg font-bold text-navy">{{ publie.humain }} <span class="text-xs text-gold">%</span></div>
+      </div>
+      <div class="rounded-lg border border-hairline bg-white px-3 py-2">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Affecté à tort</div>
+        <div class="text-lg font-bold text-positive">{{ publie.montant_a_tort }} <span class="text-xs text-gold">€</span></div>
+      </div>
+    </div>
+    <p class="mt-2.5 text-[11px] leading-relaxed text-ink/55">
+      Grandeurs <b>observées sur cette population</b>, pas une propriété générale du moteur.
+      Les chiffres ci-dessous, eux, sont recalculés à chaque affichage sur le lot en cours.
+    </p>
+  </section>
+
+  {# --------------------------------------------------- les deux cas majeurs #}
+  <div class="mb-4 grid gap-3 md:grid-cols-2">
+    <a href="{{ path('app_affectation_virement', {id: 'TX-000001'}) }}"
+       class="group rounded-xl border border-hairline bg-white p-4 shadow-sm transition hover:border-navy">
+      <div class="mb-1 flex items-center gap-2">
+        <span class="rounded bg-navy/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-navy">Cas à découvrir</span>
+        <span class="font-mono text-[11px] text-ink/45">TX-000001</span>
+      </div>
+      <div class="text-[13.5px] font-semibold text-ink">Virement global de 126 843 €, six factures sur trois sociétés</div>
+      <p class="mt-1 text-[12px] leading-relaxed text-ink/60">
+        Le libellé ne désigne aucune créance. L'outil retrouve le payeur, puis la seule
+        combinaison de factures qui tombe juste.
+        <span class="font-semibold text-navy group-hover:underline">Ouvrir →</span>
+      </p>
+    </a>
+    <a href="{{ path('app_affectation_virement', {id: 'TX-030542'}) }}"
+       class="group rounded-xl border-2 border-warning/50 bg-warning/5 p-4 shadow-sm transition hover:border-warning">
+      <div class="mb-1 flex items-center gap-2">
+        <span class="rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-warning">Le cas qui compte</span>
+        <span class="font-mono text-[11px] text-ink/45">TX-030542</span>
+      </div>
+      <div class="text-[13.5px] font-semibold text-ink">Indice 100 / 100, et pourtant intervention humaine</div>
+      <p class="mt-1 text-[12px] leading-relaxed text-ink/60">
+        Un numéro de série cité au libellé appartient à un autre compte client.
+        <b>Une règle d'arrêt prévaut sur l'indice</b> : c'est le cœur de la conception.
+        <span class="font-semibold text-navy group-hover:underline">Ouvrir →</span>
+      </p>
+    </a>
+  </div>
+
+  {# Recapitulatif chiffre : tout est calcule, rien n'est ecrit en dur. #}
+  <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+    <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Payeur identifié</div>
+      <div class="text-lg font-bold text-navy">{{ recap.n > 0 ? (recap.identifies / recap.n * 100)|number_format(1, ',', ' ') : '0,0' }} <span class="text-xs text-gold">%</span></div>
+      <div class="text-[11px] text-ink/45">{{ recap.identifies|number_format(0, ',', ' ') }} sur {{ recap.n|number_format(0, ',', ' ') }} analysés</div>
+    </div>
+    <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Affectation automatique</div>
+      <div class="text-lg font-bold text-positive">{{ recap.n > 0 ? (recap.auto / recap.n * 100)|number_format(1, ',', ' ') : '0,0' }} <span class="text-xs text-gold">%</span></div>
+      <div class="text-[11px] text-ink/45">{{ recap.auto|number_format(0, ',', ' ') }} virements</div>
+    </div>
+    <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">À valider</div>
+      <div class="text-lg font-bold text-navy">{{ recap.validation|number_format(0, ',', ' ') }}</div>
+      <div class="text-[11px] text-ink/45">proposition + preuves</div>
+    </div>
+    <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Intervention humaine requise</div>
+      <div class="text-lg font-bold text-warning">{{ (recap.exception + recap.refus)|number_format(0, ',', ' ') }}</div>
+      <div class="text-[11px] text-ink/45">{{ recap.montant_humain|number_format(0, ',', ' ') }} € concernés</div>
+    </div>
+    <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Factures non affectées</div>
+      <div class="text-lg font-bold text-navy">{{ recap.factures_non_affectees|number_format(0, ',', ' ') }}</div>
+      <div class="text-[11px] text-ink/45">le vivier de rapprochement</div>
+    </div>
+  </div>
+
+  <div class="mb-2 flex items-center gap-2">
+    <h2 class="text-sm font-bold uppercase tracking-wide text-ink/70">Virements reçus</h2>
+    <span class="rounded-full bg-ink/10 px-2 py-0.5 text-xs font-semibold text-ink/60">{{ lignes|length }}</span>
+    <span class="ml-auto text-[11px] text-ink/40">
+      durée moyenne d'analyse {{ recap.duree_moyenne ?? '—' }} ms, mesurée sur cette machine
+    </span>
+  </div>
+
+  {# Recherche et filtres, conventions du module : GET, auto-soumission. #}
+  <form method="get" class="mb-3 flex flex-wrap items-end gap-3">
+    <label class="min-w-[18rem] flex-1">
+      <span class="mb-1 block text-xs font-medium text-ink/55">Recherche</span>
+      <input type="search" name="q" value="{{ q }}" class="{{ champ }}"
+             placeholder="Identifiant, libellé bancaire, donneur d'ordre, client…">
+    </label>
+    <label>
+      <span class="mb-1 block text-xs font-medium text-ink/55">Décision</span>
+      <select name="decision" class="{{ champ }}" onchange="this.form.submit()">
+        <option value="">Toutes</option>
+        {% for d in decisions %}
+          <option value="{{ d }}" {{ decision == d ? 'selected' }}>{{ d|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      <span class="mb-1 block text-xs font-medium text-ink/55">Population</span>
+      <select name="cohorte" class="{{ champ }}" onchange="this.form.submit()">
+        <option value="">Toutes</option>
+        {% for c in ['CALIBRATION', 'VALIDATION', 'HOLDOUT_1', 'BLIND_TEST_2'] %}
+          <option value="{{ c }}" {{ cohorte == c ? 'selected' }}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy-deep">Rechercher</button>
+  </form>
+
+  <div class="overflow-hidden rounded-xl border border-hairline bg-white shadow-sm">
+    <table class="fc-table-comptable w-full">
+      <thead>
+        <tr>
+          <th>Virement</th><th>Date</th><th class="text-right">Montant</th>
+          <th>Libellé bancaire reçu</th><th>Payeur proposé</th>
+          <th class="text-right">Factures</th><th>Décision</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in lignes %}
+          <tr class="{{ l.vedette ? 'bg-gold/5' : '' }}">
+            <td class="font-mono text-[12px]">
+              {{ l.id }}
+              {% if l.vedette %}<span class="ml-1 rounded bg-gold/20 px-1 text-[9px] font-bold uppercase text-gold-dark">cas vedette</span>{% endif %}
+            </td>
+            <td class="text-[12px] text-ink/60">{{ l.date_operation|date('d/m/Y') }}</td>
+            <td class="text-right font-mono font-semibold">{{ l.montant|number_format(2, ',', ' ') }} €</td>
+            <td class="font-mono text-[11px] text-ink/55">{{ l.libelle }}</td>
+            <td>
+              {% if l.client_nom %}
+                <span class="font-medium">{{ l.client_nom }}</span>
+                <span class="ml-1 text-[10px] text-ink/40">{{ l.client_type }}</span>
+              {% else %}
+                <span class="text-[12px] text-ink/35">—</span>
+              {% endif %}
+            </td>
+            <td class="text-right font-mono text-[12px]">{{ l.nb_factures ?: '—' }}</td>
+            <td>{% include 'affectation/_badge.html.twig' with { decision: l.decision, score: l.score } %}</td>
+            <td class="text-right">
+              <a href="{{ path('app_affectation_virement', {id: l.id}) }}"
+                 class="text-[12px] font-semibold text-navy hover:underline">Analyser →</a>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="8" class="py-10 text-center text-sm text-ink/40">
+            Aucun virement pour ces critères.
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="mt-3 text-[11px] leading-relaxed text-ink/45">
+    Les virements non analysés attendent un passage du moteur
+    (<span class="font-mono">app:affectation:mesurer</span>). Les décisions affichées sont
+    celles du dernier passage ; ouvrir un virement <b>rejoue l'analyse</b> et chronomètre
+    son exécution sur votre appareil.
+  </p>
+
+</div>
+{% endblock %}

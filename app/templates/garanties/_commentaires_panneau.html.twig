@@ -1,0 +1,19 @@
+{# Contenu du panneau lateral des commentaires, injecte par commentaires_drawer. Le
+   titre et la croix vivent dans le panneau lui-meme (index.html.twig) : ici on ne rend
+   que ce qui depend de la ligne. #}
+<div class="border-b border-navy/10 px-5 py-4">
+    <p class="text-sm font-medium text-navy">
+        {%- if reference %}{{ reference }}
+        {%- elseif ancre.dossier_id %}DG {{ ancre.dossier_id }}
+        {%- else %}Écriture {{ ancre.cle }}{% endif -%}
+    </p>
+    {% if ancre.dossier_id %}
+        <p class="mt-1 text-xs text-ink/55">Commentaire attaché au dossier de garantie : visible sur toutes ses écritures.</p>
+    {% else %}
+        <p class="mt-1 text-xs text-ink/55">Écriture sans DG rapprochée : le commentaire est attaché à la ligne comptable.</p>
+    {% endif %}
+</div>
+
+<div class="px-5 py-4">
+    {% include 'garanties/_notes.html.twig' with { ancre: ancre, notes: notes } only %}
+</div>

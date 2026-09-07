@@ -1,0 +1,18 @@
+{# Entrees de menu des modules accessibles.
+
+   Aucune liste ici : `modules_accessibles()` parcourt `App\Shared\Enum\Module`,
+   garde ce que le voteur autorise, et retire chez la secretaire les modules deja
+   offerts comme espace de depot. Ajouter ou retirer un module ne demande donc de
+   toucher ni ce gabarit ni le layout — seulement l'enum, dont l'ORDRE des cas est
+   l'ordre du menu.
+
+   L'actif se lit sur le CHEMIN et non sur le nom de route : le prefixe d'URL est
+   deja porte par l'enum, un nom de route ne l'est pas.
+ #}
+{% for module in modules_accessibles() %}
+    <a href="{{ path(module.route) }}"
+       class="nav-item {{ app.request.pathInfo starts with module.prefixe ? 'is-active' }}">
+        <span class="nav-icon {{ module.couleur }}">{% include '_module_icone.html.twig' with { module: module.value } only %}</span>
+        <span class="nav-label">{{ module.libelle }}</span>
+    </a>
+{% endfor %}

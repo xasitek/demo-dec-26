@@ -1,0 +1,95 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Comptes inactifs - Recouvrement{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl">
+
+    {% include 'creances/_module_nav.html.twig' with { actif: 'inactifs' } %}
+    {% include 'creances/_flashes.html.twig' %}
+
+    <div class="mb-4 flex items-baseline justify-between">
+        <div>
+            <h2 class="text-lg font-semibold text-navy">Comptes inactifs</h2>
+            <p class="text-[0.7rem] text-ink/45">Comptes en creance ouverte sans aucune action depuis le seuil (note, action, promesse, dossier, relance envoyee).</p>
+        </div>
+        <form method="get" class="flex items-center gap-2">
+            <label for="jours" class="text-[0.7rem] text-ink/55">Seuil (jours)</label>
+            <input type="number" id="jours" name="jours" min="1" max="180" value="{{ jours }}"
+                   class="w-20 rounded-md border border-hairline px-2 py-1 text-sm">
+            <button type="submit" class="rounded-md border border-navy bg-navy px-3 py-1 text-sm font-medium text-white hover:bg-navy-light">Appliquer</button>
+            {% if jours != seuil_defaut %}
+                <a href="{{ path('app_creances_inactifs') }}" class="text-[0.7rem] text-ink/55 hover:text-navy underline">Reinitialiser ({{ seuil_defaut }}j)</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="mb-3 text-sm text-ink/65">
+        <strong>{{ comptes|length }}</strong> compte(s) sans activite depuis &gt; <strong>{{ jours }} jours</strong>.
+    </div>
+
+    <div class="rounded-md border border-hairline bg-white shadow-sm">
+        {% if comptes is empty %}
+            <div class="p-8 text-center">
+                <svg viewBox="0 0 24 24" class="mx-auto h-10 w-10 text-emerald-500" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                <p class="mt-3 text-sm text-ink/55">Tous les comptes en creance ont une action recente. Bon travail.</p>
+            </div>
+        {% else %}
+            <table class="fc-table-comptable">
+                <thead>
+                    <tr>
+                        <th>Client</th>
+                        <th>Etab.</th>
+                        <th class="is-num">Encours</th>
+                        <th>Derniere activite</th>
+                        <th class="is-num">Inactif depuis</th>
+                        <th class="is-num">Criticite</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in comptes %}
+                        {% set jours_inactif = c.jours_inactivite|default(999) %}
+                        {% set couleur_inactif = jours_inactif >= 60 ? 'bg-rose-100 text-rose-700' : (jours_inactif >= 30 ? 'bg-amber-100 text-amber-700' : 'bg-sky-100 text-sky-700') %}
+                        {% set couleur_crit = c.score_criticite >= 75 ? 'bg-rose-100 text-rose-700' : (c.score_criticite >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-sky-100 text-sky-700') %}
+                        <tr class="cursor-pointer hover:bg-surface/60"
+                            onclick="window.location='{{ path('app_creances_fiche', { code: c.compte }) }}'">
+                            <td>
+                                <div class="text-[0.85rem] font-medium text-navy">{{ c.nom }}{% if c.prenom %} {{ c.prenom }}{% endif %}</div>
+                                <div class="text-[0.65rem] font-mono text-ink/45">{{ c.compte }}</div>
+                            </td>
+                            <td class="text-[0.7rem] text-ink/65">{{ c.codeetab|default('—') }}</td>
+                            <td class="is-num">
+                                <span class="font-mono font-semibold text-navy">{{ c.encours|number_format(0, ',', ' ') }}</span>
+                                <span class="text-[0.65rem] text-ink/40">EUR</span>
+                            </td>
+                            <td class="text-[0.7rem] text-ink/65">
+                                {% if c.derniere_activite %}{{ c.derniere_activite|slice(0, 10)|replace({'-': '/'}) }}{% else %}<span class="text-ink/40">Jamais</span>{% endif %}
+                            </td>
+                            <td class="is-num">
+                                {% if c.jours_inactivite %}
+                                    <span class="rounded-full px-2 py-0.5 text-[0.7rem] font-semibold {{ couleur_inactif }}">{{ c.jours_inactivite }} j</span>
+                                {% else %}
+                                    <span class="rounded-full bg-rose-100 px-2 py-0.5 text-[0.7rem] font-semibold text-rose-700">Aucune</span>
+                                {% endif %}
+                            </td>
+                            <td class="is-num">
+                                <span class="rounded-full px-2 py-0.5 text-[0.7rem] font-semibold {{ couleur_crit }}">
+                                    {{ c.score_criticite|number_format(0, '', '') }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{{ path('app_creances_fiche', { code: c.compte }) }}#tab=actions"
+                                   class="text-[0.65rem] text-emerald-700 hover:text-emerald-900 underline">Traiter →</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

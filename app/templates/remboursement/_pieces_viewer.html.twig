@@ -1,0 +1,34 @@
+{#- Visionneuse de pieces : onglets (une piece = un onglet) + iframe (PDF ou image).
+   Onglet actif via aria-pressed (stylé Tailwind). Attend : pieces (list<DossierPiece>). -#}
+{%- set libelles = {
+    'rib': 'RIB',
+    'facture_achat_vo': "Facture d'achat VO",
+    'estimation_salesforce': 'Estimation Salesforce',
+    'carte_grise': 'Carte grise',
+    'certificat_situation': 'Certificat de situation',
+    'releve_icar': 'Relevé ICAR',
+    'petits_comptes': 'Petits comptes',
+} -%}
+<div data-controller="apercu-pieces" class="flex h-full flex-col">
+    {% if pieces is empty %}
+        <p class="px-4 py-16 text-center text-sm text-ink/45">Aucune pièce.</p>
+    {% else %}
+        <div class="flex shrink-0 flex-wrap gap-1.5 border-b border-hairline bg-surface/40 px-3 py-2">
+            {% for p in pieces %}
+                <button type="button"
+                        data-action="apercu-pieces#afficher"
+                        data-src="{{ path('app_remboursement_dossier_piece', {id: p.id}) }}"
+                        aria-pressed="{{ loop.first ? 'true' : 'false' }}"
+                        class="rounded-md border border-hairline px-3 py-1.5 text-xs font-medium text-ink/70 transition hover:bg-surface aria-pressed:border-navy aria-pressed:bg-navy aria-pressed:text-white">
+                    {{ libelles[p.type]|default(p.type) }}
+                </button>
+            {% endfor %}
+        </div>
+        <div class="min-h-0 flex-1 bg-ink/5">
+            <iframe data-apercu-pieces-target="frame"
+                    src="{{ path('app_remboursement_dossier_piece', {id: pieces|first.id}) }}"
+                    title="Aperçu de la pièce"
+                    class="block h-full min-h-[60vh] w-full border-0"></iframe>
+        </div>
+    {% endif %}
+</div>

@@ -1,0 +1,45 @@
+{# Une idee du mur. Le vote passe par un vrai formulaire : il fonctionne meme
+   sans JavaScript (rechargement), et Stimulus l'intercepte quand il est la. #}
+{% set a_vote = suggestion.id in votes_utilisateur %}
+<article id="suggestion-{{ suggestion.id }}" class="flex gap-4 rounded-xl border border-hairline bg-white p-4">
+
+    <form method="post" action="{{ path('app_suggestions_vote', { id: suggestion.id }) }}"
+          data-action="submit->suggestion-mur#voter"
+          data-suggestion-mur-target="formVote"
+          data-id="{{ suggestion.id }}"
+          class="shrink-0">
+        <input type="hidden" name="_token" value="{{ csrf_token('suggestion_vote') }}">
+        <button type="submit"
+                class="flex w-12 flex-col items-center rounded-lg border px-1 py-1.5 transition {{ a_vote ? 'border-gold bg-gold/10 text-gold-dark' : 'border-hairline text-ink/55 hover:border-navy/40 hover:text-navy' }}"
+                data-suggestion-mur-target="bouton"
+                aria-label="{{ a_vote ? 'Retirer mon soutien' : 'Soutenir cette idée' }}"
+                title="{{ a_vote ? 'Retirer mon soutien' : 'Soutenir cette idée' }}">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>
+            <span class="text-sm font-bold" data-suggestion-mur-target="compteur" data-id="{{ suggestion.id }}">{{ suggestion.nbVotes }}</span>
+        </button>
+    </form>
+
+    <div class="min-w-0 flex-1">
+        <div class="flex items-start justify-between gap-3">
+            <p class="whitespace-pre-line text-sm leading-relaxed text-ink">{{ suggestion.message }}</p>
+            <span class="shrink-0 rounded-full border px-2 py-0.5 text-[0.7rem] font-semibold {{ suggestion.statut.classesBadge }}">{{ suggestion.statut.libelle }}</span>
+        </div>
+
+        <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink/45">
+            <span class="font-medium text-ink/65">{{ suggestion.auteurNom }}</span>
+            <span>·</span>
+            <span>{{ suggestion.createdAt|date('d/m/Y') }}</span>
+            {% if suggestion.module %}
+                <span>·</span>
+                <span>{{ suggestion.module.libelle }}</span>
+            {% endif %}
+        </div>
+
+        {% if suggestion.reponse %}
+            <div class="mt-3 rounded-lg border-l-2 border-gold bg-surface px-3 py-2">
+                <p class="text-xs leading-snug text-ink/80">{{ suggestion.reponse }}</p>
+                <p class="mt-1 text-[0.65rem] text-ink/45">{{ suggestion.traitePar }}{% if suggestion.traiteAt %} · {{ suggestion.traiteAt|date('d/m/Y') }}{% endif %}</p>
+            </div>
+        {% endif %}
+    </div>
+</article>

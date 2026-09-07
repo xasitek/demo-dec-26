@@ -1,0 +1,71 @@
+{#
+    Gabarit commun des e-mails du module Remboursement client. Carte a coins DROITS
+    (sans border-radius), fine LIGNE d'accent en haut (couleur selon l'action : vert =
+    validation, orange = correction, rouge = refus), en-tete NAVY avec logo SYNTHAUTO complet
+    (blanc) a gauche + titre a droite. E-mail AUTOMATIQUE (pas de reponse). Mobile-first :
+    styles inline + @media. Aucun emoji. Variable : logo_src (cid).
+#}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light only">
+    <title>{% block titre %}Remboursement client{% endblock %}</title>
+    <style>
+        @media only screen and (max-width: 600px) {
+            .m-pad { padding-left: 18px !important; padding-right: 18px !important; }
+            .m-title { font-size: 15px !important; }
+            .m-logo { height: 26px !important; }
+            .m-btn { display: block !important; width: 100% !important; box-sizing: border-box !important; text-align: center !important; }
+            .m-btn-td { display: block !important; width: 100% !important; padding: 5px 0 !important; }
+        }
+    </style>
+</head>
+<body style="margin:0; padding:0; background-color:#F1F1F4; font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#4A4A4A;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F1F1F4; padding:26px 12px;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%; background-color:#FFFFFF; border:1px solid #E3E3E8;">
+
+                    {# Fine ligne d'accent (couleur selon l'action) #}
+                    <tr><td style="height:3px; line-height:3px; font-size:0; background-color:{% block accent %}#2D3250{% endblock %};">&nbsp;</td></tr>
+
+                    {# En-tete blanc : logo (gauche) + titre (droite) #}
+                    <tr>
+                        <td class="m-pad" style="padding:20px 30px; border-bottom:1px solid #EDEDED;">
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td valign="middle">
+                                        <img src="{{ logo_src }}" alt="SYNTHAUTO Automobile" height="30" class="m-logo" style="display:block; height:30px; width:auto; border:0;">
+                                    </td>
+                                    <td valign="middle" align="right">
+                                        <span class="m-title" style="display:block; font-size:17px; font-weight:700; color:#2D3250; line-height:1.2;">{{ block('titre') }}</span>
+                                        <span style="display:block; margin-top:2px; font-size:10px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:#C8AA73;">Remboursement client</span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    {# Contenu #}
+                    <tr>
+                        <td class="m-pad" style="padding:24px 30px 26px; font-size:14px; line-height:1.65; color:#4A4A4A;">
+                            {% block contenu %}{% endblock %}
+                        </td>
+                    </tr>
+
+                    {# Pied de page #}
+                    <tr>
+                        <td class="m-pad" style="padding:16px 30px; background-color:#FAFAFA; border-top:1px solid #EEEEEE; font-size:11px; line-height:1.55; color:#9096A5;">
+                            Groupe Synthauto — Service Remboursement client<br>
+                            E-mail automatique, merci de ne pas y répondre.
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

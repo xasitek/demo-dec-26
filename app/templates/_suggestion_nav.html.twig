@@ -1,0 +1,28 @@
+{# Boite a idees : derniere ligne de la barre laterale, pour TOUS les connectes,
+   poste secretaire compris — proposer une idee ne depend pas du role.
+
+   Ce bouton n'ouvre pas une page : il bascule le panneau flottant rendu en pied
+   de layout (_suggestion_panneau_flottant.html.twig), auquel il est relie par
+   delegation d'evenement plutot que par le scope Stimulus.
+
+   data-action="sidebar#close" : le bouton est dans le scope du controleur
+   sidebar porte par .app-shell, ce qui referme la barre laterale sur mobile
+   avant l'ouverture du panneau. Sur desktop, l'appel ne fait rien.
+
+   L'ampoule s'allume par intermittence (cf. .nav-idee dans app.css). #}
+<button type="button"
+        class="nav-item nav-idee w-full"
+        data-suggestion-declencheur
+        data-action="sidebar#close"
+        aria-expanded="false"
+        aria-label="Proposer une idée pour Finance Créances"
+        title="Une idée pour améliorer Finance Créances ?">
+    <span class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5a6 6 0 0 0-12 0c0 1.3.5 2.6 1.5 3.5.8.8 1.3 1.5 1.5 2.5"/>
+            <path d="M9 18h6"/>
+            <path d="M10 22h4"/>
+        </svg>
+    </span>
+    <span class="nav-label">Une idée ?</span>
+</button>

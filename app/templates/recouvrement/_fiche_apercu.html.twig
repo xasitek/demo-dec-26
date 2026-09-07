@@ -1,0 +1,55 @@
+{# Apercu condense d'un client (contenu du drawer lateral de la vue Clients). #}
+{% set id = fiche.identite %}
+{% set e = fiche.encours %}
+<div class="p-4">
+    <div class="text-base font-bold text-navy">{{ id.raison_sociale }}</div>
+    <div class="mt-0.5 text-xs text-ink/50">
+        {{ fiche.compte }}{% if id.ville %} · {{ id.ville }}{% endif %}
+        {% if fiche.ecarte %}<span class="ml-1 inline-flex rounded-full bg-negative/10 px-1.5 py-0.5 text-[0.65rem] font-semibold text-negative">Écarté</span>{% endif %}
+    </div>
+
+    <div class="mt-3 grid grid-cols-2 gap-2">
+        <div class="rounded-md border border-navy/15 bg-navy/[0.03] p-2">
+            <div class="text-[0.65rem] text-ink/55">Encours ({{ e.nb }})</div>
+            <div class="text-sm font-bold text-navy">{{ e.total|number_format(0, ',', ' ') }} €</div>
+        </div>
+        <div class="rounded-md border border-hairline p-2">
+            <div class="text-[0.65rem] text-ink/55">Échu{% if e.retard_max > 0 %} · {{ e.retard_max }} j{% endif %}</div>
+            <div class="text-sm font-bold {{ e.echu > 0 ? 'text-negative' : 'text-ink/70' }}">{{ e.echu|number_format(0, ',', ' ') }} €</div>
+        </div>
+    </div>
+
+    {% if id.email or id.telephone or id.portable %}
+        <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+            {% if id.email %}<a href="mailto:{{ id.email }}" class="text-navy hover:underline">{{ id.email }}</a>{% endif %}
+            {% if id.telephone %}<a href="tel:{{ id.telephone }}" class="text-navy hover:underline">{{ id.telephone }}</a>{% endif %}
+            {% if id.portable %}<a href="tel:{{ id.portable }}" class="text-navy hover:underline">{{ id.portable }}</a>{% endif %}
+        </div>
+    {% endif %}
+
+    <div class="mt-4 text-[0.7rem] font-semibold uppercase tracking-wide text-ink/45">Derniers échanges</div>
+    {% if fiche.timeline is empty %}
+        <div class="mt-1 text-sm text-ink/40">Aucun échange enregistré.</div>
+    {% else %}
+        <ul class="mt-1 space-y-1.5">
+            {% for item in fiche.timeline|slice(0, 5) %}
+                <li class="text-xs text-ink/70">
+                    <span class="text-ink/45">{{ item.date|date('d/m/Y') }}</span> —
+                    {% if item.type == 'relance' %}
+                        <span class="font-medium text-navy">{{ item.relance.miseEnDemeure ? 'Mise en demeure' : 'Relance' }} niv. {{ item.relance.niveau }}</span>
+                    {% elseif item.type == 'retour' %}
+                        <span class="font-medium text-gold-dark">Réponse du client</span>
+                    {% else %}
+                        <span class="font-medium text-positive">Réponse envoyée</span>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    <a href="{{ path('app_recouvrement_fiche_client', {compte: fiche.compte}) }}"
+       class="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-navy px-3 py-2 text-sm font-semibold text-white transition hover:bg-navy-light">
+        Ouvrir la fiche complète
+        <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    </a>
+</div>

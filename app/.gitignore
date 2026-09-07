@@ -1,0 +1,50 @@
+
+###> symfony/framework-bundle ###
+/.env.local
+/.env.local.php
+/.env.*.local
+/config/secrets/prod/prod.decrypt.private.php
+/public/bundles/
+/var/
+/vendor/
+###< symfony/framework-bundle ###
+
+# .env.example contient ici de VRAIS secrets (doublon de .env.local) et non des
+# placeholders : on l'exclut de git pour ne jamais le publier.
+/.env.example
+
+###> phpunit/phpunit ###
+/phpunit.xml
+/.phpunit.cache/
+###< phpunit/phpunit ###
+
+###> symfony/asset-mapper ###
+/public/assets/
+/assets/vendor/
+###< symfony/asset-mapper ###
+
+###> friendsofphp/php-cs-fixer ###
+/.php-cs-fixer.php
+/.php-cs-fixer.cache
+###< friendsofphp/php-cs-fixer ###
+
+# Donnees metier locales : CSV de scrap des garanties (import transitoire avant
+# que le RPA ecrive directement en base). Ne jamais committer de donnees reelles.
+/Statut des garanties - *.csv
+/*.csv
+
+# Cles de service Google (Sheets API pour module Bonus Ecologique).
+# Le JSON est partage de facon hors-repo (1Password, secret manager...).
+/config/google_service_account*.json
+
+# Wrapper local de la tache planifiee POP3 (serveur interne, chemins machine-specifiques).
+/bin/pop-fetch.bat
+
+# Fichier des RIB des societes SYNTHAUTO (IBAN sensibles) : jamais commite. Sert de
+# source a l'import du mapping entite -> RIB pour les relances (via une commande
+# de seed / une config hors-repo), pas a etre versionne.
+/DEMANDE DE REMBOURSEMENT.xlsx
+*.xlsx
+
+# Reglages Claude Code personnels (permissions locales) : jamais commites.
+/.claude/settings.local.json

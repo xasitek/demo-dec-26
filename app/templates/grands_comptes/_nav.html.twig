@@ -1,0 +1,44 @@
+{# Barre du module. Le poste d'entree change selon le role : la secretaire
+   depose, le comptable controle. Chacun arrive sur SA file. #}
+<nav class="flex items-center gap-1">
+  {% if is_granted('ROLE_SECRETAIRE') or is_granted('ROLE_ADMIN') %}
+    <a href="{{ path('app_gc_secretaire') }}"
+       class="rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition
+              {{ active == 'secretaire' ? 'bg-navy text-white' : 'text-ink/60 hover:bg-ink/5 hover:text-ink' }}">
+      Mes dossiers
+    </a>
+  {% endif %}
+  {% if is_granted('ROLE_COMPTABLE') or is_granted('ROLE_MANAGER') %}
+    <a href="{{ path('app_gc_controle') }}"
+       class="rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition
+              {{ active == 'controle' ? 'bg-navy text-white' : 'text-ink/60 hover:bg-ink/5 hover:text-ink' }}">
+      À vérifier
+    </a>
+  {% endif %}
+  {% if is_granted('ROLE_DIRECTEUR') or is_granted('ROLE_MANAGER') %}
+    <a href="{{ path('app_gc_mon_site') }}"
+       class="rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition
+              {{ active == 'mon_site' ? 'bg-navy text-white' : 'text-ink/60 hover:bg-ink/5 hover:text-ink' }}">
+      Mon site
+    </a>
+  {% endif %}
+  {% if is_granted('ROLE_MANAGER') or is_granted('ROLE_ADMIN') %}
+    <a href="{{ path('app_gc_pilotage') }}"
+       class="rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition
+              {{ active == 'pilotage' ? 'bg-navy text-white' : 'text-ink/60 hover:bg-ink/5 hover:text-ink' }}">
+      Pilotage
+    </a>
+  {% endif %}
+  {% if is_granted('ROLE_COMPTABLE') or is_granted('ROLE_MANAGER') or is_granted('ROLE_DIRECTEUR') %}
+    <a href="{{ path('app_gc_pont') }}"
+       class="rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition
+              {{ active == 'pont' ? 'bg-navy text-white' : 'text-ink/60 hover:bg-ink/5 hover:text-ink' }}">
+      Pont outil 6
+    </a>
+  {% endif %}
+  <a href="{{ path('app_gc_methode') }}"
+     class="rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition
+            {{ active == 'methode' ? 'bg-navy text-white' : 'text-ink/60 hover:bg-ink/5 hover:text-ink' }}">
+    Grilles et référentiel
+  </a>
+</nav>

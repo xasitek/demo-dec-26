@@ -1,0 +1,104 @@
+{
+ "3-maturite": [
+  {
+   "id": "CLI-0000008",
+   "titre": "Un compte, deux codes inconciliables",
+   "sous": "C100007 au référentiel, 100007 à la balance"
+  }
+ ],
+ "4-affectation": [
+  {
+   "id": "TX-000001",
+   "titre": "Virement global de 126 843 €",
+   "sous": "Six factures, trois sociétés, un seul virement"
+  },
+  {
+   "id": "TX-000011",
+   "titre": "Payeur différent du facturé",
+   "sous": "Le nom du donneur d'ordre ne correspond à personne"
+  },
+  {
+   "id": "TX-000038",
+   "titre": "Deux candidats trop proches",
+   "sous": "L'outil refusera de trancher seul"
+  },
+  {
+   "id": "TX-000026",
+   "titre": "Cas volontairement insoluble",
+   "sous": "Aucun sous-ensemble de factures ne compose ce montant"
+  }
+ ],
+ "5-lettrage": [
+  {
+   "id": "TX-000002",
+   "titre": "Somme exacte de plusieurs factures",
+   "sous": "Le rapprochement se joue sur la combinaison"
+  },
+  {
+   "id": "TX-000052",
+   "titre": "Mouvement bancaire de sens mixte",
+   "sous": "À découper avant tout rapprochement"
+  }
+ ],
+ "7-grands-comptes": [
+  {
+   "id": "DLV-000012",
+   "titre": "Attestation de batterie absente",
+   "sous": "LOUEUR DELTA l'exige, 37 109 € bloqués"
+  },
+  {
+   "id": "DLV-000009",
+   "titre": "Le même dossier chez un autre payeur",
+   "sous": "LOUEUR ALPHA n'a pas la même grille"
+  },
+  {
+   "id": "DLV-000005",
+   "titre": "Facture réglée entre-temps",
+   "sous": "Elle sort du dossier par construction"
+  }
+ ],
+ "8-remboursements": [
+  {
+   "id": "RBC-2026-000010",
+   "titre": "Surpaiement d'engagement de reprise",
+   "sous": "Écart de 600 € pour une tolérance de 3 €"
+  },
+  {
+   "id": "RBC-2026-000026",
+   "titre": "Écart de 2 € : le dossier passe",
+   "sous": "La tolérance contractuelle est respectée"
+  },
+  {
+   "id": "TPC-2026-000044",
+   "titre": "Doublon parfait",
+   "sous": "Refusé à l'instant du dépôt"
+  },
+  {
+   "id": "RBC-2026-000024",
+   "titre": "Même compte bancaire, deux codes clients",
+   "sous": "L'empreinte d'IBAN le voit"
+  },
+  {
+   "id": "RBC-2026-000102",
+   "titre": "Validation hors périmètre",
+   "sous": "Le directeur n'est pas celui de cet établissement"
+  },
+  {
+   "id": "RBC-2026-000037",
+   "titre": "Panne de lecture des pièces",
+   "sous": "Ne devient jamais un refus"
+  }
+ ],
+ "10-relance": [
+  {
+   "id": "REL-000002",
+   "titre": "Déjà payée, jamais affectée",
+   "sous": "35 932 € qu'il ne faut pas réclamer"
+  },
+  {
+   "id": "REL-000003",
+   "titre": "Trois relances sans réponse",
+   "sous": "Niveau supérieur, pas une quatrième relance identique"
+  }
+ ]
+}

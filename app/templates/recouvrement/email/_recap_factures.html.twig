@@ -1,0 +1,96 @@
+{#
+    Releve des factures impayees d'un compte, partage par les 3 formats d'email.
+    Attend : groupe (GroupeARelancer).
+
+    Structure : un tableau PAR ETABLISSEMENT (compte bancaire SYNTHAUTO), via
+    groupe.releve. Chaque groupe = en-tete (titulaire), ses factures, son
+    sous-total (si plusieurs groupes) et ses coordonnees de paiement (IBAN/BIC).
+    Le client regle chaque groupe sur le compte indique, en rappelant sa reference
+    dossier en libelle. Les factures dont l'etablissement n'a pas de RIB connu
+    forment un dernier groupe "Autres factures" sans coordonnees. Un TOTAL GENERAL
+    (net des avoirs) clot le releve.
+
+    Colonne "ID" (immatriculation + OR) : affichee si au moins une facture du
+    releve a une immat ou un OR (numor '0'/'' = absent), sinon masquee.
+#}
+{% import _self as recap %}
+
+{% set has_id = groupe.factures|filter(f => (f.numimmat|default('')|trim) is not empty or (f.numor|default('')|trim not in ['', '0']))|length > 0 %}
+{% set ncol = has_id ? 5 : 4 %}
+{% set plusieurs = groupe.releve|default([])|length > 1 %}
+
+{% macro entete(has_id) %}
+    <tr class="m-cols">
+        <th align="left" style="padding: 8px 10px; color: #FFFFFF; background-color: #2D3250; border: 1px solid #2D3250; font-weight: 600; font-size: 12px;">Facture</th>
+        <th align="left" style="padding: 8px 10px; color: #FFFFFF; background-color: #2D3250; border: 1px solid #2D3250; font-weight: 600; font-size: 12px;">Échéance</th>
+        <th align="left" style="padding: 8px 10px; color: #FFFFFF; background-color: #2D3250; border: 1px solid #2D3250; font-weight: 600; font-size: 12px;">Retard</th>
+        {% if has_id %}<th align="left" style="padding: 8px 10px; color: #FFFFFF; background-color: #2D3250; border: 1px solid #2D3250; font-weight: 600; font-size: 12px;">ID</th>{% endif %}
+        <th align="right" style="padding: 8px 10px; color: #FFFFFF; background-color: #2D3250; border: 1px solid #2D3250; font-weight: 600; font-size: 12px;">Montant TTC</th>
+    </tr>
+{% endmacro %}
+
+{% macro lignes(factures, has_id) %}
+    {% for facture in factures %}
+        {% set immat = facture.numimmat|default('')|trim %}
+        {% set oref = facture.numor|default('')|trim %}
+        {% if oref in ['', '0'] %}{% set oref = '' %}{% endif %}
+        <tr>
+            <td style="padding: 7px 10px; border: 1px solid #E5E5E5; font-family: 'Courier New', monospace;"><span class="m-label" style="display: none;">Facture : </span>{{ facture.reference ?: facture.numpiece ?: '—' }}</td>
+            <td style="padding: 7px 10px; border: 1px solid #E5E5E5;"><span class="m-label" style="display: none;">Échéance : </span>{{ facture.date_echeance ? facture.date_echeance|date('d/m/Y') : '—' }}</td>
+            <td style="padding: 7px 10px; border: 1px solid #E5E5E5; white-space: nowrap;"><span class="m-label" style="display: none;">Retard : </span>{{ facture.montant < 0 ? '' : pluriel(facture.jours_retard, 'jour', 'jours') }}</td>
+            {% if has_id %}<td style="padding: 7px 10px; border: 1px solid #E5E5E5; font-family: 'Courier New', monospace; font-size: 12px; white-space: nowrap;"><span class="m-label" style="display: none; font-family: 'Montserrat', Arial, sans-serif;">ID : </span>{{ immat }}{% if immat and oref %} · {% endif %}{% if oref %}OR {{ oref }}{% endif %}{% if not immat and not oref %}—{% endif %}</td>{% endif %}
+            <td align="right" class="m-amount" style="padding: 7px 10px; border: 1px solid #E5E5E5; white-space: nowrap;{% if facture.montant < 0 %} color: #2E7D5F;{% endif %}"><span class="m-label" style="display: none;">Montant : </span>{{ facture.montant|number_format(2, ',', ' ') }} €</td>
+        </tr>
+    {% endfor %}
+{% endmacro %}
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 18px 0 26px;">
+    <tr>
+        <td style="background-color: #FBEED6; border-left: 4px solid #C8AA73; padding: 12px 16px; font-size: 13px; color: #5A4A22; line-height: 1.55;">
+            Merci d'effectuer votre règlement par virement en rappelant impérativement la référence
+            <strong style="color: #2D3250;">[ref. {{ groupe.compte_code }}]</strong> en libellé.{% if plusieurs %} Vos factures relèvent de plusieurs établissements : merci de régler chaque groupe sur le compte correspondant indiqué ci-dessous.{% endif %}
+        </td>
+    </tr>
+</table>
+
+{% for g in groupe.releve|default([]) %}
+    {# Bloc etablissement insecable : enveloppe en div page-break-inside:avoid (dompdf
+       gere mieux l'avoid sur un div que sur un <table>) -> le bloc part entier a la
+       page suivante s'il ne tient pas, jamais coupe (en-tete/coordonnees orphelins). #}
+    <div style="page-break-inside: avoid; margin-top: 14px;">
+    <table role="presentation" width="100%" class="m-tbl" cellpadding="0" cellspacing="0" style="border-collapse: collapse; font-size: 13px;">
+        <thead>
+            <tr>
+                <th colspan="{{ ncol }}" align="left" style="padding: 8px 10px; background-color: #2D3250; color: #FFFFFF; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; border: 1px solid #2D3250;">{{ g.titulaire ?: 'Autres factures' }}{% if g.banque %} <span style="font-weight: 400; color: #C8AA73;">· {{ g.banque }}</span>{% endif %}</th>
+            </tr>
+            {{ recap.entete(has_id) }}
+        </thead>
+        <tbody>
+            {{ recap.lignes(g.factures, has_id) }}
+            {% if plusieurs %}
+                <tr>
+                    <td colspan="{{ ncol - 1 }}" align="right" style="padding: 8px 10px; border: 1px solid #E5E5E5; background-color: #F5F5F5; color: #2D3250; font-weight: 700;">Sous-total</td>
+                    <td align="right" style="padding: 8px 10px; border: 1px solid #E5E5E5; background-color: #F5F5F5; color: #2D3250; font-weight: 700; white-space: nowrap;">{{ g.montant|number_format(2, ',', ' ') }} €</td>
+                </tr>
+            {% endif %}
+            {% if g.iban and g.montant > 0 %}
+                <tr>
+                    <td colspan="{{ ncol }}" style="padding: 9px 10px; border: 1px solid #E5E5E5; border-top: 0; color: #4A4A4A; line-height: 1.5;">
+                        <span style="font-weight: 600; color: #2D3250;">Coordonnées de paiement</span><br>
+                        <span style="font-family: 'Courier New', monospace;">IBAN&nbsp;: {{ g.iban }}{% if g.bic %} &nbsp;·&nbsp; BIC&nbsp;: {{ g.bic }}{% endif %}</span>
+                    </td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+    </div>
+{% endfor %}
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 14px 0 20px; border-collapse: collapse; font-size: 13px; page-break-inside: avoid;">
+    <tbody>
+        <tr>
+            <td align="right" style="padding: 9px 10px; color: #2D3250; background-color: #E5D4B0; border: 1px solid #E5E5E5; font-weight: 700; width: 70%;">Total restant dû</td>
+            <td align="right" style="padding: 9px 10px; border: 1px solid #E5E5E5; font-weight: 700; color: #2D3250; font-size: 15px; white-space: nowrap;">{{ groupe.total|number_format(2, ',', ' ') }} € TTC</td>
+        </tr>
+    </tbody>
+</table>

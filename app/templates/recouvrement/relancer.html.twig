@@ -1,0 +1,107 @@
+{% extends 'layout.html.twig' %}
+{% import '_ui.html.twig' as ui %}
+
+{% block title %}Clients - Recouvrement - Finance Créances{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+{% block topbar_nav %}{% include 'recouvrement/_topbar_nav.html.twig' with {active: 'relancer'} %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-6xl px-3">
+
+    {% for message in app.flashes('success') %}
+        <div class="mb-4 flex items-center gap-2 rounded-md border border-positive/30 bg-positive/10 px-4 py-3 text-sm text-positive">
+            <svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+            {{ message }}
+        </div>
+    {% endfor %}
+
+    <h1 class="mb-1 text-2xl font-bold text-navy">Clients</h1>
+    <p class="mb-4 text-sm text-ink/60">Recherchez un client (nom, compte, SIREN, e-mail, n° de facture), consultez sa situation d'un coup d'œil et ouvrez sa fiche. Relancer, mettre en demeure ou écarter restent à portée sur chaque ligne. {{ nb_ecartes }} compte(s) écarté(s).</p>
+
+    <div data-controller="relance-manuelle curation apercu-drawer infinite-scroll"
+         data-relance-manuelle-envoyer-url-value="{{ path('app_recouvrement_relancer_envoyer') }}"
+         data-relance-manuelle-factures-url-value="{{ path('app_recouvrement_relancer_factures', {compte: '__COMPTE__'}) }}"
+         data-relance-manuelle-csrf-value="{{ csrf_token('relancer-manuel') }}"
+         data-curation-decider-url-value="{{ path('app_recouvrement_curation_decider') }}"
+         data-curation-csrf-value="{{ csrf_token('curation-decider') }}"
+         data-apercu-drawer-url-value="{{ path('app_recouvrement_fiche_apercu', {compte: '__COMPTE__'}) }}"
+         data-infinite-scroll-url-value="{{ path('app_recouvrement_relancer', {q: q, collectif: collectif, etab: etab, statut: statut, hors_relance: hors_relance ? '1' : '', strategie: strategie}) }}"
+         data-infinite-scroll-page-value="{{ page }}"
+         data-infinite-scroll-total-pages-value="{{ total_pages }}">
+
+        {# Barre de recherche mise en avant. data-turbo="false" : sans lui, Turbo
+           intercepte la soumission GET et la vide (l'URL repart sans ?q=...), donc
+           la recherche "ne marche plus". On force une navigation classique. #}
+        <form method="get" action="{{ path('app_recouvrement_relancer') }}" data-turbo="false" class="mb-3">
+            <div class="relative">
+                <svg viewBox="0 0 24 24" class="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ink/40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="search" name="q" value="{{ q }}" autofocus autocomplete="off"
+                       placeholder="Rechercher un client : nom, compte, SIREN, e-mail, n. de facture..."
+                       class="w-full rounded-lg border border-hairline bg-white py-3 pl-12 pr-4 text-base text-ink shadow-sm transition focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30">
+            </div>
+            {# Bouton submit accessible (visuellement masque) : les composants SYNTHAUTO
+               fc_multi_select ajoutent chacun un <input type="text"> interne DANS ce
+               <form>. Avec plusieurs champs texte et aucun bouton submit, le navigateur
+               ne soumet plus sur Entree (regle du champ texte unique). Ce bouton retablit
+               la recherche au clavier. #}
+            <button type="submit" class="sr-only">Rechercher</button>
+            {# Composants SYNTHAUTO (comme Garanties / Creances) : dropdowns a recherche pour
+               les listes de codes, select stylise pour le statut (2 valeurs).
+               collectif : force_label_as_value car value == label (codes numeriques
+               convertis en int par PHP) ; etablissement : la valeur est la cle (code)
+               et le libelle est enrichi du nom du site. #}
+            <div class="mt-2 flex flex-wrap items-center gap-2">
+                {{ ui.fc_multi_select('collectif', collectif_opts, collectif, 'Collectif : tous', 'collectifs', '', true) }}
+                {{ ui.fc_multi_select('etab', etab_opts, etab, 'Établissement : tous', 'établissements') }}
+                {{ ui.fc_select('statut', { '': 'Statut : tous', 'relancable': 'Relançables', 'ecarte': 'Écartés' }, statut) }}
+                {{ ui.fc_select('hors_relance', { '': 'Hors relance : tous', '1': 'Avec factures hors relance' }, hors_relance ? '1' : '') }}
+                {{ ui.fc_select('strategie', strategie_opts, strategie) }}
+                {% if q != '' or collectif is not empty or etab is not empty or statut != '' or hors_relance or strategie != '' %}
+                    <a href="{{ path('app_recouvrement_relancer') }}" class="text-sm text-ink/55 hover:text-navy">Réinitialiser</a>
+                {% endif %}
+            </div>
+        </form>
+
+        <div class="fc-elev overflow-hidden rounded-md border border-hairline bg-white">
+            <div class="overflow-x-auto">
+                <table class="fc-table-comptable">
+                    <thead>
+                        <tr>
+                            <th>Client</th>
+                            <th class="fc-cell-fit" style="text-align: right;">Encours</th>
+                            <th class="fc-cell-fit">Retard</th>
+                            <th class="fc-cell-fit">Dernière relance</th>
+                            <th class="fc-cell-fit" style="text-align: center;">Hors relance</th>
+                            <th class="fc-cell-fit" style="text-align: center;">Statut</th>
+                            <th class="fc-cell-fit" style="text-align: center;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody data-infinite-scroll-target="items">
+                        {% include 'recouvrement/_relancer_rows.html.twig' %}
+                    </tbody>
+                </table>
+            </div>
+            <div data-infinite-scroll-target="sentinel" class="h-px"></div>
+            <p data-infinite-scroll-target="loading" class="py-4 text-center text-sm text-ink/50" style="display:none">Chargement...</p>
+        </div>
+
+        <p class="mt-4 text-center text-xs text-ink/40">{{ pluriel(total, 'client', 'clients') }}{% if q != '' %} pour « {{ q }} »{% endif %}{% if collectif != '' or etab != '' or statut != '' %} (filtré){% endif %}</p>
+
+        {# Drawer d'apercu client (charge en AJAX) #}
+        <div data-apercu-drawer-target="backdrop" data-action="click->apercu-drawer#fermer" class="fixed inset-0 z-[55] hidden bg-navy-deep/30"></div>
+        <aside data-apercu-drawer-target="panel" class="fixed right-0 top-0 z-[56] h-full w-full max-w-md translate-x-full overflow-y-auto bg-white shadow-2xl shadow-navy/30 transition-transform duration-200">
+            <div class="flex items-center justify-between border-b border-hairline px-4 py-3">
+                <span class="text-sm font-semibold text-navy">Aperçu client</span>
+                <button type="button" data-action="apercu-drawer#fermer" class="rounded p-1 text-ink/50 transition hover:bg-surface hover:text-navy" aria-label="Fermer">
+                    <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+            <div data-apercu-drawer-target="contenu"></div>
+        </aside>
+
+        {# Piles de toasts (relance / curation) #}
+        <div data-relance-manuelle-target="toasts" class="fixed bottom-5 right-5 z-50 flex w-80 flex-col gap-2"></div>
+        <div data-curation-target="toasts" class="fixed bottom-5 left-5 z-50 flex w-80 flex-col gap-2"></div>
+    </div>
+</div>
+{% endblock %}

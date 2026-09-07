@@ -1,0 +1,287 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Pilotage des dossiers grands comptes{% endblock %}
+{% block page_title %}Dossiers grands comptes{% endblock %}
+{% block topbar_nav %}{% include 'grands_comptes/_nav.html.twig' with { active: 'pilotage' } %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1620px]">
+
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="flex flex-wrap items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">
+        Ce que le documentaire bloque, et qui doit agir
+      </h3>
+      <span class="ml-auto text-[11px] text-ink/45">
+        arrêté au {{ arrete|date('d/m/Y') }} · {{ ms|number_format(0, ',', ' ') }} ms
+      </span>
+    </div>
+    <p class="mt-1.5 max-w-4xl text-[12.5px] leading-relaxed text-ink/70">
+      Chaque chiffre de cet écran ouvre la file qui le traite, et chaque file mène à un dossier
+      et à un geste. <b>Aucun total ne s'arrête sur lui-même</b> : un directeur comptable qui lit
+      un chiffre doit pouvoir en faire quelque chose dans la minute.
+    </p>
+
+    <form method="get" class="mt-3 flex flex-wrap items-end gap-2">
+      <label class="text-[11px] font-semibold uppercase tracking-wider text-ink/45">
+        Établissement
+        <select name="etablissement_id"
+                class="mt-0.5 block rounded-lg border border-hairline px-2 py-1.5 text-[12px]">
+          <option value="">tous les établissements</option>
+          {% for id, nom in etablissements %}
+            <option value="{{ id }}" {{ filtres.etablissement_id|default('') == id ? 'selected' }}>
+              {{ id }} — {{ nom }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit" class="rounded-lg bg-navy px-3 py-2 text-[12px] font-semibold text-white hover:bg-navy-deep">
+        Filtrer</button>
+      {% if filtres.etablissement_id|default('') %}
+        <a href="{{ path('app_gc_pilotage') }}" class="text-[11.5px] font-semibold text-navy hover:underline">
+          Retirer le filtre</a>
+      {% endif %}
+    </form>
+  </section>
+
+  {# ------------------------------------------- les cinq files, cliquables #}
+  <div class="mb-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
+    {% for f in sommaire %}
+      <a href="{{ path('app_gc_controle', {etat: f.code}) }}"
+         class="rounded-xl border border-hairline bg-white px-3 py-2.5 shadow-sm transition
+                hover:border-navy/40 hover:shadow">
+        <div class="text-[10px] font-semibold uppercase leading-tight tracking-wider
+                    {{ f.teinte == 'negative' ? 'text-negative'
+                     : f.teinte == 'warning' ? 'text-warning'
+                     : f.teinte == 'gold' ? 'text-gold'
+                     : f.teinte == 'positive' ? 'text-positive' : 'text-navy' }}">{{ f.libelle }}</div>
+        <div class="mt-0.5 flex items-baseline gap-1.5">
+          <span class="font-mono text-xl font-bold text-ink">{{ f.n|number_format(0, ',', ' ') }}</span>
+          <span class="font-mono text-[11.5px] text-ink/50">{{ (f.montant / 1000000)|number_format(1, ',', ' ') }} M€</span>
+        </div>
+        <div class="text-[10.5px] text-ink/40">{{ etats[f.code].qui }} · ouvrir la file →</div>
+      </a>
+    {% endfor %}
+  </div>
+
+  {# ------------------------------------------- le pont vers l'outil 6 #}
+  <section class="mb-4 rounded-xl border-2 border-navy/30 bg-navy/[0.03] p-4 shadow-sm">
+    <div class="mb-2 flex flex-wrap items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-navy">
+        Ce que le documentaire bloque dans le poste client
+      </h3>
+      <a href="{{ path('app_gc_pont') }}"
+         class="ml-auto text-[11.5px] font-semibold text-navy hover:underline">Le pont, créance par créance →</a>
+    </div>
+    <div class="grid gap-3 sm:grid-cols-3">
+      <div>
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/45">
+          Créances « pièce manquante » — outil 6
+        </div>
+        <div class="font-mono text-xl font-bold text-ink">{{ pont.total_cause|number_format(0, ',', ' ') }}
+          <span class="text-[12px] font-normal text-ink/55">
+            {{ (pont.montant_cause / 1000000)|number_format(2, ',', ' ') }} M€</span></div>
+      </div>
+      <div>
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-navy">
+          Dont suivies par un dossier de l'outil 7
+        </div>
+        <div class="font-mono text-xl font-bold text-navy">{{ pont.creances|number_format(0, ',', ' ') }}
+          <span class="text-[12px] font-normal text-ink/55">
+            {{ (pont.montant / 1000000)|number_format(2, ',', ' ') }} M€</span></div>
+        <div class="text-[10.5px] text-ink/45">
+          {{ pont.total_cause > 0 ? (pont.creances / pont.total_cause * 100)|number_format(1, ',', ' ') : '0,0' }} % de la cause
+        </div>
+      </div>
+      <div>
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-positive">
+          Résolues dans la session
+        </div>
+        <div class="font-mono text-xl font-bold text-positive">{{ pont.resolus|number_format(0, ',', ' ') }}
+          <span class="text-[12px] font-normal text-ink/55">
+            {{ (pont.montant_resolu / 1000)|number_format(0, ',', ' ') }} k€</span></div>
+        <div class="text-[10.5px] leading-snug text-ink/45">
+          Le monde arrêté n'a pas bougé : les huit réconciliations de l'outil 6 portent sur l'arrêté.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ------------------------------------------- par loueur, par pièce #}
+  <div class="mb-4 grid gap-3 lg:grid-cols-2">
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-1 text-sm font-bold uppercase tracking-wide text-ink/70">Par loueur</h3>
+      <p class="mb-2 text-[11.5px] leading-relaxed text-ink/60">
+        Le nombre de pièces exigées explique la charge : un loueur qui demande sept pièces bloque
+        plus souvent qu'un loueur qui en demande quatre. Ce n'est pas une anomalie, c'est sa grille.
+      </p>
+      <div class="overflow-x-auto">
+        <table class="fc-table-comptable w-full">
+          <thead><tr><th>Loueur</th><th class="text-center">Pièces exigées</th>
+            <th class="text-right">Délai</th><th class="text-right">À compléter</th>
+            <th class="text-right">Renvoyés</th><th class="text-right">Montant bloqué</th>
+            <th class="text-right">Traiter</th></tr></thead>
+          <tbody>
+            {% for l in par_loueur %}
+              <tr>
+                <td class="text-[12.5px] font-semibold">{{ l.nom }}</td>
+                <td class="text-center font-mono text-[12px]">{{ l.nb_obligatoires }}</td>
+                <td class="text-right font-mono text-[11.5px] text-ink/55">{{ l.delai_paiement }} j</td>
+                <td class="text-right font-mono text-[12px] font-semibold text-warning">{{ l.a_completer }}</td>
+                <td class="text-right font-mono text-[12px] font-semibold text-negative">{{ l.renvoyes }}</td>
+                <td class="text-right font-mono text-[12px] font-semibold">
+                  {{ (l.bloque / 1000)|number_format(0, ',', ' ') }} k€</td>
+                <td class="text-right">
+                  <a href="{{ path('app_gc_controle', {etat: 'a_completer', q: l.nom}) }}"
+                     class="whitespace-nowrap text-[11.5px] font-semibold text-navy hover:underline">
+                    Ses dossiers →</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-1 text-sm font-bold uppercase tracking-wide text-ink/70">Par pièce manquante</h3>
+      <p class="mb-2 text-[11.5px] leading-relaxed text-ink/60">
+        La pièce qui bloque le plus d'argent est celle sur laquelle une consigne au réseau
+        rapporterait le plus. C'est la lecture qui transforme un total en décision.
+      </p>
+      <div class="overflow-x-auto">
+        <table class="fc-table-comptable w-full">
+          <thead><tr><th>Pièce</th><th>Ce qu'elle prouve</th>
+            <th class="text-right">Dossiers</th><th class="text-right">Montant bloqué</th>
+            <th class="text-right">Traiter</th></tr></thead>
+          <tbody>
+            {% for p in pieces_manquantes %}
+              <tr>
+                <td class="text-[12.5px]"><b class="font-mono text-[11px]">{{ p.type_piece }}</b>
+                  <span class="ml-1">{{ p.libelle }}</span></td>
+                <td class="text-[11px] leading-snug text-ink/55">
+                  {{ p.type_piece == 'PVL' ? 'la livraison'
+                   : p.type_piece == 'BDC' ? 'le numéro de commande'
+                   : p.type_piece == 'CPI' ? 'la mise en circulation'
+                   : p.type_piece == 'CG' ? "l'immatriculation au nom du loueur"
+                   : p.type_piece == 'RIB' ? 'le compte à créditer' : 'le montant facturé' }}</td>
+                <td class="text-right font-mono text-[12px] font-semibold">{{ p.n|number_format(0, ',', ' ') }}</td>
+                <td class="text-right font-mono text-[12px] font-semibold text-warning">
+                  {{ (p.montant / 1000)|number_format(0, ',', ' ') }} k€</td>
+                <td class="text-right">
+                  <a href="{{ path('app_gc_controle', {etat: 'a_completer'}) }}"
+                     class="whitespace-nowrap text-[11.5px] font-semibold text-navy hover:underline">La file →</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  {# ------------------------------------------- établissements, ancienneté, charge #}
+  <div class="mb-4 grid gap-3 lg:grid-cols-3">
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-2 text-sm font-bold uppercase tracking-wide text-ink/70">Par établissement</h3>
+      <table class="fc-table-comptable w-full">
+        <thead><tr><th>Site</th><th class="text-right">À compléter</th>
+          <th class="text-right">Bloqué</th><th class="text-right"></th></tr></thead>
+        <tbody>
+          {% for e in par_etablissement %}
+            <tr>
+              <td class="text-[11.5px]">{{ e.nom ?: e.etablissement_id }}
+                <span class="ml-1 font-mono text-[10px] text-ink/40">{{ e.etablissement_id }}</span></td>
+              <td class="text-right font-mono text-[12px] font-semibold text-warning">{{ e.a_completer }}</td>
+              <td class="text-right font-mono text-[11.5px]">{{ (e.bloque / 1000)|number_format(0, ',', ' ') }} k€</td>
+              <td class="text-right">
+                <a href="{{ path('app_gc_pilotage', {etablissement_id: e.etablissement_id}) }}"
+                   class="text-[11px] font-semibold text-navy hover:underline">→</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-2 text-sm font-bold uppercase tracking-wide text-ink/70">Ancienneté du blocage</h3>
+      <table class="fc-table-comptable w-full">
+        <thead><tr><th>Depuis la livraison</th><th class="text-right">Dossiers</th>
+          <th class="text-right">Bloqué</th></tr></thead>
+        <tbody>
+          {% for a in anciennete %}
+            <tr class="{{ a.rang >= 3 ? 'bg-negative/5' : '' }}">
+              <td class="text-[12px]">{{ a.tranche }}</td>
+              <td class="text-right font-mono text-[12px]">{{ a.n|number_format(0, ',', ' ') }}</td>
+              <td class="text-right font-mono text-[12px] font-semibold">
+                {{ (a.montant / 1000)|number_format(0, ',', ' ') }} k€</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <a href="{{ path('app_gc_controle', {etat: 'a_completer'}) }}"
+         class="mt-2 inline-block text-[11.5px] font-semibold text-navy hover:underline">
+        Traiter les plus anciens →</a>
+    </section>
+
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-1 text-sm font-bold uppercase tracking-wide text-ink/70">Charge de travail</h3>
+      <p class="mb-2 text-[11px] leading-relaxed text-ink/55">
+        Les postes sont identifiés par leur code : la démonstration ne nomme jamais une personne.
+      </p>
+      <table class="fc-table-comptable w-full">
+        <thead><tr><th>Poste</th><th class="text-right">À compléter</th>
+          <th class="text-right">Renvoyés</th><th class="text-right">Bloqué</th></tr></thead>
+        <tbody>
+          {% for c in charge %}
+            <tr>
+              <td class="font-mono text-[11.5px]">{{ c.nom }}</td>
+              <td class="text-right font-mono text-[12px] font-semibold text-warning">{{ c.a_completer }}</td>
+              <td class="text-right font-mono text-[12px] text-negative">{{ c.renvoyes }}</td>
+              <td class="text-right font-mono text-[11.5px]">{{ (c.bloque / 1000)|number_format(0, ',', ' ') }} k€</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  {# ------------------------------------------- ce que le contrôle a conclu #}
+  <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <h3 class="mb-1 text-sm font-bold uppercase tracking-wide text-ink/70">Ce que le contrôle a conclu</h3>
+    <p class="mb-2 max-w-4xl text-[11.5px] leading-relaxed text-ink/60">
+      « Incomplet » n'est pas une nuance de « non conforme » : c'est son contraire logique. Non
+      conforme veut dire « j'ai lu, et c'est faux ». Incomplet veut dire « je n'ai pas pu lire ».
+      Les deux appellent des suites opposées, et cette table ne les additionne pas.
+    </p>
+    <table class="fc-table-comptable w-full">
+      <thead><tr><th>Verdict</th><th>Ce qu'il veut dire</th><th class="text-right">Dossiers</th>
+        <th class="text-right">Montant</th><th class="text-right">Anomalies</th>
+        <th class="text-right">Traiter</th></tr></thead>
+      <tbody>
+        {% for v in verdicts_controle %}
+          {% set d = verdicts[v.verdict] %}
+          <tr>
+            <td>
+              <span class="rounded px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider
+                           {{ d.teinte == 'negative' ? 'bg-negative/10 text-negative'
+                            : d.teinte == 'warning' ? 'bg-warning/15 text-warning'
+                            : 'bg-positive/10 text-positive' }}">{{ d.libelle }}</span>
+            </td>
+            <td class="text-[11.5px] leading-snug text-ink/65">{{ d.definition }}</td>
+            <td class="text-right font-mono text-[12px] font-semibold">{{ v.n|number_format(0, ',', ' ') }}</td>
+            <td class="text-right font-mono text-[12px]">{{ (v.montant / 1000000)|number_format(2, ',', ' ') }} M€</td>
+            <td class="text-right font-mono text-[12px]">{{ v.anomalies|number_format(0, ',', ' ') }}</td>
+            <td class="text-right">
+              <a href="{{ path('app_gc_controle', {etat: v.verdict == 'conforme' ? 'a_verifier'
+                                                  : (v.verdict == 'incomplet' ? 'a_completer' : 'a_verifier')}) }}"
+                 class="whitespace-nowrap text-[11.5px] font-semibold text-navy hover:underline">La file →</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+</div>
+{% endblock %}

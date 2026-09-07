@@ -1,0 +1,150 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ d.libelleVehicule }} - Contrôle livraison{% endblock %}
+{% block page_title %}Livraison{% endblock %}
+
+{% block content %}
+<div class="w-full">
+
+    {% for message in app.flashes('error') %}
+        <div class="mb-4 rounded-lg border border-negative/30 bg-negative/10 px-4 py-2.5 text-sm text-negative">{{ message }}</div>
+    {% endfor %}
+
+    {# Deux volets : le dossier a gauche, l'apercu de la piece a droite. Meme
+       disposition que l'ecran Python remplace — les utilisatrices la connaissent. #}
+    <div class="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]" data-controller="livraison-apercu">
+
+        <div class="space-y-5">
+            <div class="flex flex-wrap items-center gap-3">
+                <a href="{{ path('app_livraison_controle') }}" class="inline-flex items-center gap-1.5 rounded-lg border border-hairline bg-white px-3 py-1.5 text-sm font-medium text-ink/70 transition hover:border-navy/30 hover:text-navy">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                    Retour
+                </a>
+                <span class="font-mono text-lg font-bold text-navy">{{ d.libelleVehicule }}</span>
+                <span class="rounded-full bg-surface px-2.5 py-0.5 text-xs font-semibold text-ink/65">{{ d.loueur }}</span>
+                {% if d.statut == 'conforme' %}
+                    <span class="rounded-full bg-positive/15 px-2.5 py-0.5 text-xs font-bold text-positive">Conforme</span>
+                {% elseif d.statut == 'anomalie' %}
+                    <span class="rounded-full bg-negative/15 px-2.5 py-0.5 text-xs font-bold text-negative">Anomalie</span>
+                {% else %}
+                    <span class="rounded-full bg-gold/20 px-2.5 py-0.5 text-xs font-bold text-ink/70">À contrôler</span>
+                {% endif %}
+            </div>
+
+            <section class="rounded-xl border border-hairline bg-white p-5 shadow-sm">
+                <dl class="grid grid-cols-2 gap-x-5 gap-y-3.5 text-sm sm:grid-cols-3">
+                    <div><dt class="text-xs font-medium uppercase tracking-wide text-ink/45">Établissement</dt><dd class="mt-0.5 font-medium text-ink">{{ libelles_etab[d.codeEtab]|default(d.codeEtab) }}</dd></div>
+                    <div><dt class="text-xs font-medium uppercase tracking-wide text-ink/45">Code payeur</dt><dd class="mt-0.5 font-mono text-ink">{{ d.codePayeur }}</dd></div>
+                    <div><dt class="text-xs font-medium uppercase tracking-wide text-ink/45">Déclarée par</dt><dd class="mt-0.5 font-medium text-ink">{{ d.declareePar|split('@')|first }}</dd></div>
+                    <div><dt class="text-xs font-medium uppercase tracking-wide text-ink/45">Déclarée le</dt><dd class="mt-0.5 text-ink">{{ d.declareeLe|date('d/m/Y à H:i') }}</dd></div>
+                    {% if d.vin %}<div class="col-span-2"><dt class="text-xs font-medium uppercase tracking-wide text-ink/45">VIN</dt><dd class="mt-0.5 font-mono text-xs text-ink">{{ d.vin }}</dd></div>{% endif %}
+                    {% if d.controleePar %}<div class="col-span-2 sm:col-span-3"><dt class="text-xs font-medium uppercase tracking-wide text-ink/45">Contrôlée</dt><dd class="mt-0.5 text-ink">par {{ d.controleePar|split('@')|first }}, le {{ d.controleeLe|date('d/m/Y à H:i') }}</dd></div>{% endif %}
+                </dl>
+                {% if d.commentaire %}
+                    <div class="mt-4 rounded-lg border border-gold/30 bg-gold/[0.06] px-3.5 py-2.5">
+                        <p class="text-xs font-semibold text-ink/60">Commentaire de la secrétaire</p>
+                        <p class="mt-1 whitespace-pre-line text-sm text-ink">{{ d.commentaire }}</p>
+                    </div>
+                {% endif %}
+            </section>
+
+            {# Pieces deposees par la secretaire. #}
+            <section class="rounded-xl border border-hairline bg-white p-5 shadow-sm">
+                <p class="mb-3 text-sm font-semibold text-navy">Pièces déposées</p>
+                <div class="flex flex-wrap gap-2">
+                    {% for p in d.pieces %}
+                        <button type="button"
+                                data-action="livraison-apercu#ouvrir"
+                                data-livraison-apercu-url-param="{{ path('app_livraison_controle_piece', { id: p.id }) }}"
+                                data-livraison-apercu-titre-param="{{ p.type.libelle }}"
+                                class="inline-flex items-center gap-2 rounded-lg border border-hairline bg-white px-3 py-2 text-sm font-medium text-ink transition hover:border-navy/40 hover:text-navy">
+                            <svg class="h-4 w-4 text-navy/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5h5"/><path d="M6 3h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/></svg>
+                            {{ p.type.libelle }}
+                        </button>
+                    {% endfor %}
+                </div>
+                {% if d.pieces|length < 3 %}
+                    <p class="mt-3 text-sm text-negative">Dossier incomplet : {{ 3 - d.pieces|length }} pièce{{ (3 - d.pieces|length) > 1 ? 's' : '' }} manquante{{ (3 - d.pieces|length) > 1 ? 's' : '' }}.</p>
+                {% endif %}
+            </section>
+
+            {# Factures : relues dans la comptabilite, pas stockees. Sans plafond. #}
+            <section class="rounded-xl border border-hairline bg-white p-5 shadow-sm">
+                <div class="mb-3 flex items-center justify-between">
+                    <p class="text-sm font-semibold text-navy">Factures en comptabilité</p>
+                    <span class="rounded-full bg-surface px-2.5 py-0.5 text-xs font-semibold text-ink/60">{{ factures|length }}</span>
+                </div>
+                {% if factures is empty %}
+                    <p class="text-sm text-ink/55">Aucune facture trouvée pour ce véhicule. Il a peut-être été lettré ou soldé depuis la déclaration.</p>
+                {% else %}
+                    <ul class="divide-y divide-hairline">
+                        {% for f in factures %}
+                            <li class="flex items-center justify-between gap-3 py-2.5 text-sm">
+                                <div class="min-w-0">
+                                    <p class="truncate font-medium text-ink">{{ f.libelle ?? f.reference ?? f.num_piece ?? f.cle_ecriture }}</p>
+                                    <p class="text-xs text-ink/50">
+                                        {% if f.num_piece %}pièce {{ f.num_piece }} · {% endif %}
+                                        {%- if f.date_piece %}{{ f.date_piece|date('d/m/Y') }}{% endif %}
+                                        {%- if f.date_echeance %} · échéance {{ f.date_echeance|date('d/m/Y') }}{% endif %}
+                                    </p>
+                                </div>
+                                <div class="flex shrink-0 items-center gap-3">
+                                    <span class="text-sm font-semibold text-ink/75">{{ f.solde|number_format(2, ',', ' ') }} €</span>
+                                    {% if f.url_scan %}
+                                        <a href="{{ f.url_scan }}" target="_blank" rel="noopener" title="Ouvrir le scan sur le serveur Progiciel"
+                                           class="text-navy/60 transition hover:text-navy">
+                                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6"/><path d="M15 3h6v6M21 3l-9 9"/></svg>
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                    <p class="mt-3 text-xs text-ink/45">Les scans s'ouvrent sur le serveur Progiciel interne : accessibles depuis le réseau de l'entreprise uniquement.</p>
+                {% endif %}
+            </section>
+
+            {# Arbitrage. #}
+            <form method="post" action="{{ path('app_livraison_controle_arbitrer', { id: d.id }) }}"
+                  class="rounded-xl border border-hairline bg-white p-5 shadow-sm">
+                <input type="hidden" name="_token" value="{{ csrf_token('livraison_controle') }}">
+                <p class="mb-3.5 text-sm font-semibold text-navy">Votre décision</p>
+
+                {% if d.estControlee %}
+                    <p class="mb-3.5 text-sm text-ink/60">Ce dossier a déjà été arbitré. Vous pouvez le remettre en attente pour le reprendre.</p>
+                    <button type="submit" name="decision" value="rouvrir"
+                            class="rounded-lg border border-hairline bg-white px-4 py-2.5 text-sm font-semibold text-ink transition hover:border-navy/40 hover:text-navy">
+                        Remettre en attente
+                    </button>
+                {% else %}
+                    <div class="flex flex-col gap-2.5 sm:flex-row">
+                        <button type="submit" name="decision" value="conforme"
+                                class="flex-1 rounded-lg bg-positive px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-95">
+                            Conforme — le dossier peut partir
+                        </button>
+                        <button type="submit" name="decision" value="anomalie"
+                                class="flex-1 rounded-lg border-2 border-negative bg-white px-4 py-2.5 text-sm font-semibold text-negative transition hover:bg-negative/[0.06]">
+                            Signaler une anomalie
+                        </button>
+                    </div>
+                    <p class="mt-3 text-xs text-ink/45">Le détail des anomalies (catégorie, code, variante) et le message à la secrétaire arrivent au prochain lot.</p>
+                {% endif %}
+            </form>
+        </div>
+
+        {# Volet d'apercu. #}
+        <div class="xl:sticky xl:top-4 xl:self-start">
+            <div class="flex h-[70vh] min-h-[420px] flex-col overflow-hidden rounded-xl border border-hairline bg-white shadow-sm xl:h-[calc(100vh-7rem)]">
+                <div class="flex shrink-0 items-center justify-between border-b border-hairline px-4 py-2.5">
+                    <span class="text-sm font-semibold text-navy" data-livraison-apercu-target="titre">Aperçu</span>
+                    <a hidden data-livraison-apercu-target="lien" href="#" target="_blank" rel="noopener" class="text-xs font-medium text-navy/70 transition hover:text-navy">Ouvrir dans un onglet</a>
+                </div>
+                <div class="flex flex-1 items-center justify-center bg-surface/60 px-6 text-center" data-livraison-apercu-target="vide">
+                    <p class="text-sm text-ink/45">Choisissez une pièce à gauche pour l'afficher ici.</p>
+                </div>
+                <iframe hidden data-livraison-apercu-target="cadre" class="flex-1 border-0" title="Aperçu de la pièce"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

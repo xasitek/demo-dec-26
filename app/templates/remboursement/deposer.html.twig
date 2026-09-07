@@ -1,0 +1,267 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Déposer un remboursement - Finance Créances{% endblock %}
+{% block page_title %}Remboursement client{% endblock %}
+{% block topbar_nav %}{% include '_secretaire_topbar.html.twig' with { active: 'deposer' } only %}{% endblock %}
+
+{% set descriptions = {'rachat_sec': "Buy back d'un véhicule d'occasion", 'trop_percu': "Remboursement d'un montant trop versé"} %}
+{% set champ = 'w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink transition placeholder:text-ink/35 focus:border-navy focus:outline-none focus:ring-4 focus:ring-navy/10' %}
+
+{% macro num(n) %}<span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-navy text-xs font-bold text-white">{{ n }}</span>{% endmacro %}
+{% macro req() %}<span class="text-negative" title="Champ obligatoire">*</span>{% endmacro %}
+{% import _self as ui %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-2xl">
+
+    {% for message in app.flashes('error') %}
+        <div class="mb-4 rounded-lg border border-negative/30 bg-negative/10 px-4 py-2.5 text-sm text-negative">{{ message }}</div>
+    {% endfor %}
+
+    <div class="mb-4">
+        <h1 class="text-xl font-bold text-navy">Déposer un dossier</h1>
+        <p class="mt-0.5 text-sm text-ink/55">Choisissez le motif, renseignez le client et joignez les pièces.</p>
+    </div>
+
+    <div class="mb-6 flex items-start gap-2.5 rounded-xl border border-navy/10 bg-navy/[0.03] px-4 py-3 text-sm text-ink/75">
+        <svg class="mt-0.5 h-4 w-4 shrink-0 text-navy/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <p>Après validation du dossier par le directeur, le remboursement est effectué <strong class="font-semibold text-navy">sous 48h jours ouvrés</strong>.</p>
+    </div>
+
+    <form method="post" action="{{ path('app_remboursement_deposer') }}" enctype="multipart/form-data"
+          data-controller="remboursement-depot buyback-controle iban-check"
+          data-remboursement-depot-authentifie-value="{{ app.user ? 'true' : 'false' }}"
+          data-remboursement-depot-moi-url-value="{{ path('app_remboursement_moi') }}"
+          data-remboursement-depot-etabs-value="{{ etablissements|map(e => {code: e.codeEtab, label: e.libelle})|json_encode|e('html_attr') }}"
+          data-buyback-controle-url-value="{{ path('app_remboursement_controle_buyback') }}"
+          data-action="submit->remboursement-depot#soumettre input->remboursement-depot#evaluer change->remboursement-depot#evaluer input->buyback-controle#check change->buyback-controle#check buyback-controle:change->remboursement-depot#evaluer"
+          class="space-y-6">
+        <input type="hidden" name="_token" value="{{ csrf_token('remboursement_depot') }}">
+
+        {# Erreurs de depot affichees en direct (rempli par JS). #}
+        <div data-remboursement-depot-target="erreurs" class="hidden rounded-lg border border-negative/30 bg-negative/10 px-4 py-3 text-sm text-negative"></div>
+
+        {# Bandeau connexion (secretaire pas encore connectee). #}
+        {% if not app.user %}
+            {# Bandeau connexion : ouvre Google en POPUP ; l'accueil ci-dessous prend le
+               relais sans recharger la page une fois la connexion etablie. #}
+            <div data-remboursement-depot-target="banniere" class="flex flex-col items-start gap-3 rounded-xl border border-gold/40 bg-gold/[0.06] p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm font-semibold text-navy">Une connexion est nécessaire pour déposer</p>
+                </div>
+                <a href="{{ path('oauth_google_connect', {redirect: path('app_remboursement_deposer_formulaire'), secretaire: 1}) }}"
+                        class="inline-flex shrink-0 items-center gap-2 rounded-lg border border-hairline bg-white px-4 py-2 text-sm font-semibold text-navy shadow-sm transition hover:border-navy/30 hover:shadow">
+                    <svg viewBox="0 0 48 48" class="h-4 w-4" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                    Se connecter avec Google
+                </a>
+            </div>
+            {# Accueil apres connexion (rempli par JS, sans rechargement de page). #}
+            <div data-remboursement-depot-target="accueil" class="hidden items-center gap-3 rounded-xl border border-positive/30 bg-positive/10 p-4">
+                <img data-remboursement-depot-target="avatar" src="" alt="" referrerpolicy="no-referrer" class="hidden h-10 w-10 rounded-full object-cover">
+                <div>
+                    <p class="text-sm font-semibold text-navy">Bonjour <span data-remboursement-depot-target="prenom"></span> !</p>
+                    <p class="text-xs font-medium text-positive">Connexion établie — vous pouvez déposer votre dossier.</p>
+                </div>
+            </div>
+        {% endif %}
+
+        {# Etape 1 : choisir un motif (rien de coche par defaut). #}
+        <section class="rounded-xl border border-hairline bg-white p-5 shadow-sm">
+            <div class="mb-4 flex items-center gap-3">{{ ui.num(1) }}<span class="text-sm font-semibold text-navy">Motif du remboursement {{ ui.req() }}</span></div>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {% for m in motifs %}
+                    <label class="relative block h-full cursor-pointer">
+                        <input type="radio" name="motif" value="{{ m.value }}" class="peer pointer-events-none absolute h-0 w-0 opacity-0"
+                               data-remboursement-depot-target="motif" data-req>
+                        <div class="flex h-full items-start gap-3 rounded-xl border-2 border-hairline bg-white p-4 transition hover:border-gold hover:bg-gold/[0.08] peer-checked:border-navy peer-checked:bg-navy/[0.04] peer-checked:shadow-md">
+                            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface text-ink/50 transition peer-checked:bg-navy peer-checked:text-white">
+                                {% if m.value == 'rachat_sec' %}
+                                    <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l1.5-4.5A2 2 0 0 1 8.4 7h7.2a2 2 0 0 1 1.9 1.5L19 13m-14 0h14m-14 0v4m14-4v4M7 17h.01M17 17h.01"/><rect x="3" y="13" width="18" height="4" rx="1"/></svg>
+                                {% else %}
+                                    <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5"/><path d="M13.5 9.5h-2.2a1.3 1.3 0 0 0 0 2.6h1.4a1.3 1.3 0 0 1 0 2.6H10.5M12 8.5v1m0 5v1"/></svg>
+                                {% endif %}
+                            </span>
+                            <div class="min-w-0">
+                                <p class="text-sm font-bold text-navy">{{ m.libelle }}</p>
+                                <p class="mt-0.5 text-xs text-ink/55">{{ descriptions[m.value]|default('') }}</p>
+                            </div>
+                            <span class="ml-auto hidden shrink-0 text-navy peer-checked:block">
+                                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" fill="currentColor" stroke="none"/><path d="M8.5 12.5l2.5 2.5 4.5-5" stroke="#fff"/></svg>
+                            </span>
+                        </div>
+                    </label>
+                {% endfor %}
+            </div>
+        </section>
+
+        {# Etape 2 : le formulaire, masque tant qu'aucun motif n'est choisi. #}
+        <div data-remboursement-depot-target="corps" class="hidden space-y-6">
+
+            {# Aide Gestion commerciale (trop-percu uniquement) : chercher le client -> preremplir montant + ICAR
+               (+ nom). L'IBAN vient du RIB (rarement en base). Masque par le controleur de depot si autre motif. #}
+            <section data-motif="trop_percu" data-remboursement-depot-target="bloc"
+                     class="rounded-xl border border-gold/40 bg-gold/[0.05] p-5 shadow-sm"
+                     data-controller="eloficash-lookup"
+                     data-eloficash-lookup-recherche-url-value="{{ path('app_remboursement_chercher_client') }}"
+                     data-eloficash-lookup-donnees-url-value="{{ path('app_remboursement_client_donnees') }}">
+                <div class="mb-3">
+                    <span class="text-sm font-semibold text-navy">Trouver le trop-perçu</span>
+                    <p class="mt-0.5 text-xs text-ink/55">Recherchez par nom du client ou code ICAR : le montant, le code ICAR et le nom se pré-remplissent.</p>
+                </div>
+                <div class="relative">
+                    <input type="text" autocomplete="off" placeholder="Nom du client ou code ICAR…"
+                           class="{{ champ }}"
+                           data-eloficash-lookup-target="recherche"
+                           data-action="input->eloficash-lookup#chercher keydown->eloficash-lookup#toucheClavier">
+                    <ul hidden data-eloficash-lookup-target="menu"
+                        class="absolute z-30 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-hairline bg-white py-1 shadow-lg shadow-navy/10"></ul>
+                </div>
+                <div hidden data-eloficash-lookup-target="lignes" class="mt-3 space-y-2"></div>
+                <p hidden data-eloficash-lookup-target="info" class="mt-2 text-xs"></p>
+                {# Compte retenu (rempli au clic sur un client) : le serveur re-verifie pour rendre
+                   releve ICAR / petits comptes facultatifs si le prerempli n'a pas ete modifie. #}
+                <input type="hidden" name="eloficash_compte" value="">
+            </section>
+
+            <section class="rounded-xl border border-hairline bg-white p-5 shadow-sm">
+                <div class="mb-4 flex items-center gap-3">{{ ui.num(2) }}<span class="text-sm font-semibold text-navy">Client</span></div>
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {# Etablissement : combobox recherche (code ou nom), soumet le code. #}
+                    <label class="block sm:col-span-2">
+                        <span class="mb-1 block text-xs font-medium text-ink/55">Établissement {{ ui.req() }}</span>
+                        <div class="relative">
+                            <input type="text" autocomplete="off" placeholder="Rechercher ou choisir…"
+                                   class="{{ champ }} cursor-pointer pr-9"
+                                   data-remboursement-depot-target="etabInput"
+                                   data-action="focus->remboursement-depot#ouvrirEtab input->remboursement-depot#filtrerEtab">
+                            <svg class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                            <ul hidden data-remboursement-depot-target="etabMenu"
+                                class="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-hairline bg-white py-1 shadow-lg shadow-navy/10"></ul>
+                        </div>
+                        <input type="hidden" name="etablissement" data-remboursement-depot-target="etabValue">
+                    </label>
+                    {# Le nom prend TOUTE la ligne au trop-percu et la moitie au rachat sec.
+                       Question de compte : apres l'etablissement, le rachat aligne six champs
+                       (nom, ICAR, IBAN, BIC, montant, immatriculation) — trois rangees pleines
+                       si le nom occupe une moitie. Le trop-percu n'en a que cinq : le nom en
+                       demi-ligne y laisserait le montant seul en bout de formulaire. #}
+                    <label class="block" data-motif-classe="sm:col-span-2" data-motif-classe-si="trop_percu">
+                        <span class="mb-1 block text-xs font-medium text-ink/55">Nom du client {{ ui.req() }}</span>
+                        <input type="text" name="nom_client" class="{{ champ }}" data-req>
+                    </label>
+                    {# Code client ICAR : exige aux DEUX motifs, donc UN seul champ, hors bloc
+                       de motif — deux entrees de meme nom se marcheraient dessus. Seul son
+                       rang change : a cote du nom au rachat sec, dont il est l'identifiant
+                       comptable ; descendu a cote du MONTANT au trop-percu, dont il est la
+                       cle. `order-1` le place apres tous les champs de rang nul, donc apres
+                       le montant. L'adresse en copie prend le MEME rang (voir plus bas) : a
+                       rang egal c'est l'ordre du DOM qui tranche, et l'ICAR est declare
+                       avant elle, donc il reste colle au montant. #}
+                    <label class="block" data-motif-classe="order-1" data-motif-classe-si="trop_percu">
+                        <span class="mb-1 block text-xs font-medium text-ink/55">Code client ICAR {{ ui.req() }}</span>
+                        <input type="text" name="code_icar" class="{{ champ }}" data-req>
+                    </label>
+                    <label class="block">
+                        <span class="mb-1 block text-xs font-medium text-ink/55">IBAN {{ ui.req() }}</span>
+                        <input type="text" name="iban_client" placeholder="FR76 …" class="{{ champ }} font-mono" data-req
+                               data-iban-check-target="iban" data-action="input->iban-check#check change->iban-check#check">
+                        <p data-iban-check-target="ibanMsg" class="mt-1 hidden text-xs"></p>
+                    </label>
+                    <label class="block">
+                        <span class="mb-1 block text-xs font-medium text-ink/55">BIC {{ ui.req() }}</span>
+                        <input type="text" name="bic_client" class="{{ champ }} font-mono" data-req
+                               data-iban-check-target="bic" data-action="input->iban-check#check change->iban-check#check">
+                        <p data-iban-check-target="bicMsg" class="mt-1 hidden text-xs"></p>
+                    </label>
+                    <label class="block">
+                        <span class="mb-1 block text-xs font-medium text-ink/55">Montant (€) {{ ui.req() }}</span>
+                        <input type="text" name="montant" inputmode="decimal" placeholder="0,00" class="{{ champ }}" data-req>
+                    </label>
+                    {# L'immatriculation n'existe qu'au rachat sec : le JS masque ce bloc au
+                       trop-percu ET desactive ses champs, donc rien n'est soumis. #}
+                    <label class="block" data-motif="rachat_sec" data-remboursement-depot-target="bloc">
+                        <span class="mb-1 block text-xs font-medium text-ink/55">Immatriculation {{ ui.req() }}</span>
+                        <input type="text" name="immatriculation" placeholder="AA-123-BB" class="{{ champ }}" data-req>
+                    </label>
+
+                    {# Adresse mise en copie de l'attestation : FACULTATIVE (pas de `data-req`)
+                       et commune aux deux motifs. Pleine ligne, ce qui regle aussi
+                       l'arithmetique de la grille — un champ de plus en demi-ligne laisserait
+                       de nouveau un orphelin dans un motif comme dans l'autre.
+
+                       `order-1` au trop-percu UNIQUEMENT : sans rang, cette pleine ligne
+                       passerait devant le code ICAR (rang 1) et le separerait du montant.
+                       Meme rang que l'ICAR donc, mais declaree apres lui dans le gabarit :
+                       elle reste en fin de grille. Au rachat sec, aucun rang n'est pose et
+                       la grille ne bouge pas.
+
+                       Le menu propose les adresses deja utilisees par CETTE secretaire, les
+                       plus fréquentes d'abord. `ouvrir-vide` deroule la liste au focus, de
+                       sorte que le champ se comporte comme un select tout en restant libre. #}
+                    <div class="sm:col-span-2" data-motif-classe="order-1" data-motif-classe-si="trop_percu">
+                        <span class="mb-1 block text-xs font-medium text-ink/55">Adresse en copie de l'attestation</span>
+                        <div class="fc-ac" data-controller="autocomplete"
+                             data-autocomplete-items-value="{{ favorisEmail|json_encode }}"
+                             data-autocomplete-ouvrir-vide-value="1"
+                             data-autocomplete-max-value="12">
+                            <input type="email" name="email_copie" autocomplete="off"
+                                   placeholder="{{ favorisEmail is empty ? 'prenom.nom@exemple.fr' : 'Choisissez ou saisissez une adresse…' }}"
+                                   data-autocomplete-target="input"
+                                   data-action="input->autocomplete#filter focus->autocomplete#filter"
+                                   class="{{ champ }}">
+                            <ul class="fc-ac-menu" data-autocomplete-target="menu" hidden></ul>
+                        </div>
+                        <p class="mt-1 text-xs text-ink/45">Facultatif. Renseignée, cette adresse recevra une copie de l'e-mail de validation, avec l'attestation de paiement. Elle sera mémorisée pour vos prochains dépôts.</p>
+                    </div>
+                </div>
+            </section>
+
+            {# Controle Buy Back en temps reel (rachat sec) : rempli par le controleur JS. #}
+            <div data-buyback-controle-target="message" class="hidden"></div>
+
+            {# Pieces requises, par motif (seul le bloc du motif choisi est visible). #}
+            {% for m in motifs %}
+                <section class="rounded-xl border border-hairline bg-white p-5 shadow-sm" data-motif="{{ m.value }}" data-remboursement-depot-target="bloc">
+                    <div class="mb-4 flex items-center gap-3">{{ ui.num(3) }}<span class="text-sm font-semibold text-navy">Pièces à joindre</span></div>
+                    <div class="space-y-2.5">
+                        {% for type, libelle in m.piecesRequises %}
+                            <label class="group relative flex cursor-pointer items-center gap-3 rounded-lg border border-hairline bg-white px-3 py-2.5 transition hover:border-navy/40 hover:shadow-sm">
+                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-surface text-ink/45 transition group-hover:bg-navy/10 group-hover:text-navy" data-icone>
+                                    <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0L8 8m4-4l4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+                                </span>
+                                <span class="min-w-0 flex-1">
+                                    <span class="block text-sm font-medium text-ink">{{ libelle }} {{ ui.req() }}</span>
+                                    <span class="block truncate text-xs text-ink/45" data-nom>Aucun fichier sélectionné</span>
+                                </span>
+                                <span class="shrink-0 rounded-md border border-hairline px-3 py-1 text-xs font-semibold text-navy transition group-hover:border-navy group-hover:bg-navy group-hover:text-white">Parcourir</span>
+                                <input type="file" name="{{ type }}" data-req
+                                       accept="{{ type == 'petits_comptes' ? 'application/pdf,image/*,.csv,.txt,.xls,.xlsx' : 'application/pdf,image/*' }}"
+                                       {% if type == 'petits_comptes' %}data-convertible="1"{% endif %}
+                                       class="pointer-events-none absolute h-0 w-0 opacity-0" data-action="change->remboursement-depot#fichier">
+                            </label>
+                            {% if type == 'petits_comptes' %}
+                                <a href="https://sites.google.com/demonstration.invalid/intranet/secr%C3%A9tariat/petit-compte-fiche-dencaissement"
+                                   target="_blank" rel="noopener"
+                                   class="inline-flex items-center gap-1.5 text-xs font-medium text-navy underline decoration-navy/30 underline-offset-2 transition hover:decoration-navy">
+                                    <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                                    Pas de petit compte ? Créer la fiche d'encaissement
+                                </a>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endfor %}
+
+            <div class="flex items-center justify-end gap-3 pt-1">
+                {% if not app.user %}<span data-remboursement-depot-target="hintConnexion" class="text-xs text-ink/50">Connexion requise pour déposer.</span>{% endif %}
+                <button type="submit" data-remboursement-depot-target="submit" disabled
+                        class="inline-flex items-center gap-2 rounded-lg bg-navy px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-light hover:shadow disabled:cursor-not-allowed disabled:bg-ink/20 disabled:shadow-none disabled:hover:bg-ink/20">
+                    <svg data-remboursement-depot-target="spinner" class="hidden h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-25"/><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+                    <span data-remboursement-depot-target="submitLabel">Déposer le dossier</span>
+                    <svg data-remboursement-depot-target="submitArrow" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

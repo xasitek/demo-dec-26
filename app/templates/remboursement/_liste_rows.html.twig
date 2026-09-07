@@ -1,0 +1,60 @@
+{#- Lignes de la vue liste comptable, MEMES colonnes pour "A verifier" et "Tous les
+   dossiers". Seul le clic differe (mode) :
+     - mode='page'    -> page detail dediee (section "A verifier") ;
+     - mode='panneau' -> panneau glissant a droite (section "Tous les dossiers").
+   Attend : dossiers (list<Dossier>), etabs (code->libelle), mode ('page'|'panneau'). -#}
+{%- import 'remboursement/_statut_badge.html.twig' as badges -%}
+{%- set mode = mode|default('page') -%}
+{%- set directeurs = directeurs|default({}) -%}
+{% for d in dossiers %}
+    {#- ACCESSIBILITE. La ligne s'ouvrait par un `onclick` seul : a la souris
+       uniquement, jamais au clavier, et sans indication de focus. Une ligne de
+       file est le geste principal de cet ecran, elle doit donc etre atteignable
+       a la tabulation et ouvrable a Entree.
+
+       La reference porte desormais un VRAI LIEN — celui que le navigateur suit,
+       que le clavier atteint et que le lecteur d'ecran annonce. Le clic sur le
+       reste de la ligne est conserve pour le confort a la souris, mais il n'est
+       plus le seul chemin. Le mode « panneau » garde son bouton d'ouverture,
+       lui aussi atteignable au clavier. -#}
+    <tr data-dossier-id="{{ d.id }}"
+        {% if mode == 'panneau' %}data-detail-panel-id-param="{{ d.id }}" data-action="click->detail-panel#open"{% else %}onclick="window.location='{{ path('app_remboursement_dossier', {id: d.id}) }}'"{% endif %}
+        class="cursor-pointer border-t border-hairline/70 transition hover:bg-gold/[0.06] focus-within:bg-gold/[0.10]">
+        <td class="px-3 py-2.5 font-mono text-xs text-navy">
+            {% if mode == 'panneau' %}
+                <button type="button" data-detail-panel-id-param="{{ d.id }}"
+                        data-action="detail-panel#open"
+                        class="rounded font-mono text-xs font-semibold text-navy underline-offset-2 hover:underline focus:outline-none focus:ring-2 focus:ring-navy/40"
+                        aria-label="Ouvrir le panneau du dossier {{ d.reference }}">{{ d.reference }}</button>
+            {% else %}
+                <a href="{{ path('app_remboursement_dossier', {id: d.id}) }}"
+                   class="rounded font-mono text-xs font-semibold text-navy underline-offset-2 hover:underline focus:outline-none focus:ring-2 focus:ring-navy/40"
+                   aria-label="Ouvrir le dossier {{ d.reference }}">{{ d.reference }}</a>
+            {% endif %}
+        </td>
+        <td class="px-3 py-2.5 text-xs text-ink/75">
+            {% if d.etablissementCode %}<span title="Ét. {{ d.etablissementCode }}">{{ etabs[d.etablissementCode]|default(d.etablissementCode) }}</span>{% else %}—{% endif %}
+        </td>
+        <td class="px-3 py-2.5 text-xs {{ directeurs[d.etablissementCode] is defined ? 'text-ink/75' : 'text-ink/40' }}">{{ directeurs[d.etablissementCode]|default('—') }}</td>
+        <td class="px-3 py-2.5 text-xs text-ink/70">{{ d.motif.libelle }}</td>
+        <td class="px-3 py-2.5 font-mono text-xs text-ink/75">{{ d.motif.value == 'rachat_sec' ? ((d.valideImmatriculation ?: d.immatriculation) ?: '—') : ((d.valideIcar ?: d.codeIcar) ?: '—') }}</td>
+        <td class="px-3 py-2.5">{{ (d.valideNom ?: d.nomClient) ?: '—' }}</td>
+        <td class="whitespace-nowrap px-3 py-2.5 text-right font-medium text-navy">{{ (d.valideMontant ?: d.montant)|number_format(2, ',', ' ') }} €</td>
+        <td class="whitespace-nowrap px-3 py-2.5" data-dossier-badge>{{ badges.badge(d.statut) }}</td>
+        {% if controle|default(false) %}
+            {% set m = (meta is defined ? meta[d.id] : null)|default(null) %}
+            <td class="whitespace-nowrap px-3 py-2.5">
+                {% if m and m.doublon %}
+                    <button type="button" data-action="controle-modal#ouvrir"
+                            data-groupe="{{ m.doublonGroupe|json_encode }}"
+                            title="Voir les dossiers en doublon"
+                            class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 transition hover:bg-amber-200">
+                        <svg viewBox="0 0 24 24" class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+                        Doublon ({{ m.doublonRefs|length + 1 }})
+                    </button>
+                {% else %}<span class="text-ink/30">—</span>{% endif %}
+            </td>
+        {% endif %}
+        <td class="whitespace-nowrap px-3 py-2.5 text-xs text-ink/55">{{ (d.deposeLe ?: d.creeLe)|date('d/m/Y') }}</td>
+    </tr>
+{% endfor %}

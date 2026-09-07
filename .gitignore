@@ -1,0 +1,26 @@
+# ---------------------------------------------------------------------------
+# Ce depot est PUBLIC. Ce qui est ignore ici l'est pour une raison, et la
+# raison est ecrite a cote.
+# ---------------------------------------------------------------------------
+
+# Dependances : elles se reinstallent, elles n'ont pas a etre versionnees.
+/app/vendor/
+/app/var/
+node_modules/
+
+# Secrets et surcharges locales : le depot ne porte AUCUN identifiant.
+# La porte d'acces se configure en variables d'environnement sur l'hebergeur.
+/app/.env.local
+/app/.env.local.php
+/app/.env.*.local
+/app/.env.example
+/app/config/secrets/prod/prod.decrypt.private.php
+
+# Sorties d'outils locaux
+/app/.php-cs-fixer.cache
+/app/.phpunit.cache/
+/app/phpunit.xml
+/app/public/assets/
+/app/public/bundles/
+/app/assets/vendor/
+*.log

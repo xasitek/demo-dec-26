@@ -1,0 +1,387 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ a.virement.id }} — Affectation{% endblock %}
+{% block page_title %}Affectation des règlements{% endblock %}
+{% block topbar_nav %}{% include 'affectation/_nav.html.twig' with { active: 'file' } %}{% endblock %}
+
+{% set poste = demo_persona() %}
+{% set expert = poste and poste.value in ['expert-comptable', 'directeur-comptable'] %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1500px]">
+
+  <div class="mb-3 flex flex-wrap items-center gap-3">
+    <a href="{{ path('app_affectation_file') }}" class="text-xs font-semibold text-ink/50 hover:text-navy">← File des virements</a>
+    <span class="font-mono text-lg font-bold text-navy-deep">{{ a.virement.id }}</span>
+    {% include 'affectation/_badge.html.twig' with { decision: a.decision, score: a.score } %}
+    {% if a.virement.vedette %}
+      <span class="rounded bg-gold/20 px-2 py-0.5 text-[10px] font-bold uppercase text-gold-dark">cas vedette</span>
+    {% endif %}
+    <span class="ml-auto font-mono text-[11px] text-ink/40">
+      analyse rejouée en {{ a.chrono.total|number_format(1, ',', ' ') }} ms — mesuré sur votre appareil
+    </span>
+  </div>
+
+  {# BRUT -> ENRICHI -> PREUVE -> DECISION, rendu visible. #}
+  <div class="mb-4 grid gap-3 lg:grid-cols-4">
+
+    {# ---------------------------------------------- A. le virement brut #}
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <div class="mb-3 flex items-center gap-2">
+        <span class="flex h-5 w-5 items-center justify-center rounded bg-ink/10 text-[10px] font-bold text-ink/60">A</span>
+        <h3 class="text-[11px] font-bold uppercase tracking-wider text-ink/50">Le virement, tel que reçu</h3>
+      </div>
+      <div class="space-y-2.5 text-[13px]">
+        <div><div class="text-[10px] uppercase tracking-wider text-ink/40">Montant</div>
+          <div class="font-mono text-xl font-bold text-navy">{{ a.virement.montant|number_format(2, ',', ' ') }} €</div></div>
+        <div><div class="text-[10px] uppercase tracking-wider text-ink/40">Date d'opération</div>
+          <div class="font-mono">{{ a.virement.date_operation|date('d/m/Y') }}</div></div>
+        <div><div class="text-[10px] uppercase tracking-wider text-ink/40">Libellé bancaire</div>
+          <div class="rounded bg-surface px-2 py-1.5 font-mono text-[11.5px] leading-snug">{{ a.virement.libelle }}</div></div>
+        <div><div class="text-[10px] uppercase tracking-wider text-ink/40">Référence de bout en bout</div>
+          <div class="font-mono text-[11.5px]">{{ a.virement.reference_bout_en_bout ?: 'aucune' }}</div></div>
+        <div><div class="text-[10px] uppercase tracking-wider text-ink/40">Population</div>
+          <div class="font-mono text-[11.5px]">{{ a.virement.cohorte }}</div></div>
+      </div>
+      <p class="mt-3 border-t border-hairline pt-2 text-[11px] leading-relaxed text-ink/50">
+        C'est tout ce que la banque fournit. Le libellé est tronqué, et rien n'y désigne
+        une créance.
+      </p>
+    </section>
+
+    {# ------------------------------------------ B. ce que la suite retrouve #}
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <div class="mb-3 flex items-center gap-2">
+        <span class="flex h-5 w-5 items-center justify-center rounded bg-gold/20 text-[10px] font-bold text-gold-dark">B</span>
+        <h3 class="text-[11px] font-bold uppercase tracking-wider text-ink/50">Ce que la suite retrouve ailleurs</h3>
+      </div>
+      <div class="space-y-2.5 text-[13px]">
+        {% if a.enrichissement.iban %}
+          <div><div class="text-[10px] uppercase tracking-wider text-ink/40">IBAN émetteur</div>
+            <div class="font-mono text-[11.5px]">{{ a.enrichissement.iban.masque }}</div></div>
+          <div><div class="text-[10px] uppercase tracking-wider text-ink/40">Déjà observé</div>
+            <div><span class="font-mono text-base font-bold text-navy">{{ a.enrichissement.iban_occurrences }}</span>
+              <span class="text-[11px] text-ink/50">fois{% if a.enrichissement.iban_premiere_apparition %}, depuis le {{ a.enrichissement.iban_premiere_apparition|date('d/m/Y') }}{% endif %}</span></div></div>
+          <div><div class="text-[10px] uppercase tracking-wider text-ink/40">Empreinte du compte</div>
+            <div class="font-mono text-[10px] text-ink/50">{{ a.enrichissement.iban.empreinte }}</div></div>
+          {% if a.enrichissement.iban_partage %}
+            {# Le point qui change tout : ce compte bancaire ne designe pas un
+               compte client unique. On le dit ici, avant les candidats. #}
+            <div class="rounded border border-warning/40 bg-warning/5 px-2 py-1.5">
+              <div class="text-[10px] font-semibold uppercase tracking-wider text-warning">Compte bancaire partagé</div>
+              <p class="mt-0.5 text-[11.5px] leading-relaxed text-ink/70">
+                <b>{{ a.enrichissement.iban_comptes }}</b> comptes clients règlent depuis ce compte.
+                L'IBAN dit qui paie, il ne dit pas quel compte créditer : il est posé
+                à l'identique sur chacun d'eux et ne départage rien.
+              </p>
+            </div>
+          {% endif %}
+        {% else %}
+          <p class="rounded bg-surface px-2 py-1.5 text-[11.5px] text-ink/55">
+            Aucun IBAN exploitable : le mode <b>brut</b> ne dispose que de la date, du
+            montant et du libellé.
+          </p>
+        {% endif %}
+        <div><div class="text-[10px] uppercase tracking-wider text-ink/40">Nom normalisé du donneur d'ordre</div>
+          <div class="font-mono text-[11.5px]">{{ a.enrichissement.nom_normalise ?: '—' }}</div></div>
+        <div><div class="text-[10px] uppercase tracking-wider text-ink/40">Références extraites du texte</div>
+          <div class="font-mono text-[10.5px] leading-snug text-ink/60">{{ a.enrichissement.references|join(' · ') ?: 'aucune' }}</div></div>
+        <div><div class="text-[10px] uppercase tracking-wider text-ink/40">Payeurs candidats</div>
+          <div><span class="font-mono text-base font-bold text-navy">{{ a.candidats|length }}</span>
+            <span class="text-[11px] text-ink/50">examinés</span></div></div>
+      </div>
+    </section>
+
+    {# --------------------------------------------------- C. les candidats #}
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <div class="mb-3 flex items-center gap-2">
+        <span class="flex h-5 w-5 items-center justify-center rounded bg-sky-100 text-[10px] font-bold text-sky-700">C</span>
+        <h3 class="text-[11px] font-bold uppercase tracking-wider text-ink/50">Les candidats, et leur écart</h3>
+      </div>
+      {% if a.candidats is empty %}
+        <p class="text-[12px] text-ink/50">Aucun candidat n'a pu être formé.</p>
+      {% else %}
+        <div class="space-y-2">
+          {% for c in a.candidats|slice(0, 5) %}
+            <div class="rounded-lg border px-2.5 py-2 {{ loop.first ? 'border-navy/30 bg-navy/5' : 'border-hairline' }}">
+              <div class="flex items-baseline justify-between gap-2">
+                <span class="truncate text-[12.5px] font-semibold {{ loop.first ? 'text-navy' : 'text-ink/70' }}">
+                  {{ c.client.nom }}
+                  <span class="ml-1 font-mono text-[10.5px] font-normal text-ink/40">{{ c.client.id }}</span>
+                </span>
+                <span class="font-mono text-sm font-bold {{ loop.first ? 'text-navy' : 'text-ink/50' }}">{{ c.score }}</span>
+              </div>
+              <div class="mt-0.5 text-[10.5px] text-ink/45">
+                {{ c.client.type }} · entré par {{ c.entrees|join(', ') }}
+                {% if c.factures is not empty %} · {{ c.factures|length }} facture{{ c.factures|length > 1 ? 's' }}{% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+        {% if a.score_suivant is not null %}
+          <p class="mt-2.5 border-t border-hairline pt-2 text-[11px] leading-relaxed
+                    {{ a.marge < seuils.ecart ? 'text-warning' : 'text-ink/50' }}">
+            Marge sur le second candidat : <b>{{ a.marge }}</b> points,
+            mesurés avant le plafond d'affichage.
+            {% if a.marge < seuils.ecart %}
+              En dessous de {{ seuils.ecart }}, <b>l'outil ne tranche pas</b>.
+            {% elseif a.marge < seuils.marge_auto %}
+              En dessous de {{ seuils.marge_auto }}, <b>il propose sans affecter seul</b>.
+            {% endif %}
+          </p>
+        {% endif %}
+      {% endif %}
+    </section>
+
+    {# ---------------------------------------------------- D. la décision #}
+    <section class="rounded-xl border-2 p-4 shadow-sm
+                    {{ a.decision == 'automatique' ? 'border-positive/40 bg-positive/5'
+                     : a.decision == 'validation' ? 'border-sky-300 bg-sky-50'
+                     : a.decision == 'exception' ? 'border-warning/50 bg-warning/5'
+                     : 'border-negative/40 bg-negative/5' }}">
+      <div class="mb-3 flex items-center gap-2">
+        <span class="flex h-5 w-5 items-center justify-center rounded bg-white text-[10px] font-bold text-ink/70">D</span>
+        <h3 class="text-[11px] font-bold uppercase tracking-wider text-ink/50">La décision</h3>
+      </div>
+
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Indice de confiance</div>
+      <div class="mb-1 font-mono text-3xl font-bold
+                  {{ a.decision == 'automatique' ? 'text-positive'
+                   : a.decision == 'refus' ? 'text-negative' : 'text-navy' }}">{{ a.score }}<span class="text-base text-ink/40"> / 100</span></div>
+      <div class="mb-2 text-[13px] font-bold text-ink/80">
+        {{ {'automatique': 'Affectation automatique', 'validation': 'Proposition à valider',
+            'exception': 'Intervention humaine requise', 'refus': 'Aucune affectation proposée'}[a.decision] }}
+      </div>
+      {# Ce n'est pas une probabilite, et on ne laisse pas croire que c'en est
+         une : le moteur n'est pas calibre sur des frequences observees. C'est
+         la somme de preuves declarees, bornee pour rester lisible. #}
+      <p class="mb-3 text-[11px] leading-relaxed text-ink/55">
+        {{ a.motif }}
+        <span class="mt-1 block text-ink/40">
+          Somme de preuves déclarées, bornée à 100. Ce n'est pas une probabilité :
+          l'outil ne prétend pas mesurer une fréquence, il mesure une convergence.
+        </span>
+      </p>
+
+      {% if a.retenu %}
+        <div class="space-y-1.5 text-[12.5px]">
+          {# Sur un refus, ce n'est pas un payeur retenu : c'est l'hypothese la
+             mieux placee, et elle n'a pas suffi. Le dire autrement ferait croire
+             a une identification que l'outil vient precisement de refuser. #}
+          <div><span class="text-ink/45">{{ a.decision in ['refus', 'exception'] ? 'Meilleure hypothèse, insuffisante :' : 'Payeur :' }}</span>
+            <b>{{ a.retenu.client.nom }}</b>
+            <span class="font-mono text-[11px] font-normal text-ink/40">{{ a.retenu.client.id }}</span></div>
+          {% if a.retenu.factures is not empty %}
+            <div><span class="text-ink/45">Factures :</span> <b>{{ a.retenu.factures|length }}</b>
+              sur <b>{{ a.retenu.societes|length }}</b> société{{ a.retenu.societes|length > 1 ? 's' }}</div>
+            <div><span class="text-ink/45">Montant expliqué :</span>
+              <b class="font-mono">{{ (a.retenu.factures|reduce((s, f) => s + f.montant, 0))|number_format(2, ',', ' ') }} €</b></div>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      <div class="mt-3 border-t border-ink/10 pt-2 text-[10.5px] leading-relaxed text-ink/50">
+        Seuils : automatique à partir de {{ seuils.automatique }}, validation à partir de
+        {{ seuils.validation }}, refus en dessous de {{ seuils.rejet }}.
+      </div>
+
+      <div class="mt-3 flex flex-wrap gap-2">
+        {% if mode == 'ENRICHED' %}
+          <a href="{{ path('app_affectation_virement', {id: a.virement.id, mode: 'RAW'}) }}"
+             class="rounded-lg border border-hairline bg-white px-3 py-1.5 text-[12px] font-semibold text-ink transition hover:border-navy hover:text-navy">
+            Voir en donnée brute
+          </a>
+        {% else %}
+          <a href="{{ path('app_affectation_virement', {id: a.virement.id}) }}"
+             class="rounded-lg bg-navy px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-navy-deep">
+            Revenir à la donnée enrichie
+          </a>
+        {% endif %}
+        <a href="{{ path('app_affectation_virement', {id: a.virement.id, mode: mode, comparer: 1}) }}"
+           class="rounded-lg border border-hairline bg-white px-3 py-1.5 text-[12px] font-semibold text-ink transition hover:border-navy hover:text-navy">
+          Comparer brut / enrichi
+        </a>
+        {# La suite immediate du parcours : l'outil 4 dit a qui appartient
+           l'argent, l'outil 5 dit ce qu'il solde. On y va sur le meme compte. #}
+        {% if lotLettrage is defined and lotLettrage %}
+          <a href="{{ path('app_lettrage_lot', {id: lotLettrage}) }}"
+             class="rounded-lg bg-navy px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-navy-deep">
+            Continuer vers le lettrage →
+          </a>
+        {% elseif clientLettrage is defined and clientLettrage %}
+          <a href="{{ path('app_lettrage_file', {q: clientLettrage}) }}"
+             class="rounded-lg bg-navy px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-navy-deep">
+            Continuer vers le lettrage →
+          </a>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+
+  {# ------------------------------------------------ POURQUOI : les preuves #}
+  <div class="mb-4 grid gap-3 lg:grid-cols-3">
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm lg:col-span-2">
+      <div class="mb-3 flex items-baseline gap-2">
+        <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">Pourquoi cet indice</h3>
+        <span class="rounded-full bg-ink/10 px-2 py-0.5 text-xs font-semibold text-ink/60">{{ a.preuves|length }} signaux</span>
+      </div>
+      <table class="fc-table-comptable w-full">
+        <thead><tr><th>Signal</th><th>Constat</th><th class="text-right">Contribution</th>{% if expert %}<th>Règle</th>{% endif %}</tr></thead>
+        <tbody>
+          {% for p in a.preuves %}
+            <tr>
+              <td class="text-[12.5px] font-medium">{{ p.libelle }}</td>
+              <td class="text-[12px] text-ink/60">{{ p.constat }}</td>
+              <td class="text-right font-mono text-[13px] font-bold {{ p.poids >= 0 ? 'text-positive' : 'text-negative' }}">
+                {{ p.poids >= 0 ? '+' : '' }}{{ p.poids }}
+              </td>
+              {% if expert %}<td class="font-mono text-[10.5px] text-ink/40">{{ p.origine }}</td>{% endif %}
+            </tr>
+          {% else %}
+            <tr><td colspan="4" class="py-6 text-center text-[12px] text-ink/40">Aucun signal exploitable.</td></tr>
+          {% endfor %}
+          <tr class="border-t-2 border-ink/20">
+            <td class="text-[12.5px] font-bold">Total
+              {% if a.retenu and a.retenu.points_bruts > 100 %}
+                <span class="ml-1 text-[10.5px] font-normal text-ink/40">borné à 100</span>
+              {% endif %}
+            </td><td></td>
+            <td class="text-right font-mono text-[14px] font-bold text-navy">{{ a.retenu ? a.retenu.points_bruts : 0 }}</td>
+            {% if expert %}<td></td>{% endif %}
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    {# les factures de la combinaison #}
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">La combinaison retenue</h3>
+      {% if a.retenu and a.retenu.factures is not empty %}
+        <table class="fc-table-comptable w-full">
+          <thead><tr><th>Facture</th><th>Société</th><th class="text-right">Montant</th></tr></thead>
+          <tbody>
+            {% for f in a.retenu.factures %}
+              <tr>
+                <td class="font-mono text-[11.5px]">{{ f.numero }}</td>
+                <td class="font-mono text-[11px] text-ink/55">{{ f.societe_id }}</td>
+                <td class="text-right font-mono text-[12px]">{{ f.montant|number_format(2, ',', ' ') }} €</td>
+              </tr>
+            {% endfor %}
+            <tr class="border-t-2 border-ink/20">
+              <td class="text-[12px] font-bold" colspan="2">Somme</td>
+              <td class="text-right font-mono text-[13px] font-bold text-navy">
+                {{ (a.retenu.factures|reduce((s, f) => s + f.montant, 0))|number_format(2, ',', ' ') }} €</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="mt-2 text-[11px] leading-relaxed text-ink/50">
+          {# Les compteurs affiches sont ceux du candidat RETENU. Le total de la
+             page agrege tous les candidats examines : l'annoncer ici laisserait
+             croire que plusieurs compositions expliquent ce compte-la, alors
+             qu'elles appartiennent a des comptes concurrents. #}
+          Recherche exhaustive de sous-ensembles sur ce compte :
+          <b>{{ a.retenu.combinaison.noeuds|number_format(0, ',', ' ') }}</b> nœuds explorés,
+          <b>{{ a.retenu.combinaison.solutions|length }}</b> composition{{ a.retenu.combinaison.solutions|length > 1 ? 's' }} trouvée{{ a.retenu.combinaison.solutions|length > 1 ? 's' }},
+          en {{ a.retenu.combinaison.ms|number_format(2, ',', ' ') }} ms.
+          <span class="text-ink/45">Tous candidats confondus :
+            {{ a.combinaison.noeuds|number_format(0, ',', ' ') }} nœuds, {{ a.chrono.combinaison|number_format(2, ',', ' ') }} ms.</span>
+          {% if not a.contexte.composition_unique %}
+            <b class="text-warning">Plusieurs jeux de factures de ce compte composent exactement ce montant : l'outil ne force pas de réponse.</b>
+          {% endif %}
+        </p>
+      {% else %}
+        <p class="rounded-lg border-l-2 border-negative bg-negative/5 px-3 py-2 text-[12px] leading-relaxed text-ink/70">
+          <b>Aucune combinaison de factures n'explique ce montant.</b>
+          {% if a.retenu %}{{ a.retenu.nb_factures_ouvertes }} factures non affectées ont été
+          examinées, jusqu'à {{ a.combinaison.noeuds|number_format(0, ',', ' ') }} nœuds explorés.{% endif %}
+          C'est un refus, et c'est ce qui protège la comptabilité.
+        </p>
+      {% endif %}
+
+      {% if a.retenu and a.retenu.vehicules is not empty %}
+        <h4 class="mb-1.5 mt-4 text-[11px] font-bold uppercase tracking-wider text-ink/50">Véhicules concernés</h4>
+        <div class="space-y-1">
+          {% for v in a.retenu.vehicules %}
+            <div class="flex items-baseline justify-between gap-2 text-[11.5px]">
+              <span class="font-mono">{{ v.serie }}</span>
+              <span class="font-mono text-ink/55">{{ v.immatriculation }}</span>
+              <span class="{{ v.client_id == a.retenu.client.id ? 'text-positive' : 'text-ink/35' }} text-[10px] font-semibold">
+                {{ v.client_id == a.retenu.client.id ? 'même payeur' : 'autre compte' }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </section>
+  </div>
+
+  {# ------------------------------------------------ chronométrage et modes #}
+  <div class="grid gap-3 lg:grid-cols-2">
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">Durées, mesurées sur votre appareil</h3>
+      <table class="fc-table-comptable w-full">
+        <tbody>
+          {% for phase, ms in a.chrono %}
+            <tr>
+              <td class="text-[12.5px] {{ phase == 'total' ? 'font-bold' : '' }}">
+                {{ {'enrichissement': '1. Enrichissement', 'candidats': '2. Génération des candidats',
+                    'combinaison': '3. Recherche de combinaison', 'score': '4. Scoring et décision',
+                    'total': 'Total'}[phase]|default(phase) }}
+              </td>
+              <td class="text-right font-mono text-[12.5px] {{ phase == 'total' ? 'font-bold text-navy' : '' }}">
+                {{ ms|number_format(2, ',', ' ') }} ms</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="mt-2 text-[11px] text-ink/45">Aucune de ces durées n'est prédéfinie : elles sont chronométrées à chaque ouverture.</p>
+    </section>
+
+    {% if comparaison %}
+      <section class="rounded-xl border-2 border-gold/40 bg-gold/5 p-4 shadow-sm">
+        <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">Donnée brute contre donnée enrichie</h3>
+        {% set brut = mode == 'RAW' ? a : comparaison %}
+        {% set enrichi = mode == 'RAW' ? comparaison : a %}
+        <table class="fc-table-comptable w-full">
+          <thead><tr><th></th><th>Donnée brute</th><th>Donnée enrichie</th></tr></thead>
+          <tbody>
+            <tr><td class="text-[12.5px]">Signaux exploités</td>
+              <td class="font-mono text-[12.5px]">{{ brut.preuves|length }}</td>
+              <td class="font-mono text-[12.5px] font-bold text-navy">{{ enrichi.preuves|length }}</td></tr>
+            <tr><td class="text-[12.5px]">Candidats formés</td>
+              <td class="font-mono text-[12.5px]">{{ brut.candidats|length }}</td>
+              <td class="font-mono text-[12.5px] font-bold text-navy">{{ enrichi.candidats|length }}</td></tr>
+            <tr><td class="text-[12.5px]">Score</td>
+              <td class="font-mono text-[12.5px]">{{ brut.score }}</td>
+              <td class="font-mono text-[12.5px] font-bold text-navy">{{ enrichi.score }}</td></tr>
+            <tr><td class="text-[12.5px]">Décision</td>
+              <td class="text-[12px]">{% include 'affectation/_badge.html.twig' with { decision: brut.decision } %}</td>
+              <td class="text-[12px]">{% include 'affectation/_badge.html.twig' with { decision: enrichi.decision } %}</td></tr>
+          </tbody>
+        </table>
+        <p class="mt-2.5 text-[11.5px] leading-relaxed text-ink/65">
+          <b>C'est le message de l'outil pour un expert-comptable :</b> améliorer le traitement
+          commence par améliorer la donnée d'entrée. Le même moteur, sur le même virement,
+          ne conclut pas la même chose selon ce qu'on lui donne à croiser.
+        </p>
+      </section>
+    {% else %}
+      <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+        <h3 class="mb-2 text-sm font-bold uppercase tracking-wide text-ink/70">Ce que le refus protège</h3>
+        <p class="text-[12.5px] leading-relaxed text-ink/65">
+          Un moteur qui affecterait tout serait dangereux. Trois issues protègent la
+          comptabilité : la <b>proposition à valider</b>, quand les preuves sont fortes mais
+          pas décisives ; l'<b>intervention humaine requise</b>, quand deux hypothèses se
+          tiennent à moins de {{ seuils.ecart }} points ; le <b>refus</b>, quand aucune
+          combinaison n'explique le montant.
+        </p>
+        <p class="mt-2 text-[12.5px] leading-relaxed text-ink/65">
+          Le taux d'automatisation n'est donc pas la mesure de la qualité. La mesure, c'est la
+          <b>précision sur ce qui a été accepté</b> — visible sur l'écran
+          <a class="font-semibold text-navy hover:underline" href="{{ path('app_affectation_methode') }}">Méthode et performance</a>.
+        </p>
+      </section>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

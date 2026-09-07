@@ -1,0 +1,381 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Mes créances à traiter{% endblock %}
+{% block page_title %}Mes créances à traiter{% endblock %}
+{% block topbar_nav %}{% include 'pilotage/travail/_nav.html.twig' with { active: 'files' } %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1600px]">
+
+  {# ------------------------------------------------- ce que je viens faire ici #}
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="flex flex-wrap items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">Ma journée</h3>
+      <span class="ml-auto text-[11px] text-ink/45">
+        arrêté au {{ arrete|date('d/m/Y') }}
+        {%- if perimetre %} · périmètre {{ perimetre }}{% endif %} ·
+        {{ ms|number_format(0, ',', ' ') }} ms
+      </span>
+    </div>
+    <p class="mt-1.5 max-w-4xl text-[12.5px] leading-relaxed text-ink/70">
+      Dix files, dans l'ordre où elles se traitent. On commence par <b>l'argent déjà reçu et mal
+      imputé</b> — le traiter fait disparaître des créances qui n'existent pas — et on finit par la
+      relance, qui ne doit jamais partir avant que les neuf files précédentes aient retiré ce qui
+      n'est pas dû.
+    </p>
+    {% include 'pilotage/travail/_recherche.html.twig' %}
+
+    {# Le filtre d'etablissement. Un directeur de concession ne le voit pas :
+       son perimetre est impose, et le lui presenter comme un choix serait
+       mentir sur ce qu'il peut faire. #}
+    {% if not perimetre %}
+      <form method="get" class="mt-3 flex flex-wrap items-end gap-2">
+        <input type="hidden" name="file" value="{{ file }}">
+        <label class="text-[11px] font-semibold uppercase tracking-wider text-ink/45">
+          Établissement
+          <select name="etablissement_id"
+                  class="mt-0.5 block rounded-lg border border-hairline px-2 py-1.5 text-[12px]">
+            <option value="">tous les établissements</option>
+            {% for id, nom in etablissements %}
+              <option value="{{ id }}" {{ filtres.etablissement_id|default('') == id ? 'selected' }}>
+                {{ id }} — {{ nom }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button type="submit"
+                class="rounded-lg bg-navy px-3 py-2 text-[12px] font-semibold text-white hover:bg-navy-deep">
+          Filtrer</button>
+        {% if filtres.etablissement_id|default('') %}
+          <a href="{{ path('app_travail', {file: file}) }}"
+             class="text-[11.5px] font-semibold text-navy hover:underline">Retirer le filtre</a>
+        {% endif %}
+      </form>
+    {% endif %}
+
+    {% for message in app.flashes('fait') %}
+      <p class="mt-2 rounded-lg border border-positive/40 bg-positive/5 px-3 py-2 text-[12.5px]
+                font-semibold text-positive">{{ message }}</p>
+    {% endfor %}
+    {% for message in app.flashes('erreur') %}
+      <p class="mt-2 rounded-lg border border-negative/40 bg-negative/5 px-3 py-2 text-[12.5px]
+                font-semibold text-negative">{{ message }}</p>
+    {% endfor %}
+  </section>
+
+  {% if resultats is not null %}
+    {% include 'pilotage/travail/_resultats.html.twig' %}
+  {% endif %}
+
+  {# ------------------------------------------------- les dix portes #}
+  <div class="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+    {% for f in sommaire %}
+      <a href="{{ path('app_travail', filtres|merge({file: f.code})) }}"
+         class="rounded-xl border bg-white px-3 py-2.5 shadow-sm transition hover:shadow
+                {{ f.code == file ? 'border-navy border-2' : 'border-hairline hover:border-navy/40' }}">
+        <div class="text-[10px] font-semibold uppercase leading-tight tracking-wider
+                    {{ f.teinte == 'negative' ? 'text-negative'
+                     : f.teinte == 'warning' ? 'text-warning'
+                     : f.teinte == 'gold' ? 'text-gold' : 'text-navy' }}">
+          {{ f.libelle }}
+        </div>
+        <div class="mt-0.5 flex items-baseline gap-1.5">
+          <span class="font-mono text-xl font-bold text-ink">{{ f.lignes|number_format(0, ',', ' ') }}</span>
+          <span class="font-mono text-[11.5px] text-ink/50">
+            {{ (f.montant / 1000000)|number_format(2, ',', ' ') }} M€
+          </span>
+        </div>
+        <div class="text-[10.5px] text-ink/40">
+          {{ f.objet == 'ecriture' ? 'écritures' : f.objet == 'compte' ? 'comptes'
+           : f.objet == 'virement' ? 'virements' : f.objet == 'exception' ? 'exceptions' : 'créances' }}
+          {%- if f.traites > 0 %} · <span class="font-semibold text-positive">{{ f.traites }} annoté{{ f.traites > 1 ? 's' }}</span>{% endif %}
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+
+  {# ------------------------------------------------- la file ouverte #}
+  <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="mb-2 flex flex-wrap items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">{{ definition.libelle }}</h3>
+      <span class="rounded-full bg-ink/10 px-2 py-0.5 text-xs font-semibold text-ink/60">
+        {{ ((page - 1) * par_page + 1)|number_format(0, ',', ' ') }}
+        à {{ ((page - 1) * par_page + lignes|length)|number_format(0, ',', ' ') }}
+        sur {{ volume|number_format(0, ',', ' ') }}
+      </span>
+      <a href="{{ path('app_travail_journal') }}"
+         class="ml-auto text-[11.5px] font-semibold text-navy hover:underline">Mon activité →</a>
+    </div>
+    <p class="mb-1 max-w-4xl text-[12.5px] leading-relaxed text-ink/75">{{ definition.question }}</p>
+    {% if definition.objet == 'exception' %}
+      {# Les virements sont vingt fois plus gros que les lots : sans ce filtre,
+         la premiere page ne montrerait que l'outil 4. #}
+      <div class="mb-2 flex flex-wrap items-center gap-1.5 text-[11.5px]">
+        <span class="font-semibold text-ink/50">Origine :</span>
+        {% for code, libelle in {'': 'les deux', 'virement': "outil 4 — affectation", 'lot': 'outil 5 — lettrage'} %}
+          <a href="{{ path('app_travail', filtres|merge({file: file, origine: code})|filter(v => v != '')) }}"
+             class="rounded-full border px-2.5 py-0.5 font-semibold transition
+                    {{ (filtres.origine|default('')) == code
+                       ? 'border-navy bg-navy text-white'
+                       : 'border-hairline text-navy hover:bg-navy/5' }}">{{ libelle }}</a>
+        {% endfor %}
+      </div>
+    {% endif %}
+    <details class="mb-3">
+      <summary class="cursor-pointer text-[11.5px] font-semibold text-navy">
+        Ce que cette file compte exactement ▾
+      </summary>
+      <p class="mt-1 rounded-lg border border-hairline bg-surface px-3 py-2 text-[11.5px]
+                leading-relaxed text-ink/65">
+        {{ definition.compte }}
+        La suite du dossier appartient à <b>{{ definition.outil }}</b>.
+      </p>
+    </details>
+
+    {% if lignes is empty %}
+      <p class="rounded-lg border border-hairline bg-surface px-3 py-6 text-center text-[12.5px] text-ink/50">
+        Rien à traiter dans cette file sur votre périmètre.
+      </p>
+    {% else %}
+      <div class="overflow-x-auto">
+        <table class="fc-table-comptable w-full">
+          {# Les colonnes suivent la NATURE de l'objet : un virement et une
+             facture ne se lisent pas avec les memes yeux. #}
+          {% if definition.objet == 'virement' %}
+            <thead><tr>
+              <th>Virement</th><th>Date</th><th>Libellé bancaire</th><th>Compte proposé</th>
+              <th class="text-right">Indice</th><th class="text-right">Montant</th>
+              <th>Arrêt</th><th class="text-right">Action</th>
+            </tr></thead>
+            <tbody>
+              {% for l in lignes %}
+                <tr class="{{ l.geste ? 'bg-positive/5' : '' }}">
+                  <td class="font-mono text-[11.5px] font-semibold">{{ l.id }}</td>
+                  <td class="text-[11.5px] text-ink/60">{{ l.date_operation|date('d/m/Y') }}</td>
+                  <td class="max-w-[22rem] truncate text-[11.5px]" title="{{ l.libelle }}">{{ l.libelle }}</td>
+                  <td class="text-[12px]">
+                    {% if l.client_propose %}
+                      <span class="font-semibold">{{ l.client_nom ?: l.client_propose }}</span>
+                      <span class="ml-1 font-mono text-[10.5px] text-ink/40">{{ l.client_propose }}</span>
+                    {% else %}<span class="text-ink/40">aucun candidat retenu</span>{% endif %}
+                  </td>
+                  <td class="text-right font-mono text-[11.5px]">
+                    {{ l.score }}<span class="text-ink/35">/100</span>
+                    {%- if l.score_suivant %}<span class="ml-1 text-[10px] text-ink/40">
+                      marge {{ l.score - l.score_suivant }}</span>{% endif %}
+                  </td>
+                  <td class="text-right font-mono text-[12px] font-semibold">{{ l.montant|number_format(2, ',', ' ') }} €</td>
+                  <td><span class="rounded bg-warning/10 px-1.5 py-0.5 text-[10.5px] font-semibold text-warning">
+                    {{ l.decision }}</span></td>
+                  <td class="text-right">
+                    {% include 'pilotage/travail/_gestes.html.twig' with {
+                      actions: l.actions, objet_type: l._type, objet_id: l._id,
+                      retour: app.request.requestUri
+                    } %}
+                  </td>
+                </tr>
+                {% if l.geste %}{{ include('pilotage/travail/_trace.html.twig', {l: l, colonnes: 8}) }}{% endif %}
+              {% endfor %}
+            </tbody>
+
+          {% elseif definition.objet == 'exception' %}
+            <thead><tr>
+              <th>Origine</th><th>Objet</th><th>Verdict</th><th>Méthode</th>
+              <th>Motif du moteur</th><th class="text-right">Montant</th><th class="text-right">Action</th>
+            </tr></thead>
+            <tbody>
+              {% for l in lignes %}
+                <tr class="{{ l.geste ? 'bg-positive/5' : '' }}">
+                  <td class="text-[11.5px] font-semibold">
+                    {{ l.source == 'virement' ? 'Outil 4' : 'Outil 5' }}</td>
+                  <td class="font-mono text-[11.5px]">{{ l.id }}</td>
+                  <td><span class="rounded bg-warning/10 px-1.5 py-0.5 text-[10.5px] font-semibold text-warning">
+                    {{ l.verdict }}</span></td>
+                  <td class="font-mono text-[11px] text-ink/55">{{ l.methode ?: '—' }}</td>
+                  <td class="max-w-[28rem] text-[11.5px] leading-snug text-ink/70">{{ l.detail ?: '—' }}</td>
+                  <td class="text-right font-mono text-[12px] font-semibold">{{ l.montant|number_format(2, ',', ' ') }} €</td>
+                  <td class="text-right">
+                    {% include 'pilotage/travail/_gestes.html.twig' with {
+                      actions: l.actions, objet_type: l._type, objet_id: l._id,
+                      retour: app.request.requestUri
+                    } %}
+                  </td>
+                </tr>
+                {% if l.geste %}{{ include('pilotage/travail/_trace.html.twig', {l: l, colonnes: 7}) }}{% endif %}
+              {% endfor %}
+            </tbody>
+
+          {% elseif definition.objet == 'ecriture' %}
+            <thead><tr>
+              <th>Écriture</th><th>Date</th><th>Compte</th><th>Client</th>
+              <th>Référence</th><th>Immat / VIN</th><th class="text-right">Crédit</th>
+              <th>Remboursement outil 8</th><th class="text-right">Action</th>
+            </tr></thead>
+            <tbody>
+              {% for l in lignes %}
+                <tr class="{{ l.geste ? 'bg-positive/5' : '' }}">
+                  <td class="font-mono text-[11.5px] font-semibold">{{ l.id }}</td>
+                  <td class="text-[11.5px] text-ink/60">{{ l.date_ecriture|date('d/m/Y') }}</td>
+                  <td class="font-mono text-[11px]">{{ l.compte }} <span class="text-ink/40">{{ l.journal }}</span></td>
+                  <td class="text-[12px]">
+                    <span class="font-semibold">{{ l.client_nom ?: l.client_id }}</span>
+                    <span class="ml-1 font-mono text-[10.5px] text-ink/40">{{ l.client_id }}</span>
+                  </td>
+                  <td class="font-mono text-[11px] text-ink/60">{{ l.reference_piece ?: '—' }}</td>
+                  <td class="font-mono text-[11px] text-ink/60">
+                    {{ l.immatriculation ?: (l.vin8 ?: '—') }}</td>
+                  <td class="text-right font-mono text-[12px] font-semibold text-navy">
+                    {{ l.montant|number_format(2, ',', ' ') }} €</td>
+                  {# Le pont vers l'outil 8. Le libellé dit la QUALITÉ du lien :
+                     « Dossier correspondant » quand le monde porte l'identité —
+                     même code client, même montant au centime — et « Dossier
+                     associé » quand ce n'est qu'un rapprochement plausible. On
+                     ne présente jamais une association comme une identité. #}
+                  <td class="text-[11px]">
+                    {% if l.rbc_dossier_id is defined and l.rbc_dossier_id %}
+                      <a href="{{ path('app_remboursement_dossier', {id: l.rbc_dossier_id}) }}"
+                         class="whitespace-nowrap font-semibold text-navy hover:underline"
+                         title="Ouvrir ce dossier de remboursement dans l'outil 8">{{ l.rbc_reference }} →</a>
+                      <span class="mt-0.5 block text-[10px] text-ink/45">
+                        {{ l.rbc_qualite == 'identite' ? 'Dossier correspondant' : 'Dossier associé' }}</span>
+                      {% if l.rbc_statut in ['paye', 'lettre'] %}
+                        <span class="mt-0.5 inline-block rounded bg-positive/10 px-1.5 py-px text-[10px] font-semibold text-positive">
+                          remboursement traité dans la session</span>
+                      {% endif %}
+                    {% else %}
+                      <span class="text-ink/30">—</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-right">
+                    {% include 'pilotage/travail/_gestes.html.twig' with {
+                      actions: l.actions, objet_type: l._type, objet_id: l._id,
+                      retour: app.request.requestUri
+                    } %}
+                  </td>
+                </tr>
+                {% if l.geste %}{{ include('pilotage/travail/_trace.html.twig', {l: l, colonnes: 9}) }}{% endif %}
+              {% endfor %}
+            </tbody>
+
+          {% elseif definition.objet == 'compte' %}
+            <thead><tr>
+              <th>Compte client</th><th>Type</th><th>Compte général</th><th class="text-right">Sites</th>
+              <th class="text-right">Débits</th><th class="text-right">Crédits</th>
+              <th class="text-right">Solde</th><th class="text-right">Lignes</th>
+              <th class="text-right">Action</th>
+            </tr></thead>
+            <tbody>
+              {% for l in lignes %}
+                <tr class="{{ l.geste ? 'bg-positive/5' : '' }}">
+                  <td class="text-[12px]">
+                    <span class="font-semibold">{{ l.client_nom ?: l.client_id }}</span>
+                    <span class="ml-1 font-mono text-[10.5px] text-ink/40">{{ l.client_id }}</span>
+                  </td>
+                  <td class="text-[11px] text-ink/55">{{ l.client_type ?: '—' }}</td>
+                  <td class="font-mono text-[11px]">{{ l.compte }}</td>
+                  <td class="text-right font-mono text-[11.5px] {{ l.etablissements > 1 ? 'font-semibold text-navy' : 'text-ink/50' }}">
+                    {{ l.etablissements }}</td>
+                  <td class="text-right font-mono text-[11.5px]">{{ (l.debits / 1000)|number_format(1, ',', ' ') }} k€</td>
+                  <td class="text-right font-mono text-[11.5px]">{{ (l.credits / 1000)|number_format(1, ',', ' ') }} k€</td>
+                  <td class="text-right font-mono text-[12px] font-bold text-negative">
+                    {{ l.solde|number_format(2, ',', ' ') }} €</td>
+                  <td class="text-right font-mono text-[11.5px] text-ink/55">{{ l.nb_lignes }}</td>
+                  <td class="text-right">
+                    {% include 'pilotage/travail/_gestes.html.twig' with {
+                      actions: l.actions, objet_type: l._type, objet_id: l._id,
+                      retour: app.request.requestUri
+                    } %}
+                  </td>
+                </tr>
+                {% if l.geste %}{{ include('pilotage/travail/_trace.html.twig', {l: l, colonnes: 9}) }}{% endif %}
+              {% endfor %}
+            </tbody>
+
+          {% else %}
+            <thead><tr>
+              <th>Créance</th><th>Client</th><th>Établissement</th><th>Échéance</th>
+              <th class="text-right">Retard</th><th class="text-right">Montant</th>
+              <th>Cause d'ouverture</th><th>Dossier outil 7</th><th class="text-right">Action</th>
+            </tr></thead>
+            <tbody>
+              {% for l in lignes %}
+                <tr class="{{ l.geste ? 'bg-positive/5' : '' }}">
+                  <td class="font-mono text-[11.5px] font-semibold">
+                    {{ l.numero ?: l.facture_id }}
+                    <span class="ml-1 font-normal text-[10px] text-ink/35">{{ l.type_facture }}</span>
+                  </td>
+                  <td class="text-[12px]">
+                    <span class="font-semibold">{{ l.client_nom ?: l.client_id }}</span>
+                    <span class="ml-1 font-mono text-[10.5px] text-ink/40">{{ l.client_id }}</span>
+                    {% if l.client_type %}
+                      <span class="ml-1 rounded bg-ink/5 px-1 text-[10px] text-ink/50">{{ l.client_type }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-[11.5px] text-ink/60">{{ l.etablissement_nom ?: l.etablissement_id }}</td>
+                  <td class="text-[11.5px] text-ink/60">{{ l.echeance|date('d/m/Y') }}</td>
+                  <td class="text-right font-mono text-[12px] font-semibold
+                             {{ l.retard > 90 ? 'text-negative' : l.retard > 30 ? 'text-warning' : 'text-ink/60' }}">
+                    {{ l.retard }} j</td>
+                  <td class="text-right font-mono text-[12px] font-semibold">{{ l.montant|number_format(2, ',', ' ') }} €</td>
+                  <td class="text-[11px] leading-snug text-ink/60">
+                    {{ causes is defined and causes[l.cause] is defined ? causes[l.cause].libelle : l.cause }}</td>
+                  <td class="text-[11px]">
+                    {% if l.dossier_id is defined and l.dossier_id %}
+                      <a href="{{ path('app_gc_controle_dossier', {id: l.dossier_id}) }}"
+                         class="whitespace-nowrap font-semibold text-navy hover:underline"
+                         title="Ouvrir le dossier documentaire de cette créance">{{ l.dossier_id }} →</a>
+                      <span class="mt-0.5 block text-[10px] text-ink/45">{{ l.lien_qualite|replace({'_': ' '}) }}</span>
+                    {% else %}
+                      <span class="text-ink/30">—</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-right">
+                    {% include 'pilotage/travail/_gestes.html.twig' with {
+                      actions: l.actions, objet_type: l._type, objet_id: l._id,
+                      retour: app.request.requestUri
+                    } %}
+                  </td>
+                </tr>
+                {% if l.geste %}{{ include('pilotage/travail/_trace.html.twig', {l: l, colonnes: 9}) }}{% endif %}
+              {% endfor %}
+            </tbody>
+          {% endif %}
+        </table>
+      </div>
+      {# La navigation de page. Sans elle, la file s'arrete a la cinquantieme
+         ligne et le reste du travail devient invisible. #}
+      {% if pages > 1 %}
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          {% if page > 1 %}
+            <a href="{{ path('app_travail', filtres|merge({file: file, page: page - 1})) }}"
+               class="rounded-lg border border-hairline px-3 py-1.5 text-[12px] font-semibold
+                      text-navy hover:bg-navy/5">← Page précédente</a>
+          {% endif %}
+          <span class="text-[12px] font-semibold text-ink/60">
+            page {{ page }} sur {{ pages|number_format(0, ',', ' ') }}
+          </span>
+          {% if page < pages %}
+            <a href="{{ path('app_travail', filtres|merge({file: file, page: page + 1})) }}"
+               class="rounded-lg border border-hairline px-3 py-1.5 text-[12px] font-semibold
+                      text-navy hover:bg-navy/5">Page suivante →</a>
+          {% endif %}
+          {% if page > 1 %}
+            <a href="{{ path('app_travail', filtres|merge({file: file})) }}"
+               class="text-[11.5px] font-semibold text-ink/50 hover:text-navy">revenir au début</a>
+          {% endif %}
+        </div>
+      {% endif %}
+      <p class="mt-2 text-[11px] leading-relaxed text-ink/45">
+        Les lignes déjà annotées restent visibles, avec leur note : un dossier touché ne disparaît
+        pas de la file, sinon personne ne peut vérifier ce qui a été fait. Les boutons verts
+        ouvrent l'objet exact dans le module qui l'exécute — l'outil 6 oriente, il ne décide pas
+        à la place des moteurs.
+      </p>
+    {% endif %}
+  </section>
+
+  <p class="mt-4 rounded-xl border border-hairline bg-surface px-4 py-3 text-[11.5px] leading-relaxed text-ink/60">
+    <b>Périmètres de mesure.</b> {{ mention_perimetres }}
+  </p>
+
+</div>
+{% endblock %}

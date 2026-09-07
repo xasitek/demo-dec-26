@@ -1,0 +1,16 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Compte en attente - Finance Créances{% endblock %}
+
+{% block body %}
+<div class="state-screen">
+    <img src="{{ asset('images/logo-fc-automobile-white.png') }}" alt="Groupe Synthauto" class="logo">
+    <h1>Compte en attente d'habilitation</h1>
+    <p>
+        Bonjour {{ app.user.firstName }}, votre compte a bien été créé. Un administrateur
+        doit encore activer votre accès. Vous recevrez un email dès qu'il sera actif :
+        vous pourrez alors vous connecter et accéder à la plateforme.
+    </p>
+    <a class="link-muted" href="{{ path('app_logout') }}">Se déconnecter</a>
+</div>
+{% endblock %}

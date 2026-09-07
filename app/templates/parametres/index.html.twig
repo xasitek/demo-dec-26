@@ -1,0 +1,22 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Paramètres - Finance Créances{% endblock %}
+{% block page_title %}Paramètres{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-5xl">
+
+    <p class="mb-6 text-sm text-ink/60">Référentiels et réglages de Finance Créances.</p>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <a href="{{ path('app_etablissements') }}" class="group rounded-xl border border-hairline bg-white p-5 transition hover:border-navy hover:shadow-md">
+            <div class="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-navy/10 text-navy">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/><path d="M14 9h3a1 1 0 0 1 1 1v11"/><path d="M9 8h.01M9 12h.01M9 16h.01"/></svg>
+            </div>
+            <h2 class="text-base font-bold text-navy group-hover:underline">Coordonnées des établissements</h2>
+            <p class="mt-1 text-sm text-ink/60">Libellés, sociétés et contacts e-mail (directeur, secrétaires) de chaque site.</p>
+        </a>
+    </div>
+
+</div>
+{% endblock %}

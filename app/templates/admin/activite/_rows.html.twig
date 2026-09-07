@@ -1,0 +1,18 @@
+{% for log in logs %}
+    <div class="flex items-center gap-3 rounded-lg border border-hairline bg-white px-4 py-2.5">
+        {% if log.user.avatarUrl %}
+            <img src="{{ log.user.avatarUrl }}" alt="" class="h-8 w-8 rounded-full object-cover" referrerpolicy="no-referrer">
+        {% else %}
+            <span class="flex h-8 w-8 items-center justify-center rounded-full bg-navy text-xs font-bold text-gold">{{ log.user.firstName|first|upper }}{{ log.user.lastName|first|upper }}</span>
+        {% endif %}
+        <div class="min-w-0 flex-1">
+            <p class="text-sm font-medium text-navy">{{ log.user.fullName }}</p>
+            <p class="text-xs text-ink/50">{{ log.occurredAt|date('d/m/Y à H:i') }}{% if log.ip %} · {{ log.ip }}{% endif %}</p>
+        </div>
+        <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ 'login' == log.action.value ? 'bg-positive/10 text-positive' : 'bg-surface text-ink/50' }}">{{ log.action.label }}</span>
+    </div>
+{% else %}
+    <div class="rounded-xl border border-hairline bg-white p-10 text-center">
+        <p class="text-ink/70">Aucune activité enregistrée.</p>
+    </div>
+{% endfor %}

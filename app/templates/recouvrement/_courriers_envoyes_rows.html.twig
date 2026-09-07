@@ -1,0 +1,40 @@
+{# Lignes de l'historique des courriers postés (vue "Envoyés").
+   Rendu seul pour le scroll infini (?vue=envoyes&fragment=1) ou inclus dans la page. #}
+{% for c in courriers %}
+    <tr>
+        <td><div class="font-medium text-navy">{{ c.compteCode }}</div></td>
+        <td>
+            {% if c.niveau >= 3 %}
+                <span class="inline-flex items-center rounded-full bg-negative/10 px-2.5 py-0.5 text-xs font-medium text-negative">Mise en demeure</span>
+            {% else %}
+                <span class="inline-flex rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium text-ink/65">Niveau {{ c.niveau }}</span>
+            {% endif %}
+        </td>
+        <td>{{ c.nbFactures }}</td>
+        <td>{{ c.montantSolde is not null ? (c.montantSolde|number_format(2, ',', ' ') ~ ' €') : '—' }}</td>
+        <td class="text-sm">
+            <div class="inline-flex items-center gap-1.5 whitespace-nowrap font-medium text-positive">
+                <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                {{ c.envoyeLe ? c.envoyeLe|date('d/m/Y à H\\hi') : '—' }}
+            </div>
+            {% if c.envoyePar %}<div class="mt-0.5 text-xs text-ink/55">par {{ c.envoyePar }}</div>{% endif %}
+        </td>
+        <td>
+            <div class="flex flex-wrap items-center justify-center gap-2">
+                <a href="{{ path('app_recouvrement_courrier_lettre', {id: c.id}) }}"
+                   class="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-ink/70 transition hover:bg-surface hover:text-navy">
+                    <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+                    Retélécharger
+                </a>
+                <form method="post" action="{{ path('app_recouvrement_courrier_remettre', {id: c.id}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('courrier-remettre-' ~ c.id) }}">
+                    <button type="submit"
+                            class="inline-flex items-center gap-1.5 rounded-md border border-hairline bg-white px-2.5 py-1 text-xs font-medium text-navy transition hover:border-navy-light">
+                        <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+                        Remettre à envoyer
+                    </button>
+                </form>
+            </div>
+        </td>
+    </tr>
+{% endfor %}

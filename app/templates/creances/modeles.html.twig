@@ -1,0 +1,142 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Modeles de courrier - Recouvrement{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+
+{% block content %}
+{% set exemple_corps = '<table style="width:100%;font-family:Montserrat,Arial,sans-serif;color:#0e2540;">
+  <tr><td style="padding:24px 0;border-bottom:2px solid #d4b16c;">
+    <strong style="font-size:18px;letter-spacing:1px;">GROUPE SYNTHAUTO</strong>
+    <p style="margin:0;color:#6b7280;font-size:12px;">Service Comptabilite</p>
+  </td></tr>
+  <tr><td style="padding:24px 0;">
+    <p>{{ tiers.civilite }} {{ tiers.nom }},</p>
+    <p>Nous constatons que votre compte presente un solde debiteur de
+       <strong>{{ montant_total|number_format(2, \',\', \' \') }} EUR</strong>
+       au {{ date_aujourdhui }}.</p>
+    <p>Nous vous remercions de bien vouloir regler les ecritures suivantes a reception :</p>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+      <thead><tr style="background:#f3f4f6;">
+        <th style="padding:8px;text-align:left;">Piece</th>
+        <th style="padding:8px;text-align:left;">Date</th>
+        <th style="padding:8px;text-align:right;">Montant</th>
+      </tr></thead>
+      <tbody>
+        {% for e in ecritures %}
+        <tr style="border-top:1px solid #e5e7eb;">
+          <td style="padding:8px;">{{ e.numpiece }}</td>
+          <td style="padding:8px;">{{ e.date }}</td>
+          <td style="padding:8px;text-align:right;">{{ e.montant|number_format(2, \',\', \' \') }} EUR</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p style="margin-top:24px;">Restant a votre disposition pour toute question.</p>
+    <p style="margin-top:32px;">{{ signature }}</p>
+  </td></tr>
+</table>' %}
+
+<div class="mx-auto max-w-7xl">
+
+    {% include 'creances/_module_nav.html.twig' with { actif: 'modeles' } %}
+    {% include 'creances/_flashes.html.twig' %}
+
+    <div class="mb-4 flex items-baseline justify-between">
+        <h2 class="text-lg font-semibold text-navy">Modeles de courrier</h2>
+        <p class="text-[0.7rem] text-ink/45">Templates HTML reutilises par les relances email ou postales.</p>
+    </div>
+
+    {# Formulaire creation #}
+    <details class="mb-4 rounded-md border border-hairline bg-white p-4 shadow-sm">
+        <summary class="cursor-pointer text-sm font-medium text-navy list-none">+ Creer un nouveau modele</summary>
+        <form method="post" action="{{ path('app_creances_modele_creer') }}" class="mt-3 space-y-2">
+            <input type="hidden" name="_token" value="{{ csrf_token('creances_modele_creer') }}">
+            <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
+                <div>
+                    <label class="block text-[0.7rem] text-ink/55">Code court</label>
+                    <input type="text" name="code" required maxlength="50" pattern="[A-Za-z0-9_-]+" placeholder="Ex: RELANCE_N1"
+                           class="w-full rounded-md border border-hairline px-2 py-1.5 font-mono text-sm">
+                </div>
+                <div>
+                    <label class="block text-[0.7rem] text-ink/55">Format</label>
+                    <select name="format" required class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                        <option value="email">E-mail</option>
+                        <option value="courrier">Courrier postal</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[0.7rem] text-ink/55">Langue</label>
+                    <select name="langue" class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                        <option value="fr">Francais</option>
+                        <option value="en">Anglais</option>
+                        <option value="de">Allemand</option>
+                    </select>
+                </div>
+                <div class="md:col-span-3">
+                    <label class="block text-[0.7rem] text-ink/55">Libelle</label>
+                    <input type="text" name="libelle" required maxlength="255" placeholder="Ex: Relance niveau 1 - email amiable"
+                           class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                </div>
+                <div class="md:col-span-3">
+                    <label class="block text-[0.7rem] text-ink/55">Sujet (email uniquement)</label>
+                    <input type="text" name="sujet" maxlength="255" value="Relance - votre compte chez Groupe Synthauto"
+                           class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                </div>
+                <div class="md:col-span-3">
+                    <label class="block text-[0.7rem] text-ink/55">Corps HTML (variables Twig)</label>
+                    <textarea name="corps_html" rows="10" required
+                              class="w-full rounded-md border border-hairline px-2 py-1.5 font-mono text-[0.78rem]">{{ exemple_corps }}</textarea>
+                    <p class="mt-1 text-[0.65rem] text-ink/45">Variables disponibles : <code>tiers</code> (civilite, prenom, nom, adresse...), <code>compte_code</code>, <code>montant_total</code>, <code>date_aujourdhui</code>, <code>ecritures</code> (liste), <code>signature</code>.</p>
+                </div>
+            </div>
+            <div class="flex justify-end">
+                <button type="submit" class="rounded-md border border-navy bg-navy px-3 py-1.5 text-sm font-medium text-white hover:bg-navy-light">Creer</button>
+            </div>
+        </form>
+    </details>
+
+    {# Liste #}
+    <div class="rounded-md border border-hairline bg-white shadow-sm">
+        {% if modeles is empty %}
+            <p class="p-6 text-sm text-ink/45">Aucun modele defini. Cree-en un ci-dessus.</p>
+        {% else %}
+            <table class="fc-table-comptable">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Libelle</th>
+                        <th>Format</th>
+                        <th>Langue</th>
+                        <th>Statut</th>
+                        <th>Modifie le</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in modeles %}
+                        <tr class="cursor-pointer hover:bg-surface/60"
+                            onclick="window.location='{{ path('app_creances_modele_voir', { id: m.id }) }}'">
+                            <td class="font-mono text-[0.78rem]">{{ m.code }}</td>
+                            <td>
+                                <a href="{{ path('app_creances_modele_voir', { id: m.id }) }}" class="font-medium text-navy hover:text-navy-light">{{ m.libelle }}</a>
+                                {% if m.sujet %}<p class="text-[0.7rem] text-ink/55">{{ m.sujet }}</p>{% endif %}
+                            </td>
+                            <td>
+                                <span class="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-[0.7rem] font-semibold text-ink/65">{{ m.format.libelle }}</span>
+                            </td>
+                            <td class="text-[0.7rem] text-ink/65 uppercase">{{ m.langue }}</td>
+                            <td>
+                                {% if m.actif %}
+                                    <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[0.7rem] font-semibold text-emerald-700">Actif</span>
+                                {% else %}
+                                    <span class="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-[0.7rem] font-semibold text-ink/60">Inactif</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-[0.7rem] text-ink/55">{{ m.modifieLe|date('d/m/Y') }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

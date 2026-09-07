@@ -1,0 +1,151 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Dossier {{ dossier.reference }} - Remboursement{% endblock %}
+{% block page_title %}Remboursement client{% endblock %}
+{% block topbar_nav %}{% include '_secretaire_topbar.html.twig' with { active: 'mes_dossiers' } only %}{% endblock %}
+
+{% import 'remboursement/_statut_badge.html.twig' as badges %}
+{% set champ = 'mt-1 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink transition focus:border-navy focus:outline-none focus:ring-4 focus:ring-navy/10' %}
+{% set lbl = 'text-xs font-medium text-ink/55' %}
+{# Pieces existantes indexees par type. #}
+{% set pieces_par_type = {} %}
+{% for p in pieces %}{% set pieces_par_type = pieces_par_type|merge({(p.type): p}) %}{% endfor %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-2xl">
+
+    {% for message in app.flashes('error') %}
+        <div class="mb-4 rounded-lg border border-negative/30 bg-negative/10 px-4 py-2.5 text-sm text-negative">{{ message }}</div>
+    {% endfor %}
+
+    <a href="{{ path('app_remboursement_mes_dossiers') }}" class="mb-3 inline-flex items-center gap-1 text-sm text-ink/55 transition hover:text-navy">
+        <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        Mes dossiers
+    </a>
+
+    <div class="mb-4 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5">
+            <span class="font-mono text-sm font-semibold text-navy">{{ dossier.reference }}</span>
+            <span class="text-xs text-ink/45">{{ dossier.motif.libelle }}</span>
+        </div>
+        {{ badges.badge(dossier.statut) }}
+    </div>
+
+    {% if editable %}
+        {# CORRECTION REQUISE : formulaire editable + re-soumission. #}
+        <div class="mb-4 rounded-xl border border-gold/50 bg-gold/[0.08] p-4 text-sm text-navy">
+            <p class="font-semibold">Correction demandée par le service comptable</p>
+            {% if messageComptable %}
+                <p class="mt-1.5 whitespace-pre-line text-sm text-ink/80">{{ messageComptable.texte }}</p>
+                {# Auteur nomme, comme dans le panneau : la secretaire sait a qui repondre. #}
+                <p class="mt-1 break-words text-[11px] italic text-ink/55">
+                    {{- (messageComptable.par ?? '')|trim ?: 'auteur non enregistré' -}}
+                    {%- if messageComptable.le %} · {{ messageComptable.le|date('d/m/Y H:i') }}{% endif -%}
+                </p>
+            {% else %}
+                <p class="mt-0.5 text-xs text-ink/70">Corrigez les informations ou remplacez les pièces concernées, puis renvoyez le dossier.</p>
+            {% endif %}
+        </div>
+
+        <form method="post" action="{{ path('app_remboursement_mon_dossier_corriger', {id: dossier.id}) }}" enctype="multipart/form-data" class="space-y-5"
+              data-controller="remb-correction" data-action="input->remb-correction#evaluer change->remb-correction#evaluer">
+            <input type="hidden" name="_token" value="{{ csrf_token('remboursement_corriger' ~ dossier.id) }}">
+
+            <section class="rounded-xl border border-hairline bg-white p-5 shadow-sm">
+                <h2 class="mb-4 text-sm font-semibold text-navy">Client</h2>
+                {# Pre-remplissage avec la VALEUR RETENUE par la comptable (validee > IA > saisie),
+                   pas la saisie d'origine : la secretaire corrige a partir de ce que la comptable
+                   a retenu. #}
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <label class="block sm:col-span-2"><span class="{{ lbl }}">Nom du client</span><input type="text" name="nom_client" value="{{ dossier.valideNom ?: dossier.controleNom ?: dossier.nomClient }}" data-req class="{{ champ }}"></label>
+                    <label class="block"><span class="{{ lbl }}">IBAN</span><input type="text" name="iban_client" value="{{ dossier.valideIban ?: dossier.controleIban ?: dossier.ibanClient }}" data-req class="{{ champ }} font-mono"></label>
+                    <label class="block"><span class="{{ lbl }}">BIC</span><input type="text" name="bic_client" value="{{ dossier.valideBic ?: dossier.controleBic ?: dossier.bicClient }}" data-req class="{{ champ }} font-mono"></label>
+                    <label class="block"><span class="{{ lbl }}">Montant (€)</span><input type="text" name="montant" inputmode="decimal" value="{{ dossier.valideMontant ?: dossier.controleMontant ?: dossier.montant }}" data-req class="{{ champ }}"></label>
+                    {% if dossier.motif.value == 'rachat_sec' %}
+                        <label class="block"><span class="{{ lbl }}">Immatriculation</span><input type="text" name="immatriculation" value="{{ dossier.valideImmatriculation ?: dossier.controleImmatriculation ?: dossier.immatriculation }}" data-req class="{{ champ }}"></label>
+                    {% endif %}
+                    {# Code client ICAR : exige aux deux motifs, donc corrigeable aux deux. #}
+                    <label class="block"><span class="{{ lbl }}">Code client ICAR</span><input type="text" name="code_icar" value="{{ dossier.valideIcar ?: dossier.controleIcar ?: dossier.codeIcar }}" data-req class="{{ champ }}"></label>
+                    {# Adresse en copie : facultative, donc SANS `data-req`. Vider le champ la
+                       retire — le controleur accepte la valeur vide. #}
+                    <label class="block sm:col-span-2">
+                        <span class="{{ lbl }}">Adresse en copie de l'attestation</span>
+                        <input type="email" name="email_copie" value="{{ dossier.emailCopie }}" placeholder="Facultatif" class="{{ champ }}">
+                    </label>
+                </div>
+            </section>
+
+            <section class="rounded-xl border border-hairline bg-white p-5 shadow-sm">
+                <h2 class="mb-1 text-sm font-semibold text-navy">Pièces</h2>
+                <p class="mb-4 text-xs text-ink/55">Les pièces signalées <span class="font-semibold text-navy">à corriger</span> doivent être remplacées pour pouvoir renvoyer le dossier. Les autres sont conservées.</p>
+                {% set pac = piecesACorriger|default([]) %}
+                <div class="space-y-3">
+                    {% for type, libelle in dossier.motif.piecesRequises %}
+                        {% set p = pieces_par_type[type]|default(null) %}
+                        {% set aCorriger = type in pac %}
+                        <div class="rounded-lg border px-3 py-2.5 {{ aCorriger ? 'border-gold/50 bg-gold/[0.05]' : 'border-hairline' }}">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-sm font-medium text-ink">{{ libelle }}{% if aCorriger %} <span class="ml-1 rounded bg-gold/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-navy">À corriger</span>{% endif %}</span>
+                                {% if p %}<a href="{{ path('app_remboursement_ma_piece', {id: p.id}) }}" target="_blank" rel="noopener" class="text-xs font-semibold text-navy hover:underline">Voir la pièce actuelle</a>{% else %}<span class="text-xs text-negative">Manquante</span>{% endif %}
+                            </div>
+                            {% if aCorriger %}
+                                <input type="file" name="{{ type }}" data-req accept="{{ type == 'petits_comptes' ? 'application/pdf,image/*,.csv,.txt,.xls,.xlsx' : 'application/pdf,image/*' }}" class="mt-2 block w-full text-sm text-ink/70 file:mr-3 file:rounded-md file:border-0 file:bg-navy file:px-3 file:py-1.5 file:text-white hover:file:bg-navy-light">
+                            {% else %}
+                                <p class="mt-1 text-xs text-ink/45">Conservée — pas à corriger.</p>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <div class="flex justify-end">
+                <button type="submit" data-remb-correction-target="submit"
+                        class="inline-flex items-center gap-2 rounded-lg bg-navy px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-light disabled:cursor-not-allowed disabled:bg-navy/40 disabled:hover:bg-navy/40">
+                    Renvoyer le dossier corrigé
+                    <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                </button>
+            </div>
+        </form>
+    {% else %}
+        {# LECTURE SEULE : infos + pieces (consultables). #}
+        <section class="mb-4 rounded-xl border border-hairline bg-white p-5 shadow-sm">
+            <h2 class="mb-4 text-sm font-semibold text-navy">Informations</h2>
+            <dl class="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+                <div><dt class="{{ lbl }}">Client</dt><dd class="text-sm text-ink">{{ dossier.nomClient }}</dd></div>
+                <div><dt class="{{ lbl }}">Montant</dt><dd class="text-sm font-medium text-navy">{{ dossier.montant|number_format(2, ',', ' ') }} €</dd></div>
+                <div><dt class="{{ lbl }}">IBAN</dt><dd class="font-mono text-sm text-ink">{{ dossier.ibanClientMasque }}</dd></div>
+                <div><dt class="{{ lbl }}">BIC</dt><dd class="font-mono text-sm text-ink">{{ dossier.bicClient ?: '—' }}</dd></div>
+                {% if dossier.motif.value == 'rachat_sec' %}
+                    <div><dt class="{{ lbl }}">Immatriculation</dt><dd class="text-sm text-ink">{{ dossier.immatriculation ?: '—' }}</dd></div>
+                {% endif %}
+                <div><dt class="{{ lbl }}">Code client ICAR</dt><dd class="text-sm text-ink">{{ dossier.codeIcar ?: '—' }}</dd></div>
+                {% if dossier.emailCopie %}
+                    <div><dt class="{{ lbl }}">En copie de l'attestation</dt><dd class="break-all text-sm text-ink">{{ dossier.emailCopie }}</dd></div>
+                {% endif %}
+                <div><dt class="{{ lbl }}">Déposé le</dt><dd class="text-sm text-ink">{{ (dossier.deposeLe ?: dossier.creeLe)|date('d/m/Y à H:i') }}</dd></div>
+            </dl>
+        </section>
+
+        <section class="rounded-xl border border-hairline bg-white p-5 shadow-sm">
+            <h2 class="mb-4 text-sm font-semibold text-navy">Pièces</h2>
+            <div class="space-y-2">
+                {% for type, libelle in dossier.motif.piecesRequises %}
+                    {% set p = pieces_par_type[type]|default(null) %}
+                    <div class="flex items-center justify-between gap-2 rounded-lg border border-hairline px-3 py-2.5">
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-ink">{{ libelle }}</p>
+                            <p class="truncate text-xs text-ink/45">{{ p ? p.nomFichier : 'Aucune pièce' }}</p>
+                        </div>
+                        {% if p %}
+                            <a href="{{ path('app_remboursement_ma_piece', {id: p.id}) }}" target="_blank" rel="noopener" class="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-navy/25 px-3 py-1.5 text-xs font-semibold text-navy transition hover:bg-navy hover:text-white">
+                                <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                                Voir
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+</div>
+{% endblock %}

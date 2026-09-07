@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ envoi.sujet|default('Courrier') }} - Groupe Synthauto</title>
+    {# Aucune police distante : un courrier doit s'imprimer identique sans reseau. #}
+    <style>
+        /* Reset minimal */
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; }
+        body {
+            font-family: 'Montserrat', Arial, sans-serif;
+            color: #0e2540;
+            background: #f3f4f6;
+            font-size: 11pt;
+            line-height: 1.5;
+        }
+
+        /* Mode ecran : page papier centree avec marge grise */
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 20mm 20mm 25mm 20mm;
+            margin: 16px auto;
+            background: white;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .toolbar {
+            max-width: 210mm;
+            margin: 16px auto 0;
+            padding: 12px 20mm;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+        .toolbar a, .toolbar button {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: #0e2540;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 11pt;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .toolbar a:hover, .toolbar button:hover { background: #1a3556; }
+        .toolbar .retour { background: transparent; color: #6b7280; }
+        .toolbar .retour:hover { background: #f3f4f6; color: #0e2540; }
+
+        /* Entete */
+        .entete {
+            border-bottom: 2px solid #d4b16c;
+            padding-bottom: 16px;
+            margin-bottom: 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .logo-synthauto {
+            font-size: 16pt;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: #0e2540;
+            line-height: 1.1;
+        }
+        .logo-sub {
+            font-size: 9pt;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+        .meta-droite {
+            text-align: right;
+            font-size: 10pt;
+            color: #6b7280;
+        }
+        .meta-droite strong { color: #0e2540; }
+
+        /* Corps du courrier */
+        .corps {
+            margin: 28px 0;
+        }
+        .corps table { width: 100%; border-collapse: collapse; }
+        .corps img { max-width: 100%; height: auto; }
+
+        /* Pied de page */
+        .pied {
+            position: absolute;
+            bottom: 15mm;
+            left: 20mm;
+            right: 20mm;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 12px;
+            font-size: 9pt;
+            color: #9ca3af;
+            text-align: center;
+        }
+
+        @media print {
+            body { background: white; }
+            .toolbar { display: none; }
+            .page {
+                margin: 0;
+                box-shadow: none;
+                width: auto;
+                min-height: 0;
+                padding: 15mm 15mm 20mm 15mm;
+            }
+            @page {
+                size: A4;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <a href="{{ path('app_creances_fiche', { code: envoi.compteCode }) }}" class="retour">← Retour a la fiche tiers</a>
+        <div style="display:flex;gap:8px;">
+            <button type="button" onclick="window.print()">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                Imprimer / Enregistrer en PDF
+            </button>
+        </div>
+    </div>
+
+    <div class="page">
+        <header class="entete">
+            <div>
+                <div class="logo-synthauto">GROUPE SYNTHAUTO</div>
+                <div class="logo-sub">Service Comptabilite — Recouvrement</div>
+            </div>
+            <div class="meta-droite">
+                {% if envoi.modeleCourrier %}<strong>{{ envoi.modeleCourrier.libelle }}</strong><br>{% endif %}
+                Compte <strong>{{ envoi.compteCode }}</strong><br>
+                {{ envoi.creeLe|date('d/m/Y') }}
+            </div>
+        </header>
+
+        {% if envoi.sujet %}
+            <p style="margin: 0 0 24px 0; font-weight: 600; font-size: 12pt;">
+                Objet : {{ envoi.sujet }}
+            </p>
+        {% endif %}
+
+        <div class="corps">
+            {% if envoi.corpsHtml %}
+                {{ envoi.corpsHtml|raw }}
+            {% else %}
+                <p>(Le corps du courrier est vide. Lien direct vers un modele de courrier dans la phase Modeles.)</p>
+            {% endif %}
+        </div>
+
+        <div class="pied">
+            GROUPE SYNTHAUTO — Reference envoi <strong>#{{ envoi.id }}</strong>
+            {% if envoi.envoyeLe %} — Envoye le {{ envoi.envoyeLe|date('d/m/Y H:i') }}
+            {% elseif envoi.creeLe %} — Genere le {{ envoi.creeLe|date('d/m/Y H:i') }}{% endif %}
+        </div>
+    </div>
+</body>
+</html>

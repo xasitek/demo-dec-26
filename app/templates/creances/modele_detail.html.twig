@@ -1,0 +1,106 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Modele {{ modele.libelle }} - Recouvrement{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl">
+
+    <div class="mb-3 text-sm">
+        <a href="{{ path('app_creances_modeles') }}" class="text-ink/55 hover:text-navy">← Retour aux modeles</a>
+    </div>
+
+    {% include 'creances/_flashes.html.twig' %}
+
+    <form method="post" action="{{ path('app_creances_modele_modifier', { id: modele.id }) }}"
+          class="rounded-md border border-hairline bg-white p-4 shadow-sm">
+        <input type="hidden" name="_token" value="{{ csrf_token('creances_modele_modifier_' ~ modele.id) }}">
+
+        <div class="flex items-start justify-between gap-3">
+            <div>
+                <p class="text-[0.65rem] uppercase tracking-wider text-ink/45">Code (non modifiable)</p>
+                <p class="font-mono text-sm text-ink/70">{{ modele.code }}</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <label class="inline-flex items-center gap-2 text-sm text-ink/70">
+                    <input type="checkbox" name="actif" value="1" {{ modele.actif ? 'checked' }}> Actif
+                </label>
+                <button type="submit" class="rounded-md border border-navy bg-navy px-3 py-1.5 text-sm font-medium text-white hover:bg-navy-light">Enregistrer</button>
+            </div>
+        </div>
+
+        <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+            <div>
+                <label class="block text-[0.7rem] text-ink/55">Format</label>
+                <select name="format" class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                    <option value="email" {{ modele.format.value == 'email' ? 'selected' }}>E-mail</option>
+                    <option value="courrier" {{ modele.format.value == 'courrier' ? 'selected' }}>Courrier postal</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[0.7rem] text-ink/55">Langue</label>
+                <select name="langue" class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                    <option value="fr" {{ modele.langue == 'fr' ? 'selected' }}>Francais</option>
+                    <option value="en" {{ modele.langue == 'en' ? 'selected' }}>Anglais</option>
+                    <option value="de" {{ modele.langue == 'de' ? 'selected' }}>Allemand</option>
+                </select>
+            </div>
+            <div></div>
+            <div class="md:col-span-3">
+                <label class="block text-[0.7rem] text-ink/55">Libelle</label>
+                <input type="text" name="libelle" required maxlength="255" value="{{ modele.libelle }}"
+                       class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+            </div>
+            <div class="md:col-span-3">
+                <label class="block text-[0.7rem] text-ink/55">Description (optionnel)</label>
+                <textarea name="description" rows="2" maxlength="2000"
+                          class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">{{ modele.description }}</textarea>
+            </div>
+            <div class="md:col-span-3">
+                <label class="block text-[0.7rem] text-ink/55">Sujet (email uniquement)</label>
+                <input type="text" name="sujet" maxlength="255" value="{{ modele.sujet }}"
+                       class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+            </div>
+            <div class="md:col-span-3">
+                <label class="block text-[0.7rem] text-ink/55">Corps HTML (Twig)</label>
+                <textarea name="corps_html" rows="14" required
+                          class="w-full rounded-md border border-hairline px-2 py-1.5 font-mono text-[0.78rem]">{{ modele.corpsHtml }}</textarea>
+                <p class="mt-1 text-[0.65rem] text-ink/45">Variables : <code>tiers.civilite</code>, <code>tiers.nom</code>, <code>compte_code</code>, <code>montant_total</code>, <code>date_aujourdhui</code>, <code>ecritures</code>, <code>signature</code>.</p>
+            </div>
+        </div>
+    </form>
+
+    {# Apercu HTML #}
+    <div class="mt-4 rounded-md border border-hairline bg-white shadow-sm">
+        <div class="flex items-baseline justify-between border-b border-hairline px-4 py-3">
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-ink/55">Apercu (donnees demo)</h3>
+            <a href="{{ path('app_creances_modele_voir', { id: modele.id, apercu: 1 }) }}" class="text-[0.7rem] text-navy hover:text-navy-light underline">
+                {{ apercu ? 'Recharger' : 'Generer l\'apercu' }}
+            </a>
+        </div>
+        {% if apercu %}
+            <div class="p-4">
+                {% if modele.sujet %}
+                    <p class="mb-3 rounded bg-surface/40 px-2 py-1 text-[0.78rem] text-ink/65">
+                        <strong class="text-ink/45">Sujet :</strong> {{ modele.sujet }}
+                    </p>
+                {% endif %}
+                <div class="rounded border border-hairline bg-white p-4">
+                    {{ apercu|raw }}
+                </div>
+            </div>
+        {% else %}
+            <p class="p-4 text-sm text-ink/45">Clique sur "Generer l'apercu" pour visualiser le rendu avec des donnees demo.</p>
+        {% endif %}
+    </div>
+
+    {# Suppression #}
+    <div class="mt-4 text-right">
+        <form method="post" action="{{ path('app_creances_modele_supprimer', { id: modele.id }) }}" class="inline"
+              onsubmit="return confirm('Supprimer ce modele ? Les envois deja faits restent intacts.')">
+            <input type="hidden" name="_token" value="{{ csrf_token('creances_modele_supprimer_' ~ modele.id) }}">
+            <button type="submit" class="text-[0.7rem] text-rose-700 hover:text-rose-900 underline">Supprimer ce modele</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

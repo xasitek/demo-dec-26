@@ -1,0 +1,59 @@
+{# Bandeau permanent de la demonstration.
+   Il porte trois choses : le rappel qu'on n'est pas en production, le poste
+   depuis lequel on regarde, et le moyen de basculer sur un autre poste SANS
+   quitter l'ecran courant. C'est ce dernier geste qui rend la separation des
+   taches visible : le dossier ne change pas, seul change qui le regarde. #}
+{% set poste = demo_persona() %}
+{% set outil = demo_outil() %}
+{% set autres = demo_autres_postes() %}
+{% set ici = demo_url_courante() %}
+{# Sur l'ecran d'acces, le bandeau ne porte que la mention : il n'y a encore
+   ni poste, ni outil, et proposer de reinitialiser n'aurait pas de sens. #}
+{% set porte_ouverte = app.request.pathInfo != '/acces' %}
+
+<div class="bandeau-demo">
+  <span class="bandeau-demo__mention">
+    <b>Mode démonstration</b>
+    <span class="bandeau-demo__sub">données entièrement synthétiques</span>
+  </span>
+
+  {% if poste %}
+    <span class="bandeau-demo__sep"></span>
+    <span class="bandeau-demo__profil">
+      <span class="bandeau-demo__puce" style="background: {{ poste.teinte }}">{{ poste.initiales }}</span>
+      Profil&nbsp;: <b>{{ poste.libelle }}</b>
+    </span>
+  {% endif %}
+
+  {% if outil %}
+    <span class="bandeau-demo__sep"></span>
+    <span class="bandeau-demo__outil">Outil {{ outil.numero }} &middot; {{ outil.nom }}</span>
+  {% endif %}
+
+  {% if porte_ouverte %}
+  <span class="bandeau-demo__actions">
+    {% if autres is not empty %}
+      <span class="bandeau-demo__vc" data-controller="dropdown">
+        <button type="button" class="bandeau-demo__btn" data-action="click->dropdown#toggle">
+          Voir comme…
+        </button>
+        <span class="bandeau-demo__menu" data-dropdown-target="menu" hidden>
+          {% for p in autres %}
+            <a href="{{ path('demo_voir_comme', {persona: p.value, vers: ici}) }}">
+              <span class="bandeau-demo__puce" style="background: {{ p.teinte }}">{{ p.initiales }}</span>
+              {{ p.libelle }}
+            </a>
+          {% endfor %}
+        </span>
+      </span>
+    {% endif %}
+    {% if outil %}
+      <a class="bandeau-demo__btn" href="{{ path('demo_outil_profils', {cle: outil.cle}) }}">Changer de profil</a>
+    {% endif %}
+    <a class="bandeau-demo__btn" href="{{ path('demo_portail') }}">← Tous les outils</a>
+    <a class="bandeau-demo__btn bandeau-demo__btn--reset" href="{{ path('demo_reinitialiser') }}"
+       title="Remet la démonstration dans son état initial">↻ Réinitialiser</a>
+    <a class="bandeau-demo__btn" href="{{ path('demo_acces_quitter') }}" title="Ferme la session de démonstration">Quitter</a>
+  </span>
+  {% endif %}
+</div>

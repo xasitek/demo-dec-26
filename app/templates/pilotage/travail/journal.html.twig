@@ -1,0 +1,111 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Mon activité{% endblock %}
+{% block page_title %}Mes créances à traiter{% endblock %}
+{% block topbar_nav %}{% include 'pilotage/travail/_nav.html.twig' with { active: 'journal' } %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1200px]">
+
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="flex flex-wrap items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">Ce que j'ai fait</h3>
+      <span class="ml-auto text-[11px] text-ink/45">
+        {{ journal.auteur }} · {{ ms|number_format(0, ',', ' ') }} ms
+      </span>
+    </div>
+    <p class="mt-1.5 max-w-3xl text-[12.5px] leading-relaxed text-ink/70">
+      L'outil 6 <b>oriente</b> le travail : il dit quoi traiter et envoie au module qui exécute.
+      Cette page ne compte donc que ce qu'il inscrit lui-même — les <b>notes</b> portées sur les
+      dossiers. Une affectation est journalisée par l'outil 4, un lettrage par l'outil 5 :
+      chaque décision appartient au module qui la réalise, et l'outil 6 ne s'en attribue pas la
+      trace.
+    </p>
+  </section>
+
+  <div class="mb-4 grid gap-3 sm:grid-cols-3">
+    <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Notes inscrites ici</div>
+      <div class="font-mono text-2xl font-bold text-navy">{{ journal.total|number_format(0, ',', ' ') }}</div>
+    </div>
+    <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Montant des dossiers annotés</div>
+      <div class="font-mono text-2xl font-bold text-ink">
+        {{ journal.montant|number_format(2, ',', ' ') }} <span class="text-xs text-gold">€</span>
+      </div>
+      <div class="text-[10.5px] text-ink/40">somme des dossiers portant une note — pas un encaissement</div>
+    </div>
+    <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Natures d'inscription</div>
+      <div class="font-mono text-2xl font-bold text-ink">{{ journal.par_type|length }}</div>
+      <a href="{{ path('app_travail') }}" class="text-[11.5px] font-semibold text-navy hover:underline">
+        Retourner aux files →</a>
+    </div>
+  </div>
+
+  {% if journal.par_type is not empty %}
+    <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">Par nature d'inscription</h3>
+      <table class="fc-table-comptable w-full">
+        <thead><tr><th>Inscription</th><th>Module visé</th><th class="text-right">Nombre</th>
+          <th class="text-right">Montant</th><th>Qui exécute la suite</th></tr></thead>
+        <tbody>
+          {% for t in journal.par_type %}
+            <tr>
+              <td class="text-[12.5px] font-semibold">{{ catalogue[t.type].libelle|default(t.type) }}</td>
+              <td class="font-mono text-[11.5px] text-ink/55">{{ t.module ?: '—' }}</td>
+              <td class="text-right font-mono text-[12px] font-semibold">{{ t.nb }}</td>
+              <td class="text-right font-mono text-[12px]">{{ t.montant|number_format(2, ',', ' ') }} €</td>
+              <td class="text-[11px] leading-snug text-ink/60">
+                {{ t.type == 'note' ? "personne : une note oriente, elle n'exécute rien"
+                 : (t.module ?: 'le module concerné') }}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  {% endif %}
+
+  <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">Le détail, du plus récent</h3>
+    {% if journal.gestes is empty %}
+      <p class="rounded-lg border border-hairline bg-surface px-3 py-6 text-center text-[12.5px] text-ink/50">
+        Aucune note inscrite pour l'instant. Les affectations et les lettrages, eux, se
+        journalisent dans les outils 4 et 5.
+      </p>
+    {% else %}
+      <div class="overflow-x-auto">
+        <table class="fc-table-comptable w-full">
+          <thead><tr><th>Quand</th><th>Geste</th><th>Objet</th><th>Client</th>
+            <th class="text-right">Montant</th><th>File</th><th>Note</th><th class="text-right">Rouvrir</th></tr></thead>
+          <tbody>
+            {% for g in journal.gestes %}
+              <tr>
+                <td class="font-mono text-[11px] text-ink/60">{{ g.fait_le|date('d/m/Y H\\hi') }}</td>
+                <td class="text-[12px] font-semibold">
+                  {{ g.type == 'note' ? 'Note' : 'Consultation' }}
+                  {%- if g.module %} <span class="rounded bg-ink/10 px-1 font-mono text-[10px] text-ink/55">
+                    {{ g.module }}</span>{% endif %}
+                </td>
+                <td class="font-mono text-[11px]">{{ g.objet_type }} {{ g.objet_id }}</td>
+                <td class="font-mono text-[11px] text-ink/55">{{ g.client_id ?: '—' }}</td>
+                <td class="text-right font-mono text-[11.5px]">
+                  {{ g.montant is not null ? g.montant|number_format(2, ',', ' ') ~ ' €' : '—' }}</td>
+                <td class="text-[11px] text-ink/50">{{ g.file ? g.file|replace({'_': ' '}) : '—' }}</td>
+                <td class="max-w-[18rem] truncate text-[11px] italic text-ink/65" title="{{ g.note }}">
+                  {{ g.note ?: '' }}</td>
+                <td class="text-right">
+                  <a href="{{ path('app_travail_dossier', {type: g.objet_type, id: g.objet_id}) }}"
+                     class="text-[11.5px] font-semibold text-navy hover:underline">Ouvrir →</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </section>
+
+</div>
+{% endblock %}

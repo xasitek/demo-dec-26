@@ -1,0 +1,66 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Politique de confidentialité - Finance Créances{% endblock %}
+{% block page_title %}Politique de confidentialité{% endblock %}
+
+{% block content %}
+<article class="mx-auto max-w-3xl space-y-6 text-sm leading-relaxed text-ink/80">
+    <p class="text-xs text-ink/50">Version du {{ version }}.</p>
+
+    <section class="space-y-2">
+        <h2 class="text-base font-bold text-navy">1. Responsable de traitement</h2>
+        <p>Le responsable du traitement affiché ici, GROUPE SYNTHAUTO, est une entité <b>fictive</b>. Cette page est celle d'une copie de démonstration : l'adresse, le SIREN et l'identité de l'entité de l'application d'origine ont été retirés, et aucune donnée personnelle réelle n'est traitée.</p>
+    </section>
+
+    <section class="space-y-2">
+        <h2 class="text-base font-bold text-navy">2. Données collectées</h2>
+        <ul class="list-disc space-y-1 pl-5">
+            <li><strong>Identité</strong> : nom, prénom, adresse e-mail professionnelle et photo de profil, issus de votre compte Google Synthauto.</li>
+            <li><strong>Données métier</strong> : données financières du groupe consultées dans le cadre de vos fonctions.</li>
+            <li><strong>Suivi d'activité</strong> : connexions/déconnexions (horodatage, adresse IP, navigateur) et temps de présence active agrégé par jour. Aucun contenu consulté, aucune frappe clavier, aucune capture d'écran, aucune géolocalisation ne sont enregistrés.</li>
+        </ul>
+    </section>
+
+    <section class="space-y-2">
+        <h2 class="text-base font-bold text-navy">3. Finalités</h2>
+        <ul class="list-disc space-y-1 pl-5">
+            <li>Fournir et sécuriser l'accès à l'application.</li>
+            <li>Gérer les données financières du groupe.</li>
+            <li>Assurer le suivi du temps de travail effectif, notamment en télétravail.</li>
+        </ul>
+    </section>
+
+    <section class="space-y-2">
+        <h2 class="text-base font-bold text-navy">4. Bases légales</h2>
+        <p>L'authentification et la gestion métier reposent sur l'exécution du contrat de travail et l'intérêt légitime de l'employeur. Le suivi d'activité repose sur l'<strong>intérêt légitime</strong> de l'employeur (organisation et suivi du travail), de façon proportionnée à cette finalité.</p>
+    </section>
+
+    <section class="space-y-2">
+        <h2 class="text-base font-bold text-navy">5. Destinataires</h2>
+        <p>Les données de suivi d'activité sont accessibles aux managers et administrateurs habilités. Cette copie fonctionne hors réseau, sur un poste local : elle n'est hébergée nulle part et le nom de l'hébergeur de l'application d'origine a été retiré. Aucune donnée n'est cédée à des tiers à des fins commerciales.</p>
+    </section>
+
+    <section class="space-y-2">
+        <h2 class="text-base font-bold text-navy">6. Durées de conservation</h2>
+        <ul class="list-disc space-y-1 pl-5">
+            <li>Données de compte : pendant la durée de l'habilitation, puis archivage/suppression.</li>
+            <li>Suivi d'activité (connexions et temps actif) : <strong>6 mois</strong> glissants, puis suppression automatique.</li>
+        </ul>
+    </section>
+
+    <section class="space-y-2">
+        <h2 class="text-base font-bold text-navy">7. Sécurité</h2>
+        <p>L'accès est restreint par authentification et habilitation (principe du moindre privilège). Les échanges sont chiffrés (HTTPS) et les accès sensibles tracés.</p>
+    </section>
+
+    <section class="space-y-2">
+        <h2 class="text-base font-bold text-navy">8. Vos droits</h2>
+        <p>Vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation et d'opposition sur vos données, dans les conditions prévues par le RGPD. Vous pouvez consulter à tout moment vos propres données de suivi depuis le menu <a href="{{ path('app_mon_activite') }}" class="font-medium text-navy underline">Mon activité</a>. Pour exercer vos droits, contactez le service informatique à l'adresse service-informatique@demonstration.invalid. Vous pouvez également introduire une réclamation auprès de la CNIL (www.cnil.fr).</p>
+    </section>
+
+    <section class="space-y-2">
+        <h2 class="text-base font-bold text-navy">9. Contact</h2>
+        <p>Service informatique Groupe Synthauto — service-informatique@demonstration.invalid.</p>
+    </section>
+</article>
+{% endblock %}

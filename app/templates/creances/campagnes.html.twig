@@ -1,0 +1,208 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Campagnes - Recouvrement{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl">
+
+    {% include 'creances/_module_nav.html.twig' with { actif: 'campagnes' } %}
+    {% include 'creances/_flashes.html.twig' %}
+
+    <div class="mb-4 flex items-baseline justify-between">
+        <h2 class="text-lg font-semibold text-navy">Campagnes de relance</h2>
+        <p class="text-[0.7rem] text-ink/45">Operations en lot reutilisables sur une selection dynamique de comptes.</p>
+    </div>
+
+    {# Formulaire creation #}
+    <details class="mb-4 rounded-md border border-hairline bg-white p-4 shadow-sm">
+        <summary class="cursor-pointer text-sm font-medium text-navy list-none">+ Creer une nouvelle campagne</summary>
+        <form method="post" action="{{ path('app_creances_campagne_creer') }}" class="mt-3 space-y-2">
+            <input type="hidden" name="_token" value="{{ csrf_token('creances_campagne_creer') }}">
+            <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+                <div>
+                    <label class="block text-[0.7rem] text-ink/55">Libelle</label>
+                    <input type="text" name="libelle" required maxlength="255" placeholder="Ex: Relance hebdo > 90 jours"
+                           class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-[0.7rem] text-ink/55">Frequence</label>
+                    <select name="frequence" class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                        <option value="ponctuelle">Ponctuelle (a la demande)</option>
+                        <option value="quotidienne">Quotidienne</option>
+                        <option value="hebdomadaire">Hebdomadaire</option>
+                        <option value="mensuelle">Mensuelle</option>
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-[0.7rem] text-ink/55">Description (optionnel)</label>
+                    <textarea name="description" rows="2" maxlength="2000"
+                              class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm"></textarea>
+                </div>
+                <div class="md:col-span-2">
+                    <p class="mb-2 text-[0.65rem] font-medium uppercase tracking-[0.12em] text-navy">Selection des comptes a inclure</p>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-[0.7rem] font-medium text-ink/65">Tranches d'anciennete</label>
+                    <div class="mt-1 flex flex-wrap gap-1.5">
+                        {% for k, lbl in tranches %}
+                            <label class="inline-flex items-center gap-1 rounded-md border border-hairline bg-white px-2 py-1 text-[0.78rem] hover:border-navy/40">
+                                <input type="checkbox" name="tranches[]" value="{{ k }}"> {{ lbl }}
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[0.7rem] font-medium text-ink/65">Marque</label>
+                    <select name="marques[]" multiple size="4" class="mt-1 w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                        {% for m in marques %}
+                            <option value="{{ m }}">{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[0.7rem] font-medium text-ink/65">Etablissement</label>
+                    <select name="etablissement[]" multiple size="4" class="mt-1 w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                        {% for e in etablissements %}
+                            <option value="{{ e }}">{{ e }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="md:col-span-2 mt-2 border-t border-hairline pt-3">
+                    <p class="mb-2 text-[0.65rem] font-medium uppercase tracking-[0.12em] text-navy">Action a declencher</p>
+                </div>
+                <div>
+                    <label class="block text-[0.7rem] font-medium text-ink/65">Modele de courrier (optionnel)</label>
+                    <select name="modele_courrier_id" class="mt-1 w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                        <option value="0">— Aucun (utilise le modele du niveau de strategie) —</option>
+                        {% for m in modeles %}
+                            <option value="{{ m.id }}">{{ m.libelle }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <label class="inline-flex items-center gap-2 text-[0.82rem] text-ink/75">
+                        <input type="checkbox" name="niveau_auto" value="1" class="h-4 w-4 rounded border-hairline text-navy focus:ring-navy">
+                        <span>
+                            <span class="font-medium text-navy">Niveau auto selon les actions deja menees</span>
+                            <span class="block text-[0.7rem] text-ink/55">0 action → niveau 1, 1 action → niveau 2, etc. (plafonne au dernier niveau de la strategie)</span>
+                        </span>
+                    </label>
+                </div>
+            </div>
+            <div class="flex justify-end pt-3">
+                <button type="submit" class="rounded-md border border-navy bg-navy px-3 py-1.5 text-sm font-medium text-white hover:bg-navy-light">Creer la campagne</button>
+            </div>
+        </form>
+    </details>
+
+    {# Liste des campagnes #}
+    <div class="mb-4 rounded-md border border-hairline bg-white shadow-sm">
+        <div class="border-b border-hairline px-4 py-3">
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-ink/55">Campagnes definies</h3>
+        </div>
+        {% if campagnes is empty %}
+            <p class="p-6 text-sm text-ink/45">Aucune campagne. Cree-en une ci-dessus.</p>
+        {% else %}
+            <table class="fc-table-comptable">
+                <thead>
+                    <tr>
+                        <th>Libelle</th>
+                        <th>Frequence</th>
+                        <th>Selection</th>
+                        <th>Modele</th>
+                        <th>Derniere exec</th>
+                        <th>Statut</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in campagnes %}
+                        <tr>
+                            <td>
+                                <p class="font-medium text-navy text-[0.85rem]">{{ c.libelle }}</p>
+                                {% if c.description %}<p class="text-[0.7rem] text-ink/55">{{ c.description|slice(0, 80) }}</p>{% endif %}
+                            </td>
+                            <td class="text-[0.78rem]">{{ c.frequence }}</td>
+                            <td class="text-[0.7rem] text-ink/65">
+                                {% set _sel = c.selection|default({}) %}
+                                {% set _badges = [] %}
+                                {% if _sel.tranches|default([])|length > 0 %}{% set _badges = _badges|merge([_sel.tranches|length ~ ' tranche(s)']) %}{% endif %}
+                                {% if _sel.marques|default([])|length > 0 %}{% set _badges = _badges|merge([_sel.marques|length ~ ' marque(s)']) %}{% endif %}
+                                {% if _sel.etablissement|default([])|length > 0 %}{% set _badges = _badges|merge([_sel.etablissement|length ~ ' etabl.']) %}{% endif %}
+                                {% if _badges is empty %}
+                                    <span class="text-ink/40">Tous comptes</span>
+                                {% else %}
+                                    <span>{{ _badges|join(' · ') }}</span>
+                                {% endif %}
+                                {% if _sel.niveau_auto|default(false) %}
+                                    <span class="ml-1 inline-flex items-center rounded-full bg-sky-50 px-1.5 py-0 text-[0.62rem] font-medium text-sky-700 ring-1 ring-inset ring-sky-200">niveau auto</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-[0.78rem] text-ink/65">{{ c.modeleCourrier ? c.modeleCourrier.libelle : '—' }}</td>
+                            <td class="text-[0.7rem] text-ink/55">{{ c.derniereExecution ? c.derniereExecution|date('d/m/Y H:i') : 'Jamais' }}</td>
+                            <td>
+                                {% if c.active %}
+                                    <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[0.7rem] font-semibold text-emerald-700">Active</span>
+                                {% else %}
+                                    <span class="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-[0.7rem] font-semibold text-ink/60">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form method="post" action="{{ path('app_creances_campagne_executer', { id: c.id }) }}" class="inline"
+                                      onsubmit="return confirm('Lancer cette campagne maintenant ? Cela enverra les emails aux comptes selectionnes.')">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('creances_campagne_executer_' ~ c.id) }}">
+                                    <button type="submit" class="text-[0.65rem] text-emerald-700 hover:text-emerald-900 underline">Lancer</button>
+                                </form>
+                                <form method="post" action="{{ path('app_creances_campagne_supprimer', { id: c.id }) }}" class="inline ml-2"
+                                      onsubmit="return confirm('Supprimer cette campagne ?')">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('creances_campagne_supprimer_' ~ c.id) }}">
+                                    <button type="submit" class="text-[0.65rem] text-rose-700 hover:text-rose-900 underline">Supprimer</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+
+    {# Executions recentes #}
+    <div class="rounded-md border border-hairline bg-white shadow-sm">
+        <div class="border-b border-hairline px-4 py-3">
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-ink/55">Executions recentes</h3>
+        </div>
+        {% if executions is empty %}
+            <p class="p-6 text-sm text-ink/45">Aucune execution.</p>
+        {% else %}
+            <table class="fc-table-comptable">
+                <thead>
+                    <tr>
+                        <th>Lance le</th>
+                        <th>Campagne</th>
+                        <th class="is-num">Comptes</th>
+                        <th class="is-num">Envoyes</th>
+                        <th class="is-num">Erreurs</th>
+                        <th>Statut</th>
+                        <th>Auteur</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in executions %}
+                        <tr>
+                            <td class="text-[0.78rem]">{{ e.lanceLe|date('d/m/Y H:i') }}</td>
+                            <td class="text-[0.78rem] font-medium text-navy">{{ e.campagne.libelle }}</td>
+                            <td class="is-num font-mono">{{ e.nbComptes }}</td>
+                            <td class="is-num font-mono text-emerald-700">{{ e.nbEnvoyes }}</td>
+                            <td class="is-num font-mono {{ e.nbErreurs > 0 ? 'text-rose-700' : 'text-ink/40' }}">{{ e.nbErreurs }}</td>
+                            <td><span class="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-[0.7rem] font-semibold text-ink/65">{{ e.statut }}</span></td>
+                            <td class="text-[0.78rem] text-ink/65">{{ e.auteur ? e.auteur.firstName : '—' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

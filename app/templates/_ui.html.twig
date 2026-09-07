@@ -1,0 +1,60 @@
+{# Composants d'interface reutilisables (charte de la suite). #}
+
+{# Select custom : <select> natif cache (valeur + soumission) + menu stylise.
+   auto_submit=true (defaut) : soumet le formulaire au changement (filtres).
+   auto_submit=false : simple champ dans un formulaire (soumission via son bouton). #}
+{% macro fc_select(name, options, selected, auto_submit = true, colors = {}) %}
+<div class="fc-select" data-controller="custom-select"{% if auto_submit %} data-action="change->custom-select#submit"{% endif %}>
+    <select name="{{ name }}" data-custom-select-target="native" class="fc-select-native" tabindex="-1" aria-hidden="true">
+        {% for value, label in options %}<option value="{{ value }}"{% if colors[value] is defined %} data-color="{{ colors[value] }}"{% endif %} {{ value == selected ? 'selected' }}>{{ label }}</option>{% endfor %}
+    </select>
+    <button type="button" class="fc-select-button" data-custom-select-target="button" data-action="custom-select#toggle">
+        <span data-custom-select-target="label"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <ul class="fc-select-menu" data-custom-select-target="menu" hidden></ul>
+</div>
+{% endmacro %}
+
+{# Multi-select : checkboxes dans un dropdown + barre de recherche, label dynamique, soumission au change.
+   - `form` : id d'un <form> externe (multi-select hors du form, ex. dans un <th>).
+   - `force_label_as_value` : true quand value == label (codes Progiciel : 141, SCA, ...).
+     Necessaire car array_merge PHP renumerote les cles int sequentielles, ce qui
+     casse `<input value="{{ value }}">` (donnerait l'index au lieu du code). #}
+{% macro fc_multi_select(name, options, selected, placeholder, count_label, form = '', force_label_as_value = false) %}
+<div class="fc-multi" data-controller="multi-select"
+     data-multi-select-placeholder-value="{{ placeholder }}"
+     data-multi-select-count-label-value="{{ count_label }}">
+    <button type="button" class="fc-multi-button" data-action="multi-select#toggle">
+        <span class="fc-multi-button-label" data-multi-select-target="label"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div class="fc-multi-menu" data-multi-select-target="menu" hidden>
+        <div class="fc-multi-search">
+            <input type="text" class="fc-multi-search-input"
+                   placeholder="Rechercher..."
+                   data-multi-select-target="search"
+                   data-action="input->multi-select#filter keydown->multi-select#searchKey">
+        </div>
+        <div class="fc-multi-options" data-multi-select-target="optionsContainer">
+            {# Pattern PHP : un array {141: '141', 471: '471'} est silencieusement
+               renumerote en [0 => '141', 1 => '471', ...] car les clés numériques
+               sont converties en int et |merge utilise array_merge qui renumérote.
+               Detection : si la cle === loop.index0 (int sequentiel), c'est un
+               array renumerote -> on utilise le label comme value effective. #}
+            {% for value, label in options %}
+                {% set value_effective = force_label_as_value ? label : value %}
+                <label class="fc-multi-option" data-multi-select-target="option" data-label-text="{{ label|lower }}">
+                    <input type="checkbox" name="{{ name }}[]" value="{{ value_effective }}"
+                           data-multi-select-target="checkbox" data-label="{{ label }}"
+                           data-action="change->multi-select#update"
+                           {{ form ? 'form="' ~ form ~ '"' }}
+                           {{ value_effective in selected ? 'checked' }}>
+                    <span>{{ label }}</span>
+                </label>
+            {% endfor %}
+            <p class="fc-multi-empty" data-multi-select-target="empty" hidden>Aucun résultat.</p>
+        </div>
+    </div>
+</div>
+{% endmacro %}

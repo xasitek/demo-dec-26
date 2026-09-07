@@ -1,0 +1,56 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Journal des paiements{% endblock %}
+{% block page_title %}Remboursement client{% endblock %}
+{% block topbar_nav %}{% include 'remboursement/_nav.html.twig' with { active: 'journal', nbAVerifier: 0 } %}{% endblock %}
+
+{% import '_ui.html.twig' as ui %}
+{% set champ = 'w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink transition focus:border-navy focus:outline-none focus:ring-4 focus:ring-navy/10' %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1500px]"
+     data-controller="paiement-journal"
+     data-paiement-journal-confirmer-url-value="{{ path('app_remboursement_paiements_confirmer') }}"
+     data-paiement-journal-token-value="{{ csrf_token('paiements_confirmer') }}">
+
+    {% for message in app.flashes('success') %}<div class="mb-4 rounded-lg border border-positive/30 bg-positive/10 px-4 py-2.5 text-sm text-positive">{{ message }}</div>{% endfor %}
+    {% for message in app.flashes('error') %}<div class="mb-4 rounded-lg border border-negative/30 bg-negative/10 px-4 py-2.5 text-sm text-negative">{{ message }}</div>{% endfor %}
+
+    <div class="mb-5">
+        <h1 class="text-xl font-bold text-navy">Journal des paiements</h1>
+        <p class="mt-0.5 text-sm text-ink/55">Les lots préparés par le service comptabilité, regroupés par jour. Décochez une ligne pour ne pas la confirmer, puis validez : les dossiers cochés passent en « Payé ».</p>
+    </div>
+
+    {# Filtres : recherche + établissement #}
+    {% set etabOptions = {'': 'Tous les établissements'} %}
+    {% for code, nom in etabs %}{% set etabOptions = etabOptions|merge({(code): nom}) %}{% endfor %}
+    <form method="get" class="mb-6 flex flex-wrap items-end gap-3">
+        <label class="min-w-[16rem] flex-1">
+            <span class="mb-1 block text-xs font-medium text-ink/55">Recherche</span>
+            <input type="search" name="q" value="{{ q }}" placeholder="Réf, client, immat, ICAR…" class="{{ champ }}"
+                   data-controller="search-debounce" data-action="input->search-debounce#submit">
+        </label>
+        <label>
+            <span class="mb-1 block text-xs font-medium text-ink/55">Établissement</span>
+            {{ ui.fc_select('etab', etabOptions, etab) }}
+        </label>
+        <noscript><button type="submit" class="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white">Filtrer</button></noscript>
+    </form>
+
+    {% if jours is empty %}
+        <p class="rounded-xl border border-hairline bg-white px-4 py-12 text-center text-sm text-ink/50">Aucun paiement téléchargé pour ces critères.</p>
+    {% endif %}
+
+    {# Scroll infini : sections « jour » chargées par tranches. #}
+    <div data-controller="infinite-scroll"
+         data-infinite-scroll-url-value="{{ path('app_remboursement_paiements_journal', {q: q, etab: etab}) }}"
+         data-infinite-scroll-page-value="{{ page }}"
+         data-infinite-scroll-total-pages-value="{{ pages }}">
+        <div data-infinite-scroll-target="items">
+            {% include 'remboursement/_journal_jours.html.twig' %}
+        </div>
+        <div data-infinite-scroll-target="sentinel"></div>
+        <p data-infinite-scroll-target="loading" class="py-3 text-center text-sm text-ink/50" style="display:none">Chargement…</p>
+    </div>
+</div>
+{% endblock %}

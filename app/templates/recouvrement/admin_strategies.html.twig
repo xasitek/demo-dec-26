@@ -1,0 +1,58 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Stratégies - Recouvrement - Finance Créances{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+{% block topbar_nav %}{% include 'recouvrement/_topbar_nav.html.twig' with {active: 'strategies'} %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full px-3">
+
+    {% for message in app.flashes('success') %}
+        <div class="mb-4 flex items-center gap-2 rounded-md border border-positive/30 bg-positive/10 px-4 py-3 text-sm text-positive">
+            <svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+            {{ message }}
+        </div>
+    {% endfor %}
+
+    <h1 class="mb-3 text-2xl font-bold text-navy">Stratégies de relance</h1>
+    <p class="mb-5 max-w-2xl text-sm text-ink/60">Le rythme des relances par profil de paiement : nombre de jours après l'échéance pour chaque niveau, et quel niveau constitue la mise en demeure. Modifiable sans toucher au code.</p>
+
+    <form method="post" action="{{ path('app_recouvrement_admin_strategies_save') }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('strategies') }}">
+
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {% for profilValue, paliers in par_profil %}
+                <div class="fc-elev rounded-md border border-hairline bg-white p-5">
+                    <h2 class="mb-4 font-semibold text-navy">{{ paliers[0].profil.libelle }}</h2>
+                    <div class="flex flex-col gap-3">
+                        {% for p in paliers %}
+                            <div class="flex flex-wrap items-center gap-3">
+                                <span class="w-20 text-sm font-medium text-ink/70">Niveau {{ p.niveau }}</span>
+                                <label class="inline-flex items-center gap-2 text-sm text-ink/70">
+                                    J+
+                                    <input type="number" name="jours[{{ p.id }}]" value="{{ p.jours }}" min="0" step="1"
+                                           class="w-20 rounded-md border border-hairline bg-white px-2 py-1 text-sm text-ink focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30">
+                                    jours
+                                </label>
+                                <label class="inline-flex items-center gap-2 text-sm {{ p.miseEnDemeure ? 'font-medium text-negative' : 'text-ink/55' }}">
+                                    <input type="checkbox" name="med[{{ p.id }}]" value="1" {{ p.miseEnDemeure ? 'checked' : '' }}
+                                           class="h-4 w-4 rounded border-hairline text-navy focus:ring-gold/40">
+                                    Mise en demeure
+                                </label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="mt-5 flex items-center gap-3">
+            <button type="submit" class="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-navy-deep">
+                <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+                Enregistrer
+            </button>
+            <span class="text-xs text-ink/45">Le profil « Prélèvement » n'est pas relancé automatiquement (pas de cadence).</span>
+        </div>
+    </form>
+</div>
+{% endblock %}

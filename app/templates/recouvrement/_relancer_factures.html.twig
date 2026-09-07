@@ -1,0 +1,44 @@
+{# Factures échues d'un client, pour le dépliage de la vue de relance manuelle.
+   Attend : compte (string), factures (list), avoirs (list, optionnel). #}
+<div class="bg-surface/40 px-4 py-2">
+    {% if factures is empty %}
+        <p class="py-2 text-center text-xs italic text-ink/50">Aucune facture échue.</p>
+    {% else %}
+        <table class="w-full text-xs">
+            <tbody>
+                {% for f in factures %}
+                    <tr class="border-t border-hairline/60 first:border-t-0">
+                        <td class="py-1.5 pr-3 font-medium text-navy">{{ f.reference_facture ?: f.numpiece ?: '—' }}</td>
+                        <td class="px-3 text-ink/55">Échéance {{ f.date_echeance ? f.date_echeance|date('d/m/Y') : '—' }}</td>
+                        <td class="px-3 text-ink/55">{{ f.jours_retard }} j de retard</td>
+                        <td class="px-3 text-right font-medium text-navy">{{ f.montant_solde|number_format(2, ',', ' ') }} €</td>
+                        <td class="py-1.5 pl-3 text-right">
+                            <button type="button" data-action="relance-manuelle#relancerFacture" data-ecriture="{{ f.ecriture_id }}"
+                                    class="inline-flex items-center gap-1 rounded border border-hairline bg-white px-2.5 py-1 font-medium text-navy transition hover:border-navy-light hover:bg-white">
+                                <svg viewBox="0 0 24 24" class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                                Relancer cette facture
+                            </button>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+
+    {% if avoirs|default([]) is not empty %}
+        <div class="mt-2 border-t border-hairline/60 pt-2">
+            <p class="mb-1 text-[0.7rem] font-semibold uppercase tracking-wider text-positive/80">Avoirs / crédits (déduits du net dû)</p>
+            <table class="w-full text-xs">
+                <tbody>
+                    {% for a in avoirs %}
+                        <tr class="border-t border-hairline/60 first:border-t-0">
+                            <td class="py-1.5 pr-3 font-medium text-positive">{{ a.reference_facture ?: a.numpiece ?: '—' }}</td>
+                            <td class="px-3 text-ink/55">Avoir</td>
+                            <td class="px-3 text-right font-medium text-positive">{{ a.montant_solde|number_format(2, ',', ' ') }} €</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</div>

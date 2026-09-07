@@ -1,0 +1,20 @@
+{# Lignes de la table "Mes dossiers" (partagees : page initiale + tranches du scroll
+   infini). Attend : dossiers (list<Dossier>). Correction requise -> page editable ;
+   tout autre statut -> panneau glissant a droite (comme la comptable). #}
+{% import 'remboursement/_statut_badge.html.twig' as badges %}
+{% for d in dossiers %}
+    {% set corr = d.statut.statutSecretaire.value == 'correction' %}
+    <tr class="cursor-pointer border-t border-hairline/70 transition hover:bg-gold/[0.06]"
+        data-dossier-id="{{ d.id }}"
+        {% if corr %}data-url="{{ path('app_remboursement_mon_dossier', {id: d.id}) }}" data-action="click->remboursement-dossiers#ouvrirCorrection"{% else %}data-detail-panel-id-param="{{ d.id }}" data-action="click->detail-panel#open"{% endif %}>
+        <td class="px-4 py-2.5 font-mono text-xs text-navy">{{ d.reference }}</td>
+        <td class="px-4 py-2.5">
+            {{ (d.valideNom ?: d.nomClient) ?: '—' }}
+            {% if d.valideNom and d.valideNom|trim != d.nomClient|trim and d.nomClient|trim is not empty %}<span class="mt-0.5 block text-xs italic text-ink/45" title="Votre saisie">{{ d.nomClient }}</span>{% endif %}
+        </td>
+        <td class="px-4 py-2.5 text-xs text-ink/70">{{ d.motif.libelle }}</td>
+        <td class="whitespace-nowrap px-4 py-2.5 text-right font-medium text-navy">{{ (d.valideMontant ?: d.montant)|number_format(2, ',', ' ') }} €</td>
+        <td class="whitespace-nowrap px-4 py-2.5" data-dossier-badge>{{ badges.badge(d.statut) }}</td>
+        <td class="whitespace-nowrap px-4 py-2.5 text-xs text-ink/55">{{ (d.deposeLe ?: d.creeLe)|date('d/m/Y') }}</td>
+    </tr>
+{% endfor %}

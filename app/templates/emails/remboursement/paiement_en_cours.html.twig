@@ -1,0 +1,13 @@
+{% extends 'emails/remboursement/_base.html.twig' %}
+
+{% block accent %}#16A34A{% endblock %}
+{% block titre %}Dossier validé{% endblock %}
+
+{% block contenu %}
+    <p style="margin:0 0 16px;">Bonjour,</p>
+    <p style="margin:0 0 16px;">Le dossier de remboursement ci-dessous a été <strong style="color:#15803D;">validé</strong>. Le remboursement sera effectué par virement <strong>dans les meilleurs délais</strong>.</p>
+
+    {% include 'emails/remboursement/_infos.html.twig' %}
+
+    <p style="margin:0; font-size:13px; line-height:1.65; color:#6B6F80;">Une <strong style="color:#2D3250;">attestation de validation</strong> est jointe à cet e-mail : vous pouvez la transmettre au client comme preuve.</p>
+{% endblock %}

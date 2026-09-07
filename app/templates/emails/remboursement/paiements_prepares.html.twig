@@ -1,0 +1,15 @@
+{% extends 'emails/remboursement/_base.html.twig' %}
+
+{% block accent %}#2D3250{% endblock %}
+{% block titre %}Paiements en attente de confirmation{% endblock %}
+
+{% block contenu %}
+    <p style="margin:0 0 6px;">Bonjour,</p>
+    <p style="margin:0 0 20px;"><strong style="color:#2D3250;">{{ par }}</strong> a préparé les paiements du {{ date }}. {{ pluriel(total, 'dossier est', 'dossiers sont') }} en attente de paiement, pour un total de <strong>{{ montant }} €</strong>.</p>
+
+    <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:18px auto 4px;"><tr>
+        <td align="center">
+            <a href="{{ lien_journal }}" class="m-btn" style="display:inline-block; background:#2D3250; color:#FFFFFF; font-size:14px; font-weight:700; text-decoration:none; padding:12px 32px;">Voir le journal des paiements</a>
+        </td>
+    </tr></table>
+{% endblock %}

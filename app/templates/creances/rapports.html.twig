@@ -1,0 +1,117 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Rapports programmes - Recouvrement{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl">
+
+    {% include 'creances/_module_nav.html.twig' with { actif: 'rapports' } %}
+    {% include 'creances/_flashes.html.twig' %}
+
+    <div class="mb-4 flex items-baseline justify-between">
+        <h2 class="text-lg font-semibold text-navy">Rapports programmes</h2>
+        <p class="text-[0.7rem] text-ink/45">Envoi automatique de rapports par e-mail aux destinataires choisis.</p>
+    </div>
+
+    {# Formulaire creation #}
+    <details class="mb-4 rounded-md border border-hairline bg-white p-4 shadow-sm">
+        <summary class="cursor-pointer text-sm font-medium text-navy list-none">+ Programmer un nouveau rapport</summary>
+        <form method="post" action="{{ path('app_creances_rapport_creer') }}" class="mt-3 space-y-2">
+            <input type="hidden" name="_token" value="{{ csrf_token('creances_rapport_creer') }}">
+            <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
+                <div class="md:col-span-2">
+                    <label class="block text-[0.7rem] text-ink/55">Libelle</label>
+                    <input type="text" name="libelle" required maxlength="255" placeholder="Ex: Balance agee hebdomadaire (compta)"
+                           class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-[0.7rem] text-ink/55">Frequence</label>
+                    <select name="frequence" required class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                        <option value="quotidien">Quotidien</option>
+                        <option value="hebdomadaire" selected>Hebdomadaire</option>
+                        <option value="mensuel">Mensuel</option>
+                        <option value="trimestriel">Trimestriel</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[0.7rem] text-ink/55">Type de rapport</label>
+                    <select name="type" required class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                        <option value="synthese">Synthese complete</option>
+                        <option value="balance_agee">Balance agee</option>
+                        <option value="top10">Top 10 clients par encours</option>
+                        <option value="indicateurs_globaux">Indicateurs globaux (DSO, BPDSO, score)</option>
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-[0.7rem] text-ink/55">Destinataires (un email par ligne ou separes par virgule)</label>
+                    <textarea name="destinataires" rows="2" required
+                              placeholder="exemple@demonstration.invalid&#10;direction@demonstration.invalid"
+                              class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end">
+                <button type="submit" class="rounded-md border border-navy bg-navy px-3 py-1.5 text-sm font-medium text-white hover:bg-navy-light">Programmer</button>
+            </div>
+        </form>
+        <p class="mt-2 text-[0.7rem] text-ink/45">
+            Note V1 : la planification automatique (cron) sera ajoutee plus tard. Pour l'instant, utilise le bouton "Envoyer maintenant" pour declencher l'envoi manuellement.
+        </p>
+    </details>
+
+    {# Liste #}
+    <div class="rounded-md border border-hairline bg-white shadow-sm">
+        {% if envois is empty %}
+            <p class="p-6 text-sm text-ink/45">Aucun rapport programme. Cree-en un ci-dessus.</p>
+        {% else %}
+            <table class="fc-table-comptable">
+                <thead>
+                    <tr>
+                        <th>Libelle</th>
+                        <th>Type</th>
+                        <th>Frequence</th>
+                        <th>Destinataires</th>
+                        <th>Derniere exec</th>
+                        <th>Statut</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in envois %}
+                        <tr>
+                            <td>
+                                <p class="font-medium text-navy text-[0.85rem]">{{ e.libelle }}</p>
+                            </td>
+                            <td class="text-[0.78rem]">{{ e.type }}</td>
+                            <td class="text-[0.78rem]">{{ e.frequence }}</td>
+                            <td class="text-[0.7rem] text-ink/65">{{ e.destinataires|length }} destinataire(s)</td>
+                            <td class="text-[0.7rem] text-ink/55">{{ e.derniereExecution ? e.derniereExecution|date('d/m/Y H:i') : 'Jamais' }}</td>
+                            <td>
+                                {% if e.active %}
+                                    <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[0.7rem] font-semibold text-emerald-700">Active</span>
+                                {% else %}
+                                    <span class="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-[0.7rem] font-semibold text-ink/60">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ path('app_creances_rapport_apercu', { id: e.id }) }}" target="_blank"
+                                   class="text-[0.65rem] text-navy hover:text-navy-light underline">Apercu</a>
+                                <form method="post" action="{{ path('app_creances_rapport_envoyer', { id: e.id }) }}" class="inline ml-2"
+                                      onsubmit="return confirm('Envoyer le rapport maintenant a tous les destinataires ?')">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('creances_rapport_envoyer_' ~ e.id) }}">
+                                    <button type="submit" class="text-[0.65rem] text-emerald-700 hover:text-emerald-900 underline">Envoyer maintenant</button>
+                                </form>
+                                <form method="post" action="{{ path('app_creances_rapport_supprimer', { id: e.id }) }}" class="inline ml-2"
+                                      onsubmit="return confirm('Supprimer ce rapport programme ?')">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('creances_rapport_supprimer_' ~ e.id) }}">
+                                    <button type="submit" class="text-[0.65rem] text-rose-700 hover:text-rose-900 underline">Supprimer</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

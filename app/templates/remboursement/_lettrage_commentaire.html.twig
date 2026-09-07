@@ -1,0 +1,14 @@
+{#- Cellule « Commentaire compta » d'une ligne a lettrer. Rendue seule pour le
+    remplacement en place apres enregistrement. Attend : l (ligne de v_lettrage). -#}
+<div data-lettrage-target="cellule" data-cle="{{ l.cle_ecriture }}"
+     class="flex items-start gap-2">
+    {% if l.commentaire %}
+        <span class="min-w-0 flex-1 rounded-md bg-navy/[0.06] px-2 py-1 text-xs leading-snug text-navy"
+              title="{{ l.commentaire_par ? l.commentaire_par ~ ' — ' : '' }}{{ l.commentaire_le ? l.commentaire_le|date('d/m/Y H:i') : '' }}">{{ l.commentaire }}</span>
+        <button type="button" data-action="lettrage#editer" data-lettrage-cle-param="{{ l.cle_ecriture }}"
+                class="shrink-0 rounded-md px-1.5 py-1 text-[11px] font-semibold text-gold-dark transition hover:bg-gold/15">Modifier</button>
+    {% else %}
+        <button type="button" data-action="lettrage#editer" data-lettrage-cle-param="{{ l.cle_ecriture }}"
+                class="shrink-0 rounded-md border border-dashed border-ink/25 px-2 py-1 text-[11px] font-medium text-ink/50 transition hover:border-gold hover:text-gold-dark">Commenter</button>
+    {% endif %}
+</div>

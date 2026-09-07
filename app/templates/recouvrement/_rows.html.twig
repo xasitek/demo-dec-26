@@ -1,0 +1,56 @@
+{# Une ligne = UNE conversation (un client), pas un message. Attend :
+   conversations (list de {cle, dernier_id, compte_code, expediteur, corps_texte,
+   corps_html, recu_le, nb, net, retard, nb_factures, niveau_max}). Clic -> detail
+   du dernier message (fil complet). #}
+{% for c in conversations %}
+    {% set extrait = (c.corps_texte ?: (c.corps_html ? c.corps_html|striptags : ''))|message_principal|trim %}
+    <tr class="is-clickable"
+        data-action="click->detail-panel#open"
+        data-detail-panel-id-param="{{ c.dernier_id }}"
+        data-conversation-cle="{{ c.cle }}"
+        tabindex="0">
+        <td class="whitespace-nowrap text-xs text-ink/80">{{ c.recu_le|date('d/m/Y H:i') }}</td>
+        <td class="text-xs">
+            {% if c.compte_code %}
+                <span class="block font-medium text-navy">{{ c.compte_code }}</span>
+            {% endif %}
+            <span class="block text-ink/55">{{ c.expediteur ?: '—' }}</span>
+        </td>
+        {# Encours net dû + nb de factures échues #}
+        <td class="fc-cell-fit whitespace-nowrap text-xs">
+            {% if c.net is not null %}
+                <span class="font-semibold text-navy">{{ c.net|number_format(0, ',', ' ') }} €</span>
+                {% if c.nb_factures %}<span class="block text-[0.65rem] text-ink/45">{{ pluriel(c.nb_factures, 'facture', 'factures') }}</span>{% endif %}
+            {% else %}
+                <span class="text-ink/40">—</span>
+            {% endif %}
+        </td>
+        {# Retard max (jours) #}
+        <td class="fc-cell-fit whitespace-nowrap text-xs">
+            {% if c.retard is not null and c.retard > 0 %}
+                <span class="text-ink/80">{{ c.retard }} j</span>
+            {% else %}
+                <span class="text-ink/40">—</span>
+            {% endif %}
+        </td>
+        {# Niveau de relance atteint (mise en demeure en rouge) #}
+        <td class="fc-cell-fit whitespace-nowrap text-xs">
+            {% if c.niveau_max %}
+                {% if c.niveau_max >= 3 %}
+                    <span class="inline-flex items-center rounded-full bg-negative/10 px-2 py-0.5 text-[0.65rem] font-semibold text-negative">Mise en demeure</span>
+                {% else %}
+                    <span class="inline-flex items-center rounded-full bg-navy/5 px-2 py-0.5 text-[0.65rem] font-semibold text-navy/70">Relance {{ c.niveau_max }}</span>
+                {% endif %}
+            {% else %}
+                <span class="text-ink/40">—</span>
+            {% endif %}
+        </td>
+        {# Dernier message (extrait) + nb de messages du fil #}
+        <td class="max-w-md text-xs text-ink/70">
+            <span class="block truncate" title="{{ extrait }}">{{ extrait ? (extrait|slice(0, 120)) : '—' }}</span>
+            {% if c.nb > 1 %}
+                <span class="mt-1 inline-flex items-center rounded-full bg-navy/5 px-2 py-0.5 text-[0.65rem] font-semibold text-navy/70">{{ c.nb }} messages</span>
+            {% endif %}
+        </td>
+    </tr>
+{% endfor %}

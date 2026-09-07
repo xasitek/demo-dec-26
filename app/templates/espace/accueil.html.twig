@@ -1,0 +1,132 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Mon espace - Finance Créances{% endblock %}
+{% block page_title %}Mon espace{% endblock %}
+
+{% block content %}
+{# Les modules de gestion ouverts a cet utilisateur. AUCUNE liste ici : elle vient
+   de l'enum App\Shared\Enum\Module, comme la barre laterale. Ceux deja offerts
+   comme espace de depot en sont retires — Remboursement et Livraison sont ses
+   formulaires, pas ses modules. #}
+{% set modules = modules_accessibles() %}
+
+{# Ce qui attend vraiment : seul Remboursement declare un compteur pour l'instant.
+   Le total sert de sous-titre, pour que la page annonce du travail et pas
+   seulement des liens. #}
+{% set a_traiter = 0 %}
+{% for espace in espaces %}
+    {% for item in espace.items %}
+        {% if item.badge == 'remb_nb_correction' %}{% set a_traiter = a_traiter + remb_nb_correction() %}{% endif %}
+    {% endfor %}
+{% endfor %}
+
+<div class="mx-auto w-full max-w-4xl">
+
+    {# ===== En-tete ===== #}
+    {% set prenom = app.user.firstName|default('')|trim %}
+    {# Fuseau explicite : l'application tourne en UTC, un « Bonsoir » calcule sur
+       l'heure serveur arriverait deux heures trop tard l'ete. #}
+    {% set heure = 'now'|date('G', 'Europe/Paris') %}
+    {% set salut = heure < 6 or heure >= 18 ? 'Bonsoir' : 'Bonjour' %}
+
+    <div class="mb-6">
+        <h1 class="text-[1.75rem] font-extrabold leading-tight text-navy">{{ salut }}{% if prenom %} {{ prenom }}{% endif %}</h1>
+        <p class="mt-1 text-sm text-ink/60">
+            {%- if a_traiter > 0 -%}
+                <span class="font-bold text-orange-600">{{ pluriel(a_traiter, 'dossier', 'dossiers') }}</span> vous {{ a_traiter > 1 ? 'attendent' : 'attend' }}.
+            {%- else -%}
+                Rien à l'horizon. Profitez-en.
+            {%- endif -%}
+        </p>
+    </div>
+
+    {# ===== Deposer : les espaces declares par les modules ===== #}
+    {% if espaces is not empty %}
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {% for espace in espaces %}
+                {% set principal = espace.items|first %}
+                {% set cible_principale = principal.exigeConnexion and not app.user
+                    ? path('oauth_google_connect', { redirect: path(principal.route), secretaire: 1 })
+                    : path(principal.route) %}
+
+                <section class="group/carte relative overflow-hidden rounded-2xl border border-hairline bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+                    {# Filet de couleur de l'espace : un trait fin et DROIT. Pose en
+                       absolu et retire des coins — colle au bord, il suivait le
+                       `rounded` de la carte et se lisait comme une pastille epaisse.
+                       `bg-current` reprend la teinte declaree, qui est une classe de
+                       COULEUR DE TEXTE. #}
+                    <span class="absolute bottom-4 left-0 top-4 w-px bg-current {{ espace.couleur }}" aria-hidden="true"></span>
+
+                    <div class="min-w-0 p-5 pl-6">
+                        <div class="flex items-start gap-3">
+                            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-navy {{ espace.couleur }} transition duration-200 group-hover/carte:scale-105">
+                                <span class="block h-5 w-5">{% include '_secretaire_icone.html.twig' with { icone: espace.icone } only %}</span>
+                            </span>
+                            <div class="min-w-0">
+                                <p class="text-base font-bold text-navy">{{ espace.libelle }}</p>
+                                <p class="mt-0.5 text-sm leading-snug text-ink/55">{{ espace.description }}</p>
+                            </div>
+                        </div>
+
+                        {# L'action principale de l'espace, en evidence. #}
+                        <a href="{{ cible_principale }}"
+                           class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-deep">
+                            {{ principal.libelle }}
+                            <svg class="h-4 w-4 transition group-hover/carte:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                        </a>
+
+                        {# Les ecrans suivants, discrets. #}
+                        {% if espace.items|length > 1 %}
+                            <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+                                {% for item in espace.items|slice(1) %}
+                                    {% set n = item.badge == 'remb_nb_correction' ? remb_nb_correction() : 0 %}
+                                    {% set cible = item.exigeConnexion and not app.user
+                                        ? path('oauth_google_connect', { redirect: path(item.route), secretaire: 1 })
+                                        : path(item.route) %}
+                                    <a href="{{ cible }}" class="group/lien inline-flex items-center gap-1.5 text-sm font-medium text-ink/65 transition hover:text-navy">
+                                        {{ item.libelle }}
+                                        {% if item.badge and n > 0 %}
+                                            <span title="Dossiers à corriger" class="rounded-full bg-orange-500 px-1.5 py-0.5 text-[0.7rem] font-bold leading-none text-white">{{ n > 99 ? '99+' : n }}</span>
+                                        {% endif %}
+                                        <svg class="h-3.5 w-3.5 text-ink/30 transition group-hover/lien:translate-x-0.5 group-hover/lien:text-navy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </section>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {# ===== Gerer : une secretaire peut avoir des modules, et n'avait alors aucun
+             moyen d'y arriver depuis son accueil. ===== #}
+    {% if modules is not empty %}
+        <p class="{{ espaces is not empty ? 'mb-2 mt-8' : 'mb-2' }} text-xs font-semibold uppercase tracking-[0.08em] text-ink/40">Vos modules</p>
+
+        {# Des pastilles qui s'alignent, et non une grille : avec un seul module la
+           tuile ne s'etire pas, et le libelle ne se tronque jamais. Pas de
+           description non plus — « Garanties », « Creances », « Recouvrement » se
+           comprennent seuls, et une phrase inventee ici serait a valider. #}
+        <div class="flex flex-wrap gap-3">
+            {% for module in modules %}
+                <a href="{{ path(module.route) }}"
+                   class="group/tuile inline-flex items-center gap-2.5 rounded-xl border border-hairline bg-white px-3 py-2 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-navy/25 hover:shadow-md">
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-navy {{ module.couleur }} transition duration-200 group-hover/tuile:scale-105">
+                        <span class="block h-4 w-4">{% include '_module_icone.html.twig' with { module: module.value } only %}</span>
+                    </span>
+                    <span class="whitespace-nowrap text-sm font-bold text-navy">{{ module.libelle }}</span>
+                    <svg class="h-3.5 w-3.5 shrink-0 text-ink/25 transition group-hover/tuile:translate-x-0.5 group-hover/tuile:text-navy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                </a>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if espaces is empty and modules is empty %}
+        <div class="rounded-2xl border border-dashed border-hairline bg-white/60 px-5 py-12 text-center text-sm text-ink/55">
+            Aucun espace ni module ne vous est ouvert pour l'instant.
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}

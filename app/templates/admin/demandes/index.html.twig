@@ -1,0 +1,76 @@
+{% extends 'layout.html.twig' %}
+{% import '_ui.html.twig' as ui %}
+
+{% block title %}Demandes d'accès - Finance Créances{% endblock %}
+{% block page_title %}Demandes d'accès{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-4xl">
+
+    {% for message in app.flashes('success') %}
+        <div class="mb-4 rounded-lg border border-positive/30 bg-positive/10 px-4 py-3 text-sm text-positive">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div class="mb-4 rounded-lg border border-negative/30 bg-negative/10 px-4 py-3 text-sm text-negative">{{ message }}</div>
+    {% endfor %}
+
+    {% if demandes is empty %}
+        <div class="rounded-xl border border-hairline bg-white p-10 text-center">
+            <p class="text-ink/70">Aucune demande d'accès en attente.</p>
+        </div>
+    {% else %}
+        <p class="mb-4 text-sm text-ink/70">{{ pluriel(demandes|length, 'demande', 'demandes') }} en attente d'habilitation.</p>
+
+        <div class="space-y-4">
+            {% for demande in demandes %}
+                {% set u = demande.demandeur %}
+                <article class="rounded-xl border border-hairline bg-white p-5">
+                    <div class="flex items-start gap-4">
+                        {% if u.avatarUrl %}
+                            <img src="{{ u.avatarUrl }}" alt="" class="h-11 w-11 rounded-full object-cover" referrerpolicy="no-referrer">
+                        {% else %}
+                            <span class="flex h-11 w-11 items-center justify-center rounded-full bg-navy text-sm font-bold text-gold">{{ u.firstName|first|upper }}{{ u.lastName|first|upper }}</span>
+                        {% endif %}
+                        <div class="min-w-0">
+                            <p class="font-semibold text-navy">{{ u.fullName }}</p>
+                            <p class="text-sm text-ink/60">{{ u.email }}</p>
+                            <p class="mt-0.5 text-xs text-ink/40">Demande du {{ demande.createdAt|date('d/m/Y à H:i') }}</p>
+                        </div>
+                    </div>
+
+                    <form method="post" action="{{ path('app_admin_demandes_approuver', { id: demande.id }) }}" class="mt-4 border-t border-hairline pt-4"
+                          data-controller="pole-toggle" data-action="change->pole-toggle#refresh">
+                        <input type="hidden" name="_token" value="{{ csrf_token('approuver' ~ demande.id) }}">
+                        <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-ink/50">Rôles à attribuer</p>
+                        <div class="flex flex-wrap gap-2">
+                            {% for role, label in roles_metier %}
+                                <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-hairline px-3 py-1.5 text-sm transition hover:border-navy/40 has-[:checked]:border-navy has-[:checked]:bg-navy has-[:checked]:text-white">
+                                    <input type="checkbox" name="roles[]" value="{{ role }}" class="accent-navy"{% if role == 'ROLE_COMPTABLE' %} data-pole-toggle-target="comptable"{% endif %}>
+                                    {{ label }}
+                                </label>
+                            {% endfor %}
+                            {# Roles eleves (admin/super) geres en CLI uniquement : pas d'attribution via l'UI. #}
+                        </div>
+
+                        {# Pole : uniquement pertinent pour un comptable (affiche par pole-toggle). #}
+                        <div data-pole-toggle-target="pole" hidden class="mt-3">
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-ink/50">Pôle du comptable</label>
+                            {{ ui.fc_select('pole', poles, 'general', false) }}
+                        </div>
+
+                        <div class="mt-4 flex items-center gap-3">
+                            <button type="submit" class="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy-light">Approuver</button>
+                        </div>
+                    </form>
+
+                    <form method="post" action="{{ path('app_admin_demandes_refuser', { id: demande.id }) }}" class="mt-2"
+                          onsubmit="return confirm('Refuser la demande de {{ u.fullName|e('js') }} ?');">
+                        <input type="hidden" name="_token" value="{{ csrf_token('refuser' ~ demande.id) }}">
+                        <button type="submit" class="text-sm font-medium text-negative hover:underline">Refuser la demande</button>
+                    </form>
+                </article>
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

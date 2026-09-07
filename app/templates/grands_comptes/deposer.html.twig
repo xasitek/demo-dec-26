@@ -1,0 +1,200 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ id }} — déposer{% endblock %}
+{% block page_title %}Dossiers grands comptes{% endblock %}
+{% block topbar_nav %}{% include 'grands_comptes/_nav.html.twig' with { active: 'secretaire' } %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1200px]">
+
+  {# ------------------------------------------------------------ le dossier #}
+  <section class="mb-3 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="mb-2 flex flex-wrap items-center gap-2 text-[12.5px]">
+      <a href="{{ path('app_gc_secretaire') }}" class="font-semibold text-ink/50 hover:text-navy">← Mes dossiers</a>
+      <span class="text-ink/30">›</span>
+      <span class="rounded bg-navy/5 px-2 py-0.5 font-mono text-[11.5px] font-semibold text-navy">{{ id }}</span>
+      {% set e = etats[circuit.etat] %}
+      <span class="rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider
+                   {{ e.teinte == 'negative' ? 'bg-negative/10 text-negative'
+                    : e.teinte == 'warning' ? 'bg-warning/10 text-warning'
+                    : e.teinte == 'gold' ? 'bg-gold/15 text-gold'
+                    : e.teinte == 'positive' ? 'bg-positive/10 text-positive' : 'bg-navy/10 text-navy' }}">
+        {{ e.libelle }}
+      </span>
+      <span class="ml-auto text-[11px] text-ink/45">{{ ms|number_format(0, ',', ' ') }} ms</span>
+    </div>
+
+    <div class="flex flex-wrap items-start gap-5">
+      <div class="min-w-[14rem]">
+        <h3 class="text-lg font-bold text-navy">{{ dossier.immatriculation }}</h3>
+        <p class="text-[11.5px] text-ink/55">
+          {{ dossier.modele }} · {{ dossier.energie }}<br>
+          VIN <span class="font-mono">{{ dossier.vin }}</span>
+        </p>
+      </div>
+      <div class="min-w-[12rem]">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Loueur</div>
+        <div class="text-[13px] font-semibold">{{ dossier.loueur_nom }}</div>
+        <div class="text-[11px] text-ink/55">
+          paiement à {{ dossier.delai_paiement }} jours ·
+          {{ dossier.exige_tampon ? 'tampon exigé' : 'tampon non exigé' }} ·
+          {{ dossier.accepte_pv_electronique ? 'PV électronique accepté' : 'PV papier seulement' }}
+        </div>
+      </div>
+      <div class="min-w-[10rem]">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Facture</div>
+        <div class="font-mono text-[13px] font-semibold">{{ dossier.numero_facture }}</div>
+        <div class="font-mono text-[13px] font-bold">{{ dossier.montant_facture|number_format(2, ',', ' ') }} €</div>
+      </div>
+      <div class="min-w-[10rem]">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Livré le</div>
+        <div class="text-[13px] font-semibold">{{ dossier.date_livraison|date('d/m/Y') }}</div>
+        <div class="text-[11px] text-ink/55">{{ dossier.etablissement_nom ?: dossier.etablissement_id }}</div>
+      </div>
+    </div>
+
+    {% for message in app.flashes('fait') %}
+      <p class="mt-2 rounded-lg border border-positive/40 bg-positive/5 px-3 py-2 text-[12.5px] font-semibold text-positive">{{ message }}</p>
+    {% endfor %}
+    {% for message in app.flashes('erreur') %}
+      <p class="mt-2 rounded-lg border border-negative/40 bg-negative/5 px-3 py-2 text-[12.5px] font-semibold text-negative">{{ message }}</p>
+    {% endfor %}
+  </section>
+
+  {% include 'grands_comptes/_creance_liee.html.twig' %}
+
+  {# --------------------------------------------- ce que CE loueur exige #}
+  <section class="mb-3 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="mb-2 flex flex-wrap items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">
+        Les pièces que {{ dossier.loueur_nom }} exige
+      </h3>
+      <span class="ml-auto text-[11px] text-ink/50">
+        {{ pieces|filter(p => p.presente)|length }} déposée(s) sur {{ pieces|length }} attendue(s)
+      </span>
+    </div>
+    <p class="mb-3 text-[11.5px] leading-relaxed text-ink/60">
+      Cette liste vient de la <b>grille de ce loueur</b>, pas d'un modèle unique. Une pièce absente
+      de la grille n'apparaît pas ici : on ne vous la demandera jamais.
+    </p>
+
+    <div class="space-y-2">
+      {% for p in pieces %}
+        {% set ex = exigences[p.exigence] %}
+        <div class="flex flex-wrap items-start gap-3 rounded-xl border px-4 py-3
+                    {{ p.presente ? 'border-hairline bg-surface'
+                     : (ex.bloquant ? 'border-warning/50 bg-warning/5' : 'border-dashed border-ink/25') }}">
+          <div class="min-w-[3rem] pt-0.5 text-center">
+            {% if p.presente %}
+              <span class="text-lg text-positive">✓</span>
+            {% elseif ex.bloquant %}
+              <span class="text-lg text-warning">!</span>
+            {% else %}
+              <span class="text-lg text-ink/25">○</span>
+            {% endif %}
+          </div>
+          <div class="min-w-[16rem] flex-1">
+            <div class="flex flex-wrap items-baseline gap-2">
+              <b class="text-[13px]">{{ p.type_libelle }}</b>
+              <span class="rounded bg-ink/5 px-1.5 font-mono text-[10px] text-ink/55">{{ p.type_piece }}</span>
+              <span class="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider
+                           {{ ex.bloquant ? 'bg-navy/10 text-navy' : 'bg-ink/5 text-ink/50' }}">
+                {{ ex.libelle }}
+              </span>
+            </div>
+            <p class="mt-0.5 text-[11.5px] leading-snug text-ink/60">{{ p.type_role }}</p>
+            <p class="text-[11px] leading-snug text-ink/45">{{ ex.explication }}</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            {% if p.presente %}
+              <a href="{{ path('app_gc_piece', {id: p.id}) }}" target="_blank" rel="noopener"
+                 class="whitespace-nowrap rounded-md border border-hairline px-2.5 py-1 text-[11.5px]
+                        font-semibold text-navy hover:bg-navy/5">Voir la pièce ↗</a>
+              {% if not p.lisible %}
+                <span class="rounded bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning">
+                  illisible — à redéposer</span>
+              {% endif %}
+            {% else %}
+              <form method="post" action="{{ path('app_gc_deposer_agir', {id: id}) }}" class="inline">
+                <input type="hidden" name="acte" value="deposer_piece">
+                <input type="hidden" name="piece_id" value="{{ p.id }}">
+                <button type="submit"
+                        class="whitespace-nowrap rounded-md px-3 py-1.5 text-[12px] font-semibold text-white
+                               {{ ex.bloquant ? 'bg-warning hover:opacity-90' : 'bg-ink/50 hover:bg-ink/70' }}">
+                  Déposer cette pièce
+                </button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {# ------------------------------------------------ certifier et soumettre #}
+  <section class="mb-3 rounded-xl border-2 p-4 shadow-sm
+                  {{ circuit.manquantes is empty ? 'border-navy/30 bg-navy/[0.03]' : 'border-warning/40 bg-warning/5' }}">
+    <h3 class="mb-2 text-sm font-bold uppercase tracking-wide {{ circuit.manquantes is empty ? 'text-navy' : 'text-warning' }}">
+      Certifier et soumettre au contrôle
+    </h3>
+
+    {% if circuit.manquantes is not empty %}
+      <p class="text-[12.5px] leading-relaxed text-ink/75">
+        Il manque encore
+        <b>{{ circuit.manquantes|join(', ') }}</b>.
+        Le dossier ne peut pas être soumis : un dossier incomplet transmis au loueur revient, et
+        la créance reste ouverte un mois de plus.
+      </p>
+    {% else %}
+      <form method="post" action="{{ path('app_gc_deposer_agir', {id: id}) }}">
+        <input type="hidden" name="acte" value="certifier">
+        <label class="flex cursor-pointer items-start gap-2 text-[12.5px] leading-relaxed text-ink/80">
+          <input type="checkbox" name="certification" value="1" required class="mt-1">
+          <span>Je certifie l'exactitude des informations renseignées et la conformité des pièces
+            déposées, et je m'engage à respecter la procédure de suivi de livraison.</span>
+        </label>
+        <textarea name="commentaire" rows="2" maxlength="400"
+                  placeholder="Observation à l'attention du comptable (facultatif)"
+                  class="mt-2 w-full rounded-lg border border-hairline px-2 py-1.5 text-[12px]"></textarea>
+        <button type="submit"
+                class="mt-2 rounded-lg bg-navy px-4 py-2.5 text-[13px] font-semibold text-white hover:bg-navy-deep">
+          Certifier et soumettre le dossier
+        </button>
+        <p class="mt-1.5 text-[11px] leading-relaxed text-ink/50">
+          La certification est <b>datée et nominative</b>. Elle figure dans l'historique du dossier
+          et reste lisible par le comptable et par le comité.
+        </p>
+      </form>
+    {% endif %}
+  </section>
+
+  {# ------------------------------------------------------------ l'historique #}
+  <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">Historique du dossier</h3>
+    {% if historique is empty %}
+      <p class="rounded-lg border border-hairline bg-surface px-3 py-4 text-center text-[12px] text-ink/50">
+        Aucun acte pour l'instant. Le premier dépôt créera l'historique.
+      </p>
+    {% else %}
+      <ol class="space-y-2">
+        {% for h in historique %}
+          <li class="rounded-lg border border-hairline bg-surface px-3 py-2">
+            <div class="flex flex-wrap items-baseline gap-2">
+              <b class="text-[12.5px]">{{ h.type|replace({'_': ' '})|capitalize }}</b>
+              {% if h.piece_id %}
+                <span class="rounded bg-ink/5 px-1.5 font-mono text-[10px] text-ink/55">{{ h.piece_id }}</span>
+              {% endif %}
+              <span class="ml-auto font-mono text-[10.5px] text-ink/45">{{ h.fait_le|date('d/m/Y à H\\hi') }}</span>
+            </div>
+            <div class="text-[11px] text-ink/55">par {{ h.auteur }}</div>
+            {% if h.commentaire %}
+              <p class="mt-1 text-[11.5px] italic leading-snug text-ink/70">« {{ h.commentaire }} »</p>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+    {% endif %}
+  </section>
+
+</div>
+{% endblock %}

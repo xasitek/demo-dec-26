@@ -1,0 +1,311 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Analyses - Recouvrement{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl"
+     data-controller="detail-panel"
+     data-detail-panel-url-value="{{ path('app_creances_responsable_detail', { cleEncodee: '__ID__' }) }}">
+
+    {% include 'creances/_module_nav.html.twig' with { actif: 'analyses' } %}
+    {% include 'creances/_flashes.html.twig' %}
+
+    <div class="mb-4 flex items-baseline justify-between">
+        <h2 class="text-lg font-semibold text-navy">Analyses</h2>
+        <p class="text-[0.7rem] text-ink/45">Previsions d'encaissement a 3 mois + radar de risque.</p>
+    </div>
+
+    {# ===== Previsions d'encaissement ===== #}
+    <div class="mb-4 rounded-md border border-hairline bg-white shadow-sm">
+        <div class="flex items-baseline justify-between border-b border-hairline px-4 py-3">
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-ink/55">Previsions d'encaissement</h3>
+            <span class="text-[0.7rem] text-ink/45">{{ previsions.ecritures_incluses }} ecritures incluses · Total pondere : <strong>{{ previsions.total_pondere|number_format(0, ',', ' ') }} EUR</strong></span>
+        </div>
+
+        {# Barres horizontales par periode #}
+        {% set max_periode = 1 %}
+        {% for p in previsions.periodes %}{% if p.montant > max_periode %}{% set max_periode = p.montant %}{% endif %}{% endfor %}
+
+        <div class="space-y-2.5 p-4">
+            {% for cle, p in previsions.periodes %}
+                {% set pct = max_periode > 0 ? (p.montant / max_periode * 100) : 0 %}
+                {% set couleur = {
+                    'cette_semaine': 'bg-emerald-500',
+                    'ce_mois': 'bg-sky-500',
+                    'mois_prochain': 'bg-amber-500',
+                    'mois_suivant': 'bg-orange-500',
+                    'au_dela': 'bg-rose-500'
+                }[cle]|default('bg-navy') %}
+                <div>
+                    <div class="mb-1 flex items-baseline justify-between text-[0.78rem]">
+                        <span class="font-medium text-ink/80">{{ p.libelle }}</span>
+                        <span class="text-ink/65">
+                            <span class="font-mono font-semibold">{{ p.montant|number_format(0, ',', ' ') }} EUR</span>
+                            <span class="ml-2 text-[0.7rem] text-ink/40">{{ p.nombre }} ecriture(s)</span>
+                        </span>
+                    </div>
+                    <div class="h-3 w-full overflow-hidden rounded-full bg-surface">
+                        <div class="h-full rounded-full {{ couleur }} transition-all duration-300" style="width: {{ pct|number_format(1, '.', '') }}%"></div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <p class="border-t border-hairline px-4 py-2 text-[0.7rem] text-ink/45">
+            Methode : date de promesse si disponible (priorite forte), sinon date d'echeance + retard moyen comportemental. Litiges et contentieux exclus.
+        </p>
+    </div>
+
+    {# ===== Radar de risque ===== #}
+    <div class="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+
+        <div class="rounded-md border border-hairline bg-white shadow-sm">
+            <div class="border-b border-hairline px-4 py-3">
+                <h3 class="text-sm font-semibold uppercase tracking-wider text-ink/55">Radar de risque</h3>
+                <p class="text-[0.7rem] text-ink/45">5 axes (0 = sain, 10 = critique). Plus la toile est etendue, plus le risque est eleve.</p>
+            </div>
+            <div class="p-4">
+                <svg viewBox="0 0 400 340" class="mx-auto block" style="max-width:400px;height:auto;">
+                    {# Grille concentrique #}
+                    {% for grille in radar_geometrie.grilles %}
+                        <polygon points="{{ grille }}" fill="none" stroke="#e5e7eb" stroke-width="1"/>
+                    {% endfor %}
+
+                    {# Axes radiaux (vers chaque coin du radar) #}
+                    {% for axe in radar_geometrie.axes %}
+                        <line x1="{{ radar_geometrie.centre.x }}" y1="{{ radar_geometrie.centre.y }}"
+                              x2="{{ axe.label_pos.x - (axe.label_pos.x - radar_geometrie.centre.x) * 25 / (radar_geometrie.rayon_max + 25) }}"
+                              y2="{{ axe.label_pos.y - (axe.label_pos.y - radar_geometrie.centre.y) * 25 / (radar_geometrie.rayon_max + 25) }}"
+                              stroke="#d1d5db" stroke-width="1"/>
+                    {% endfor %}
+
+                    {# Toile du risque #}
+                    <polygon points="{{ radar_geometrie.toile }}"
+                             fill="{{ radar_geometrie.couleur }}" fill-opacity="0.2"
+                             stroke="{{ radar_geometrie.couleur }}" stroke-width="2"/>
+
+                    {# Points + labels #}
+                    {% for axe in radar_geometrie.axes %}
+                        <circle cx="{{ axe.point.x }}" cy="{{ axe.point.y }}"
+                                r="4" fill="{{ radar_geometrie.couleur }}"/>
+                        <text x="{{ axe.label_pos.x }}" y="{{ axe.label_pos.y }}"
+                              text-anchor="middle" dominant-baseline="middle"
+                              fill="#0e2540" font-size="12" font-weight="600" font-family="Arial">
+                            {{ axe.label }}
+                        </text>
+                        <text x="{{ axe.label_pos.x }}" y="{{ axe.label_pos.y + 14 }}"
+                              text-anchor="middle" dominant-baseline="middle"
+                              fill="#6b7280" font-size="11" font-family="Arial">
+                            {{ axe.valeur|number_format(1, ',', ' ') }}
+                        </text>
+                    {% endfor %}
+                </svg>
+
+                <p class="mt-3 text-center text-[0.7rem] text-ink/55">
+                    Niveau global : <strong class="{{ radar_geometrie.niveau_global > 6 ? 'text-rose-700' : (radar_geometrie.niveau_global > 2 ? 'text-sky-700' : 'text-emerald-700') }}">
+                        {{ radar_geometrie.niveau_global|number_format(1, ',', ' ') }} / 10
+                    </strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="rounded-md border border-hairline bg-white shadow-sm">
+            <div class="border-b border-hairline px-4 py-3">
+                <h3 class="text-sm font-semibold uppercase tracking-wider text-ink/55">Detail des axes</h3>
+            </div>
+            <div class="space-y-3 p-4 text-sm">
+                <div>
+                    <p class="text-[0.7rem] uppercase tracking-wider text-ink/55">Risque global (10 - score)</p>
+                    <p class="font-bold text-navy">{{ radar.risque|number_format(1, ',', ' ') }} / 10</p>
+                    <p class="text-[0.7rem] text-ink/55">Inverse du score sante du portefeuille.</p>
+                </div>
+                <div>
+                    <p class="text-[0.7rem] uppercase tracking-wider text-ink/55">Echu</p>
+                    <p class="font-bold text-navy">{{ radar.echu|number_format(1, ',', ' ') }} / 10</p>
+                    <p class="text-[0.7rem] text-ink/55">Part de l'encours echu sur le total ({{ indicateurs.encours_echu|number_format(0, ',', ' ') }} / {{ indicateurs.encours_total|number_format(0, ',', ' ') }} EUR).</p>
+                </div>
+                <div>
+                    <p class="text-[0.7rem] uppercase tracking-wider text-ink/55">Promesses echues</p>
+                    <p class="font-bold text-navy">{{ radar.promesses|number_format(1, ',', ' ') }} / 10</p>
+                    <p class="text-[0.7rem] text-ink/55">Part des promesses en cours dont la date est passee.</p>
+                </div>
+                <div>
+                    <p class="text-[0.7rem] uppercase tracking-wider text-ink/55">Litiges</p>
+                    <p class="font-bold text-navy">{{ radar.litiges|number_format(1, ',', ' ') }} / 10</p>
+                    <p class="text-[0.7rem] text-ink/55">Part de l'encours rattachee a un dossier litige ouvert.</p>
+                </div>
+                <div>
+                    <p class="text-[0.7rem] uppercase tracking-wider text-ink/55">DSO (10 - BPDSO/DSO * 10)</p>
+                    <p class="font-bold text-navy">{{ radar.dso|number_format(1, ',', ' ') }} / 10</p>
+                    <p class="text-[0.7rem] text-ink/55">Plus l'ecart entre DSO ({{ indicateurs.dso|number_format(1, ',', ' ') }}j) et BPDSO ({{ indicateurs.bpdso|number_format(1, ',', ' ') }}j) est grand, plus le score est haut.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ===== PERFORMANCE PAR RESPONSABLE — sites / vendeurs / secretaires =====
+       3 tableaux tries par encours echu DECROISSANT (les pires en haut), avec
+       bar chart inline, code couleur sur le taux d'echu, segmented control
+       Top 5/10/20/Tout (Stimulus creances-responsable-limit), et panneau
+       slide-in au clic (detail-panel) qui affiche dossiers/creances en cours. #}
+    {% macro bloc_performance(axe, titre, sous_titre, rows, vide_libelle) %}
+        {% set max_echu = 0 %}
+        {% for r in rows %}{% if r.encours_echu > max_echu %}{% set max_echu = r.encours_echu %}{% endif %}{% endfor %}
+        <div class="mb-4 rounded-md border border-hairline bg-white shadow-sm"
+             data-controller="creances-responsable-limit"
+             data-creances-responsable-limit-limit-value="10">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-hairline px-4 py-3">
+                <div class="min-w-0">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-ink/55">{{ titre }}</h3>
+                    {% if sous_titre %}<p class="mt-0.5 text-[0.7rem] text-ink/45">{{ sous_titre }}</p>{% endif %}
+                </div>
+                {% if rows|length > 0 %}
+                    <div class="flex items-center gap-2">
+                        <span class="text-[0.65rem] text-ink/45">
+                            <span data-creances-responsable-limit-target="compteur" class="font-semibold tabular-nums text-ink/65">0</span>
+                            <span class="mx-0.5">/</span>
+                            <span class="tabular-nums">{{ rows|length }}</span>
+                        </span>
+                        <div class="fc-segmented" data-creances-responsable-limit-target="track">
+                            <button type="button" data-creances-responsable-limit-target="button"
+                                    data-action="click->creances-responsable-limit#set"
+                                    data-limit="5" class="fc-segmented-btn">5</button>
+                            <button type="button" data-creances-responsable-limit-target="button"
+                                    data-action="click->creances-responsable-limit#set"
+                                    data-limit="10" class="fc-segmented-btn">10</button>
+                            <button type="button" data-creances-responsable-limit-target="button"
+                                    data-action="click->creances-responsable-limit#set"
+                                    data-limit="20" class="fc-segmented-btn">20</button>
+                            <button type="button" data-creances-responsable-limit-target="button"
+                                    data-action="click->creances-responsable-limit#set"
+                                    data-limit="all" class="fc-segmented-btn">Tout</button>
+                            <span data-creances-responsable-limit-target="slider" class="fc-segmented-slider"></span>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+            {% if rows is empty %}
+                <p class="p-6 text-sm text-ink/45">{{ vide_libelle }}</p>
+            {% else %}
+                <div class="divide-y divide-hairline">
+                    {% for r in rows %}
+                        {% set pct = max_echu > 0 ? (r.encours_echu / max_echu * 100) : 0 %}
+                        {# Couleur du verdict : tres rouge si > 50% echu, orange si > 25%, vert sinon. #}
+                        {% set verdict_classe = r.taux_echu > 50 ? 'bg-rose-500' : (r.taux_echu > 25 ? 'bg-amber-500' : 'bg-emerald-500') %}
+                        {% set txt_classe = r.taux_echu > 50 ? 'text-rose-600' : (r.taux_echu > 25 ? 'text-amber-600' : 'text-emerald-600') %}
+                        {# Encode l'id pour detail-panel : "axe|cle" base64-url. #}
+                        {% set id_param = (axe ~ '|' ~ r.cle)|base64_encode_url %}
+                        <button type="button"
+                                class="block w-full cursor-pointer px-4 py-3 text-left transition hover:bg-surface/40"
+                                data-creances-responsable-limit-target="row"
+                                data-action="click->detail-panel#open"
+                                data-detail-panel-id-param="{{ id_param }}">
+                            <div class="flex items-baseline justify-between gap-4">
+                                <div class="min-w-0 flex-1">
+                                    <p class="truncate text-[0.9rem] font-semibold text-navy">{{ r.libelle ?: '—' }}</p>
+                                    <p class="mt-0.5 text-[0.7rem] text-ink/55">
+                                        {{ r.nb_comptes }} compte{{ r.nb_comptes > 1 ? 's' : '' }}
+                                        · {{ r.nb_creances }} creance{{ r.nb_creances > 1 ? 's' : '' }}
+                                        · retard moyen {{ r.anciennete_moyenne_jours|number_format(0) }} j
+                                    </p>
+                                    {# Etablissements — uniquement pour vendeur/secretaire #}
+                                    {% if axe != 'etablissement' and r.etablissements|default([])|length > 0 %}
+                                        <div class="mt-1 flex flex-wrap items-center gap-1">
+                                            {% for e in r.etablissements|default([])|slice(0, 4) %}
+                                                <span class="inline-flex items-center rounded-md border border-hairline bg-surface/60 px-1.5 py-0 font-mono text-[0.6rem] text-ink/65">{{ e }}</span>
+                                            {% endfor %}
+                                            {% if r.etablissements|default([])|length > 4 %}
+                                                <span class="text-[0.6rem] text-ink/45">+{{ r.etablissements|length - 4 }}</span>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="shrink-0 text-right">
+                                    <p class="font-mono text-[0.95rem] font-semibold tabular-nums text-navy">
+                                        {{ r.encours_echu|number_format(0, ',', ' ') }}<span class="ml-1 text-[0.7rem] font-normal text-ink/45">EUR echu</span>
+                                    </p>
+                                    <p class="mt-0.5 text-[0.7rem]">
+                                        <span class="font-semibold tabular-nums {{ txt_classe }}">{{ r.taux_echu|number_format(0) }}%</span>
+                                        <span class="ml-1 text-ink/45">sur {{ r.encours|number_format(0, ',', ' ') }} EUR</span>
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-surface">
+                                <div class="h-full rounded-full {{ verdict_classe }} transition-all duration-300" style="width: {{ pct|number_format(1, '.', '') }}%"></div>
+                            </div>
+                        </button>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    {% endmacro %}
+
+    {# Style segmented control — local au template Analyses.
+       Le slider (span absolument positionne) se deplace via JS sous le bouton
+       actif. La transition CSS est purement cosmetique. #}
+    <style>
+        .fc-segmented {
+            position: relative;
+            display: inline-flex;
+            padding: 2px;
+            border: 1px solid rgba(14, 37, 64, 0.12);
+            border-radius: 6px;
+            background: rgba(14, 37, 64, 0.025);
+        }
+        .fc-segmented-btn {
+            position: relative;
+            z-index: 1;
+            padding: 0.25rem 0.6rem;
+            font-size: 0.72rem;
+            font-weight: 500;
+            font-variant-numeric: tabular-nums;
+            color: rgba(14, 37, 64, 0.55);
+            background: transparent;
+            border: 0;
+            cursor: pointer;
+            transition: color 150ms ease;
+            border-radius: 4px;
+        }
+        .fc-segmented-btn:hover { color: #0e2540; }
+        .fc-segmented-btn.is-active { color: #fff; }
+        .fc-segmented-slider {
+            position: absolute;
+            top: 2px;
+            bottom: 2px;
+            left: 0;
+            width: 0;
+            border-radius: 4px;
+            background: #0e2540;
+            transition: left 200ms cubic-bezier(0.4, 0, 0.2, 1), width 200ms cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 0;
+            pointer-events: none;
+        }
+    </style>
+
+    {% import _self as perf %}
+
+    <div class="mt-6 mb-4 flex items-baseline justify-between">
+        <h2 class="text-lg font-semibold text-navy">Performance par responsable</h2>
+        <p class="text-[0.7rem] text-ink/45">Tri par encours echu decroissant : les pires remontent en haut.</p>
+    </div>
+
+    {{ perf.bloc_performance('etablissement', 'Par site / etablissement', 'Encours echu par site Synthauto. Cliquer pour voir les dossiers en cours.', perf_etablissements, 'Aucun etablissement renseigne dans les ecritures.') }}
+    {# Note 2026-06-02 : vendeur et secretariat retires (bal_eloficash ne contient pas ces colonnes). #}
+
+    {# ===== PANNEAU LATERAL — affiche le detail d'un responsable au clic ===== #}
+    <div data-detail-panel-target="backdrop" data-action="click->detail-panel#close" class="fixed inset-0 z-40 bg-navy-deep/40 opacity-0 pointer-events-none transition-opacity duration-200"></div>
+    <aside data-detail-panel-target="panel" class="fixed inset-y-0 right-0 z-50 w-full max-w-2xl translate-x-full transform overflow-y-auto bg-white shadow-2xl shadow-navy/20 transition-transform duration-200">
+        <div class="flex items-center justify-between border-b border-hairline px-5 py-3">
+            <h2 class="font-semibold text-navy">Detail du responsable</h2>
+            <button type="button" data-action="detail-panel#close" class="rounded-md p-1.5 text-ink/55 hover:bg-surface hover:text-navy" aria-label="Fermer">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div data-detail-panel-target="content" class="p-5">
+            <p class="text-sm text-ink/60">Selectionnez un responsable pour voir ses dossiers en cours.</p>
+        </div>
+    </aside>
+
+</div>
+{% endblock %}

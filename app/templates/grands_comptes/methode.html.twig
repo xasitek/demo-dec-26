@@ -1,0 +1,225 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Grilles et référentiel{% endblock %}
+{% block page_title %}Dossiers grands comptes{% endblock %}
+{% block topbar_nav %}{% include 'grands_comptes/_nav.html.twig' with { active: 'methode' } %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1500px]">
+
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="flex flex-wrap items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">Ce sur quoi le contrôle s'appuie</h3>
+      <span class="ml-auto text-[11px] text-ink/45">{{ ms|number_format(0, ',', ' ') }} ms</span>
+    </div>
+    <p class="mt-1.5 max-w-4xl text-[12.5px] leading-relaxed text-ink/70">
+      Un dossier rejeté se défend devant le site qui l'a déposé et devant le loueur qui attend.
+      Un rejet dont on ne peut pas produire la règle n'est pas un rejet, c'est une opinion. Tout ce
+      que le contrôle applique est donc écrit ici : la grille de chaque loueur, les quatorze règles,
+      les trois verdicts, et ce que le contrôle ne fait pas.
+    </p>
+    <p class="mt-2 rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-[12px] leading-relaxed text-ink/80">
+      <b>Limite assumée.</b> {{ limite }}
+    </p>
+  </section>
+
+  {# ------------------------------------------------------------- les grilles #}
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <h3 class="mb-1 text-sm font-bold uppercase tracking-wide text-ink/70">
+      Les huit grilles documentaires
+    </h3>
+    <p class="mb-3 max-w-4xl text-[12px] leading-relaxed text-ink/65">
+      <b>Aucune pièce n'est obligatoire universellement</b> : c'est la grille du payeur qui commande.
+      Le même véhicule livré à deux loueurs ne demande pas le même dossier, et un dossier complet
+      chez l'un est incomplet chez l'autre. Réclamer à un site une pièce que son payeur ne demande
+      pas est précisément la faute que cet outil corrige.
+    </p>
+
+    {% set parLoueur = {} %}
+    {% for g in grille %}
+      {% set parLoueur = parLoueur|merge({ (g.loueur_id): (parLoueur[g.loueur_id]|default({}))|merge({ (g.type_piece): g.exigence }) }) %}
+    {% endfor %}
+
+    <div class="overflow-x-auto">
+      <table class="fc-table-comptable w-full">
+        <thead><tr>
+          <th>Loueur</th>
+          {% for t in types %}<th class="text-center">{{ t.code }}</th>{% endfor %}
+          <th class="text-center">Exigées</th><th class="text-center">Tampon</th>
+          <th class="text-center">PV élec.</th><th class="text-right">Tolérance</th>
+          <th class="text-right">Délai</th>
+        </tr></thead>
+        <tbody>
+          {% for l in loueurs %}
+            <tr>
+              <td class="text-[12.5px] font-semibold">{{ l.nom }}
+                <span class="ml-1 font-mono text-[10px] font-normal text-ink/40">{{ l.loueur_id }}</span></td>
+              {% for t in types %}
+                {% set ex = parLoueur[l.loueur_id][t.code]|default('non_demandee') %}
+                <td class="text-center">
+                  <span title="{{ exigences[ex].libelle }} — {{ exigences[ex].explication }}"
+                        class="inline-block rounded px-1.5 py-0.5 text-[10px] font-bold
+                               {{ ex == 'obligatoire' ? 'bg-navy text-white'
+                                : ex == 'si_electrique' ? 'bg-positive/20 text-positive'
+                                : ex == 'si_premier_reglt' ? 'bg-gold/25 text-gold'
+                                : ex == 'optionnelle' ? 'bg-ink/10 text-ink/55' : 'bg-transparent text-ink/20' }}">
+                    {{ ex == 'obligatoire' ? 'OBL' : ex == 'si_electrique' ? 'VE'
+                     : ex == 'si_premier_reglt' ? '1er' : ex == 'optionnelle' ? 'opt' : '—' }}
+                  </span>
+                </td>
+              {% endfor %}
+              <td class="text-center font-mono text-[12px] font-semibold">{{ l.nb_obligatoires }}</td>
+              <td class="text-center text-[11.5px]">{{ l.exige_tampon ? 'oui' : 'non' }}</td>
+              <td class="text-center text-[11.5px]">{{ l.accepte_pv_electronique ? 'accepté' : 'refusé' }}</td>
+              <td class="text-right font-mono text-[11.5px]">{{ l.tolerance_centimes }} c</td>
+              <td class="text-right font-mono text-[11.5px]">{{ l.delai_paiement }} j</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      {% for code, e in exigences %}
+        <div class="rounded-lg border border-hairline bg-surface px-3 py-2">
+          <b class="text-[12px]">{{ e.libelle }}</b>
+          <p class="text-[11.5px] leading-snug text-ink/60">{{ e.explication }}</p>
+        </div>
+      {% endfor %}
+    </div>
+
+    <h4 class="mt-4 mb-1 text-[12px] font-bold uppercase tracking-wider text-ink/55">Les sept types de pièce</h4>
+    <table class="fc-table-comptable w-full">
+      <tbody>
+        {% for t in types %}
+          <tr>
+            <td class="w-[4rem] font-mono text-[11.5px] font-semibold">{{ t.code }}</td>
+            <td class="w-[18rem] text-[12px] font-semibold">{{ t.libelle }}</td>
+            <td class="text-[11.5px] leading-snug text-ink/65">{{ t.role }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  {# --------------------------------------------------------- les trois verdicts #}
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">Les trois verdicts</h3>
+    <div class="grid gap-2 lg:grid-cols-3">
+      {% for code, v in verdicts %}
+        <div class="rounded-xl border-2 p-3
+                    {{ v.teinte == 'negative' ? 'border-negative/40 bg-negative/5'
+                     : v.teinte == 'warning' ? 'border-warning/40 bg-warning/5' : 'border-positive/40 bg-positive/5' }}">
+          <div class="text-[13px] font-bold
+                      {{ v.teinte == 'negative' ? 'text-negative'
+                       : v.teinte == 'warning' ? 'text-warning' : 'text-positive' }}">{{ v.libelle }}</div>
+          <p class="mt-1 text-[11.5px] leading-relaxed text-ink/70">{{ v.definition }}</p>
+          <p class="mt-1.5 border-t pt-1.5 text-[11.5px] font-semibold leading-relaxed text-ink/75
+                    {{ v.teinte == 'negative' ? 'border-negative/25'
+                     : v.teinte == 'warning' ? 'border-warning/25' : 'border-positive/25' }}">{{ v.suite }}</p>
+        </div>
+      {% endfor %}
+    </div>
+    <p class="mt-2.5 max-w-4xl text-[12px] leading-relaxed text-ink/70">
+      <b>« Incomplet » n'est pas une nuance de « non conforme » : c'est son contraire logique.</b>
+      Non conforme veut dire « j'ai lu, et c'est faux ». Incomplet veut dire « je n'ai pas pu lire ».
+      Confondre les deux fait rejeter un dossier pour une pièce qu'on n'a jamais ouverte.
+    </p>
+  </section>
+
+  {# ------------------------------------------------------ les quatorze anomalies #}
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <h3 class="mb-1 text-sm font-bold uppercase tracking-wide text-ink/70">
+      Les quatorze règles, et la correction de chacune
+    </h3>
+    <p class="mb-3 max-w-4xl text-[12px] leading-relaxed text-ink/65">
+      La colonne <b>correction</b> n'est pas décorative : une anomalie qui porte sur une facture
+      émise se corrige par un <b>avoir puis une refacturation</b>, jamais par une retouche du
+      document. Une facture modifiée après émission est une irrégularité comptable.
+    </p>
+    <div class="overflow-x-auto">
+      <table class="fc-table-comptable w-full">
+        <thead><tr><th>Code</th><th>Pièce</th><th>Gravité</th><th>Anomalie</th><th>Correction</th></tr></thead>
+        <tbody>
+          {% for a in anomalies %}
+            <tr>
+              <td class="font-mono text-[11px]">{{ a.code }}</td>
+              <td class="font-mono text-[11px] text-ink/55">{{ a.type_piece }}</td>
+              <td>
+                <span class="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider
+                             {{ a.gravite == 'bloquante' ? 'bg-negative text-white'
+                              : a.gravite == 'majeure' ? 'bg-warning text-white' : 'bg-ink/20 text-ink/70' }}">
+                  {{ a.gravite }}</span>
+              </td>
+              <td class="text-[12px]">{{ a.libelle }}</td>
+              <td class="text-[11.5px] leading-snug">
+                <b>{{ suites[a.suite].libelle }}</b>
+                <span class="block text-ink/60">{{ suites[a.suite].explication }}</span>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {# ---------------------------------------------------------- la contre-épreuve #}
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <h3 class="mb-1 text-sm font-bold uppercase tracking-wide text-ink/70">
+      La contre-épreuve : ce que coûterait de se passer de la doctrine
+    </h3>
+    <p class="mb-3 max-w-4xl text-[12px] leading-relaxed text-ink/65">
+      Un taux de réussite obtenu sur une population construite par les mêmes règles que le moteur
+      ne démontre rien tout seul. On fait donc tourner quatre variantes <b>naïves</b> du contrôle
+      sur la même population, chacune privée d'une seule règle de doctrine, et on compte ce
+      qu'elles cassent. C'est cela qui donne un sens au résultat.
+    </p>
+    <table class="fc-table-comptable w-full">
+      <tbody>
+        {% for code, quoi in variantes %}
+          <tr>
+            <td class="w-[10rem] font-mono text-[11.5px] font-semibold
+                       {{ code == 'strict' ? 'text-positive' : 'text-ink/70' }}">{{ code }}</td>
+            <td class="text-[11.5px] leading-snug text-ink/70">{{ quoi }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="mt-2 text-[11px] leading-relaxed text-ink/50">
+      La commande <span class="font-mono">app:grands-comptes:contre-epreuve</span> produit le
+      tableau chiffré. La ligne « strict » doit être à zéro partout ; les quatre autres mesurent le
+      coût de la règle qu'elles abandonnent.
+    </p>
+  </section>
+
+  {# ------------------------------------------------------------- les scénarios #}
+  <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <h3 class="mb-1 text-sm font-bold uppercase tracking-wide text-ink/70">
+      Les dix-sept scénarios de la population de démonstration
+    </h3>
+    <p class="mb-3 max-w-4xl text-[12px] leading-relaxed text-ink/65">
+      Chaque scénario est vérifié par un <b>contrat exécutable</b> : si le monde ne matérialise pas
+      ce que la vérité annonce, la génération échoue et aucune mesure ne peut être publiée. Un
+      scénario qui se déclarerait ambigu sans l'être ferait compter comme fausse une décision juste.
+    </p>
+    <div class="overflow-x-auto">
+      <table class="fc-table-comptable w-full">
+        <thead><tr><th>Code</th><th>Ce qu'il pose</th><th class="text-right">Poids</th><th>Anomalies attendues</th></tr></thead>
+        <tbody>
+          {% for s in scenarios %}
+            <tr>
+              <td class="font-mono text-[11px] font-semibold">{{ s.code }}</td>
+              <td class="text-[12px]">{{ s.libelle }}</td>
+              <td class="text-right font-mono text-[11.5px] text-ink/55">
+                {{ (s.poids * 100)|number_format(0, ',', ' ') }} %</td>
+              <td class="font-mono text-[10.5px] leading-snug text-ink/60">
+                {{ s.anomalies ?: 'aucune — le dossier doit passer' }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+{% endblock %}

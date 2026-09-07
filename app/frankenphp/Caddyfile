@@ -1,0 +1,36 @@
+{
+	{$CADDY_GLOBAL_OPTIONS}
+
+	frankenphp
+}
+
+# SERVER_NAME est positionne par docker-entrypoint.sh sur ":$PORT" (Render).
+# Une adresse limitee a un port (ex. :10000) fait servir Caddy en HTTP simple :
+# la terminaison TLS est assuree par le proxy Render en amont.
+{$SERVER_NAME:localhost} {
+	log {
+		output stderr
+		format filter {
+			wrap console
+			fields {
+				# Ne jamais journaliser le jeton Bearer de l'API garanties.
+				uri query {
+					replace authorization REDACTED
+				}
+			}
+		}
+	}
+
+	root * public/
+	encode zstd br gzip
+
+	# Hub Mercure (temps reel) servi par le meme FrankenPHP, sur /.well-known/mercure.
+	# Cle HMAC partagee avec l'app Symfony via MERCURE_JWT_SECRET (meme secret pour
+	# publier et souscrire). Meme domaine que l'app => pas de CORS a gerer.
+	mercure {
+		publisher_jwt {env.MERCURE_JWT_SECRET}
+		subscriber_jwt {env.MERCURE_JWT_SECRET}
+	}
+
+	php_server
+}

@@ -1,0 +1,26 @@
+{#
+    Relance niveau 1 : rappel courtois. Ton premium, sobre, sans pression.
+    Variables : groupe (GroupeARelancer), token.
+#}
+{% extends 'recouvrement/email/_layout.html.twig' %}
+
+{% block titre %}Vos factures impayées{% endblock %}
+
+{% block contenu %}
+    <p style="margin: 0 0 16px;">{{ groupe.formule_appel }},</p>
+
+    <p style="margin: 0 0 16px;">
+        Sauf erreur ou omission de notre part, votre compte présente à ce jour un solde impayé.
+        Nous vous remercions de bien vouloir procéder à son règlement.
+    </p>
+
+    {% include 'recouvrement/email/_acces_factures.html.twig' %}
+
+    <p style="margin: 0 0 16px;">
+        Si ce règlement a déjà été effectué, nous vous prions de ne pas tenir compte de ce courrier.
+    </p>
+
+    <p style="margin: 0 0 8px;">Nous restons à votre disposition pour toute information complémentaire.</p>
+    <p style="margin: 0;">Cordialement,</p>
+    <p style="margin: 4px 0 0; color: #2D3250; font-weight: 600;">Le service recouvrement - Groupe Synthauto</p>
+{% endblock %}

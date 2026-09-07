@@ -1,0 +1,69 @@
+{# Nav du module Recouvrement (bandeau du haut).
+   Gauche (inchangé) : Retours / Courriers (quotidien de la comptable, avec compteurs).
+   Droite : deux boutons — menu "Pilotage" (Journal, Relance & Curation, Stratégies,
+   Statistiques) et badge "Factures sans PDF" (avec compteur).
+   Param : active (clé de la page courante). #}
+{% set nb_retours = recouvrement_a_traiter() %}
+{% set nb_courriers = recouvrement_courriers_a_envoyer() %}
+{% set nb_sans_pdf = recouvrement_factures_sans_pdf() %}
+
+{% set pilotage = [
+    {cle: 'journal', label: 'Journal', route: 'app_recouvrement_journal'},
+    {cle: 'relancer', label: 'Clients', route: 'app_recouvrement_relancer'},
+    {cle: 'strategies', label: 'Stratégies', route: 'app_recouvrement_admin_strategies'},
+    {cle: 'stats', label: 'Statistiques', route: 'app_recouvrement_admin_stats', manager: true}
+] %}
+{% set labels_pilotage = {
+    'journal': 'Journal', 'relancer': 'Clients', 'curation': 'Clients',
+    'strategies': 'Stratégies', 'stats': 'Statistiques'
+} %}
+
+<nav class="flex min-w-0 flex-1 items-center gap-3">
+    {# Primaire (inchangé) : Retours / Courriers #}
+    <div class="inline-flex shrink-0 rounded-md border border-hairline bg-white p-1">
+        {% if active == 'retours' %}
+            <span class="inline-flex items-center gap-1.5 rounded bg-navy px-3 py-1 text-sm font-medium text-white">Retours <span class="inline-flex min-w-4 items-center justify-center rounded-full bg-white/20 px-1 text-[0.65rem] font-semibold">{{ nb_retours }}</span></span>
+        {% else %}
+            <a href="{{ path('app_recouvrement_index') }}" class="inline-flex items-center gap-1.5 rounded px-3 py-1 text-sm font-medium text-ink/70 transition hover:text-navy">Retours <span class="inline-flex min-w-4 items-center justify-center rounded-full bg-surface px-1 text-[0.65rem] font-semibold text-ink/60">{{ nb_retours }}</span></a>
+        {% endif %}
+        {% if active == 'courriers' %}
+            <span class="inline-flex items-center gap-1.5 rounded bg-navy px-3 py-1 text-sm font-medium text-white">Courriers <span class="inline-flex min-w-4 items-center justify-center rounded-full bg-white/20 px-1 text-[0.65rem] font-semibold">{{ nb_courriers }}</span></span>
+        {% else %}
+            <a href="{{ path('app_recouvrement_courriers') }}" class="inline-flex items-center gap-1.5 rounded px-3 py-1 text-sm font-medium text-ink/70 transition hover:text-navy">Courriers <span class="inline-flex min-w-4 items-center justify-center rounded-full bg-surface px-1 text-[0.65rem] font-semibold text-ink/60">{{ nb_courriers }}</span></a>
+        {% endif %}
+    </div>
+
+    {# Droite : Pilotage (menu) + Factures sans PDF (badge) #}
+    <div class="ml-auto flex shrink-0 items-center gap-2">
+        <div class="relative" data-controller="dropdown">
+            <button type="button" data-action="dropdown#toggle"
+                    class="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition {{ labels_pilotage[active] is defined ? 'border-navy/30 bg-navy/5 text-navy' : 'border-hairline bg-white text-ink/70 hover:border-navy hover:text-navy' }}">
+                <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                <span>Pilotage{% if labels_pilotage[active] is defined %} <span class="text-ink/30">·</span> <span class="text-ink/80">{{ labels_pilotage[active] }}</span>{% endif %}</span>
+                <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 text-ink/40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div data-dropdown-target="menu" hidden
+                 class="absolute right-0 z-40 mt-1 w-60 overflow-hidden rounded-md border border-hairline bg-white py-1 shadow-lg shadow-navy/10">
+                {% for p in pilotage %}
+                    {% if p.manager is not defined or is_granted('ROLE_MANAGER') %}
+                        <a href="{{ path(p.route) }}"
+                           class="block px-3 py-2 text-sm transition {{ active == p.cle ? 'bg-navy/5 font-semibold text-navy' : 'text-ink/70 hover:bg-surface hover:text-navy' }}">{{ p.label }}</a>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        {% if active == 'factures-pdf' %}
+            <span class="inline-flex items-center gap-1.5 rounded-md bg-navy px-3 py-1.5 text-sm font-medium text-white">
+                Factures sans PDF
+                <span class="inline-flex min-w-4 items-center justify-center rounded-full bg-white/20 px-1 text-[0.65rem] font-semibold">{{ nb_sans_pdf }}</span>
+            </span>
+        {% else %}
+            <a href="{{ path('app_recouvrement_factures_sans_pdf') }}"
+               class="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition {{ nb_sans_pdf > 0 ? 'border-gold/50 bg-gold/5 text-navy hover:border-gold' : 'border-hairline bg-white text-ink/70 hover:border-navy hover:text-navy' }}">
+                Factures sans PDF
+                {% if nb_sans_pdf > 0 %}<span class="inline-flex min-w-4 items-center justify-center rounded-full bg-gold/25 px-1 text-[0.65rem] font-semibold text-gold-dark">{{ nb_sans_pdf }}</span>{% endif %}
+            </a>
+        {% endif %}
+    </div>
+</nav>

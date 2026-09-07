@@ -1,0 +1,256 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Garanties - Finance Créances{% endblock %}
+{% block page_title %}Audit Garanties{% endblock %}
+
+{% macro th(label, key, tri, sens, filtres, align, tooltip) %}
+    {% set actif = tri == key %}
+    {% set sens_suiv = (actif and sens == 'desc') ? 'asc' : 'desc' %}
+    <th class="{{ align == 'right' ? 'is-num' : '' }}"{% if tooltip %} title="{{ tooltip }}"{% endif %}>
+        <a href="{{ path('app_garanties_index', filtres|merge({ tri: key, sens: sens_suiv })) }}" class="inline-flex items-center gap-1 hover:text-navy {{ actif ? 'text-navy' : '' }}">
+            {{ label }}
+            {% if tooltip %}<span class="text-ink/30" aria-hidden="true">ⓘ</span>{% endif %}
+            {% if actif %}<span class="text-gold-dark">{{ sens == 'asc' ? '↑' : '↓' }}</span>{% endif %}
+        </a>
+    </th>
+{% endmacro %}
+
+{% block content %}
+{% import '_ui.html.twig' as ui %}
+{% import _self as t %}
+
+{# Constructions des options multi-select #}
+{% set type_opts = {} %}{% for v in options.types_piece %}{% set type_opts = type_opts|merge({ (v): v }) %}{% endfor %}
+{% set concession_opts = {} %}{% for v in options.concessions %}{% set concession_opts = concession_opts|merge({ (v): v }) %}{% endfor %}
+{% set etab_opts = {} %}{% for v in options.etablissements %}{% set etab_opts = etab_opts|merge({ (v): v }) %}{% endfor %}
+{% set marque_opts = {} %}{% for v in options.marques %}{% set marque_opts = marque_opts|merge({ (v): v }) %}{% endfor %}
+{% set payeur_opts = {} %}{% for v in options.payeurs %}{% set payeur_opts = payeur_opts|merge({ (v): v }) %}{% endfor %}
+{% set site_opts = {} %}{% for v in options.sites|default([]) %}{% set site_opts = site_opts|merge({ (v): v }) %}{% endfor %}
+
+{# Statuts DG : fusion 23/24 + libellé code+texte #}
+{% set statut_opts = {
+    '20': '20 — Annulé',
+    '21': '21 — Payé',
+    '22': '22 — À corriger',
+    '23,24': '23/24 — En traitement',
+    '25': '25 — Demande de renseignement',
+    '29': '29 — Refusé',
+} %}
+{% set statuts_dg_selected = filtres.statuts_dg|default([]) %}
+
+{# États de rapprochement #}
+{% set etats_opts = {} %}
+{% for code, meta in etats_meta %}
+    {% set etats_opts = etats_opts|merge({ (code): meta.libelle }) %}
+{% endfor %}
+
+{% set age_opts = { '': 'Toute ancienneté' } %}
+{% for k, label in tranches_age %}{% set age_opts = age_opts|merge({ (k): label }) %}{% endfor %}
+
+{% set signe_opts = {
+    '': 'Tous (créances + paiements)',
+    'creance': 'Créances seulement (solde > 0)',
+    'paiement': 'Paiements seulement (solde < 0)',
+    'soldee': 'Soldées seulement',
+} %}
+
+<div class="mx-auto w-full px-3"
+     data-controller="detail-panel filter-pills commentaires-drawer"
+     data-detail-panel-url-value="{{ path('app_garanties_detail', {cleEcriture: '__ID__'}) }}">
+
+    {# Onglets Non lettré / Lettré : present_dans_sage TRUE/FALSE. #}
+    {% set vue_courante = vue|default('non_lettrees') %}
+    {% set filtres_url = filtres|default({}) %}
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-3">
+            {# Onglets Non lettré / Lettré : present_dans_sage TRUE/FALSE. #}
+            <div class="inline-flex rounded-md border border-hairline bg-white p-1">
+                <a href="{{ path('app_garanties_index', filtres_url|merge({tri: tri, sens: sens})) }}"
+                   class="px-4 py-1.5 text-sm font-medium rounded {{ 'non_lettrees' == vue_courante ? 'bg-navy text-white' : 'text-ink/70 hover:text-navy' }}">
+                    Non lettré
+                </a>
+                <a href="{{ path('app_garanties_index', filtres_url|merge({tri: tri, sens: sens, vue: 'lettrees'})) }}"
+                   class="px-4 py-1.5 text-sm font-medium rounded {{ 'lettrees' == vue_courante ? 'bg-navy text-white' : 'text-ink/70 hover:text-navy' }}">
+                    Lettré
+                </a>
+            </div>
+        </div>
+
+        <a href="{{ path('app_garanties_stats') }}"
+           class="inline-flex items-center gap-1.5 rounded-md border border-navy bg-white px-3 py-1.5 text-sm font-medium text-navy transition hover:bg-navy hover:text-white"
+           title="Vue statistique par marque (volumétrie, DG, fraîcheur des données)">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>
+            </svg>
+            Statistiques
+        </a>
+    </div>
+
+    <turbo-frame id="garanties-liste">
+        {# 3 KPI : volumetrie Progiciel + totaux comptables + DG rapprochees #}
+        <div class="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div class="flex flex-col rounded-md border border-hairline bg-white p-4">
+                <p class="text-2xl font-bold text-navy tabular-nums">{{ synthese.lignes|number_format(0, ',', ' ') }}</p>
+                <p class="mt-auto pt-2 text-xs uppercase tracking-wider text-ink/50">{{ synthese.lignes > 1 ? 'lignes affichées' : 'ligne affichée' }}</p>
+            </div>
+            <div class="flex flex-col justify-center rounded-md border border-hairline bg-white p-4">
+                <div class="flex items-baseline justify-between gap-2">
+                    <span class="text-xs uppercase tracking-wider text-ink/50">Débit</span>
+                    <span class="text-lg font-bold text-navy tabular-nums">{{ synthese.total_debit|number_format(0, ',', ' ') }} €</span>
+                </div>
+                <div class="mt-1.5 flex items-baseline justify-between gap-2">
+                    <span class="text-xs uppercase tracking-wider text-ink/50">Crédit</span>
+                    <span class="text-lg font-bold text-navy tabular-nums">{{ synthese.total_credit|number_format(0, ',', ' ') }} €</span>
+                </div>
+            </div>
+            <div class="flex flex-col rounded-md border border-hairline bg-white p-4">
+                <p class="text-2xl font-bold text-navy tabular-nums">{{ synthese.nb_dg|number_format(0, ',', ' ') }}</p>
+                <p class="text-xs uppercase tracking-wider text-ink/50">{{ synthese.nb_dg > 1 ? 'DG rapprochées avec écriture' : 'DG rapprochée avec écriture' }}</p>
+                {% if synthese.total_paye_ttc > 0 %}
+                    <p class="mt-auto pt-2 text-xs text-positive">dont <span class="font-semibold tabular-nums">{{ synthese.total_paye_ttc|number_format(0, ',', ' ') }} €</span> payés (TTC)</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Filtres #}
+        <form method="get"
+              data-turbo-frame="garanties-liste"
+              data-turbo-action="advance"
+              class="mb-4 rounded-md border border-hairline bg-white p-4">
+            <input type="hidden" name="tri" value="{{ tri }}">
+            <input type="hidden" name="sens" value="{{ sens }}">
+
+            <div class="flex flex-wrap items-center gap-2">
+                {# force_label_as_value=true pour les filtres ou value == label
+                   (codes Progiciel convertis en int par PHP -> array_merge renumerote). #}
+                {{ ui.fc_multi_select('types_piece', type_opts, filtres.types_piece|default([]), 'Tous les types pièce', 'types', '', true) }}
+                {{ ui.fc_multi_select('concessions', concession_opts, filtres.concessions|default([]), 'Toutes les concessions', 'concessions', '', true) }}
+                {{ ui.fc_multi_select('etablissements', etab_opts, filtres.etablissements|default([]), 'Tous les établissements', 'établissements', '', true) }}
+                {{ ui.fc_multi_select('marques', marque_opts, filtres.marques|default([]), 'Toutes les marques', 'marques', '', true) }}
+                {{ ui.fc_multi_select('payeurs', payeur_opts, filtres.payeurs|default([]), 'Tous les payeurs', 'payeurs', '', true) }}
+                {{ ui.fc_multi_select('statuts_dg', statut_opts, statuts_dg_selected, 'Tous les statuts DG', 'statuts') }}
+                {{ ui.fc_select('signe', signe_opts, filtres.signe|default('')) }}
+                {{ ui.fc_select('age', age_opts, filtres.age|default('')) }}
+            </div>
+
+            <div class="relative mt-3" style="margin-top: 0.75rem;">
+                <svg class="pointer-events-none" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2D3250" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); opacity: 0.55;">
+                    <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input type="text" name="recherche" value="{{ filtres.recherche|default('') }}"
+                       placeholder="Rechercher : n° pièce · VIN · châssis · OR · payeur · libellé · montant"
+                       data-controller="search-debounce"
+                       data-action="input->search-debounce#submit"
+                       data-search-debounce-delay-value="400"
+                       class="fc-input w-full"
+                       style="padding-left: 2.75rem; padding-top: 0.625rem; padding-bottom: 0.625rem; font-size: 0.875rem;">
+            </div>
+        </form>
+
+        {# Pills + actions #}
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div class="fc-filter-pills">
+                {% if pills is empty %}
+                    <span class="text-xs text-ink/40">Aucun filtre actif</span>
+                {% else %}
+                    {% for p in pills %}
+                        <button type="button"
+                                class="fc-filter-pill is-source-{{ p.source }}"
+                                data-action="click->filter-pills#remove"
+                                data-filter-pills-name-param="{{ p.name }}"
+                                data-filter-pills-value-param="{{ p.valeur_brute }}"
+                                data-filter-pills-url-param="{{ p.url }}"
+                                title="Retirer ce filtre">
+                            <span class="fc-filter-pill-label">{{ p.label }} :</span>
+                            <span>{{ p.valeur }}</span>
+                            <span class="fc-filter-pill-close" aria-hidden="true">×</span>
+                        </button>
+                    {% endfor %}
+                    <a href="{{ path('app_garanties_index') }}" data-turbo-frame="_top" class="ml-1 text-xs text-ink/55 hover:text-navy">Tout effacer</a>
+                {% endif %}
+            </div>
+            <a href="{{ path('app_garanties_export', filtres|merge({ tri: tri, sens: sens })) }}"
+               data-turbo="false"
+               class="ml-auto inline-flex items-center gap-1.5 rounded-md border border-navy bg-navy px-3 py-1.5 text-sm font-medium text-white transition hover:bg-navy-light"
+               title="Télécharger les lignes filtrées au format CSV (compatible Excel)">
+                <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/>
+                </svg>
+                Exporter CSV
+                {% if filtres is not empty %}<span class="text-[0.65rem] uppercase tracking-wider text-gold-soft">(filtré)</span>{% endif %}
+            </a>
+        </div>
+
+        {# Tableau principal #}
+        <div class="overflow-hidden rounded-md border border-hairline bg-white"
+             data-controller="infinite-scroll"
+             data-infinite-scroll-url-value="{{ path('app_garanties_index', filtres|merge({ tri: tri, sens: sens })) }}"
+             data-infinite-scroll-page-value="{{ page }}"
+             data-infinite-scroll-total-pages-value="{{ total_pages }}">
+            <table class="fc-table-comptable">
+                <thead>
+                    <tr>
+                        <th class="is-rownum">#</th>
+                        {{ t.th('Date', 'date', tri, sens, filtres, '', "Date de la pièce Progiciel") }}
+                        {{ t.th('Pièce', 'piece', tri, sens, filtres, '', "N° pièce Progiciel") }}
+                        {{ t.th('Type', 'type', tri, sens, filtres, '', "Type de pièce (FC=facture, OD=opération diverse, RDE=règlement...)") }}
+                        {{ t.th('Concession', 'concession', tri, sens, filtres, '', "Code entité Progiciel, suivi du code établissement") }}
+                        {{ t.th('Marque', 'marque', tri, sens, filtres) }}
+                        {{ t.th('Châssis', 'chassis', tri, sens, filtres, '', "8 derniers caractères du VIN (clé de rapprochement)") }}
+                        {{ t.th('OR', 'numor', tri, sens, filtres, '', "N° d'ordre de réparation Progiciel") }}
+                        {{ t.th('Payeur', 'payeur', tri, sens, filtres) }}
+                        {{ t.th('Débit', 'debit', tri, sens, filtres, 'right') }}
+                        {{ t.th('Crédit', 'credit', tri, sens, filtres, 'right') }}
+                        {{ t.th('Solde', 'solde', tri, sens, filtres, 'right', 'Solde Progiciel de cette ligne') }}
+                        {{ t.th('Statut DG', 'statut', tri, sens, filtres) }}
+                        {{ t.th('Comm.', 'commentaire', tri, sens, filtres, '', "Commentaires d'audit : les lignes commentées d'abord") }}
+                    </tr>
+                </thead>
+                <tbody data-infinite-scroll-target="items">
+                    {% include 'garanties/_rows.html.twig' %}
+                </tbody>
+            </table>
+            <div data-infinite-scroll-target="sentinel" class="h-px"></div>
+            <p data-infinite-scroll-target="loading" class="py-4 text-center text-sm text-ink/50" style="display:none">Chargement...</p>
+        </div>
+
+        <p class="mt-4 text-center text-xs text-ink/40">{{ pluriel(total, 'ligne', 'lignes') }}</p>
+    </turbo-frame>
+
+    {# Panneau détail (slide-in) #}
+    <div data-detail-panel-target="backdrop" class="fixed inset-0 z-40 pointer-events-none"></div>
+    <aside data-detail-panel-target="panel" class="fixed inset-y-0 right-0 z-50 w-full max-w-5xl translate-x-full transform overflow-y-auto bg-white shadow-2xl shadow-navy/20 transition-transform duration-200">
+        <div class="flex items-center gap-2 border-b border-hairline px-5 py-3">
+            <h2 class="flex-1 font-semibold text-navy">Détail de l'écriture</h2>
+            <button type="button" data-detail-panel-target="prev" data-action="detail-panel#prev" class="rounded-md p-1.5 text-ink/55 hover:bg-surface hover:text-navy disabled:opacity-30 disabled:cursor-not-allowed" aria-label="Ligne précédente" title="Précédent">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>
+            </button>
+            <button type="button" data-detail-panel-target="next" data-action="detail-panel#next" class="rounded-md p-1.5 text-ink/55 hover:bg-surface hover:text-navy disabled:opacity-30 disabled:cursor-not-allowed" aria-label="Ligne suivante" title="Suivant">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <button type="button" data-action="detail-panel#close" class="rounded-md p-1.5 text-ink/55 hover:bg-surface hover:text-navy" aria-label="Fermer (Échap)" title="Fermer (Échap)">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div data-detail-panel-target="content">
+            <p class="px-6 py-5 text-sm text-ink/60">Sélectionnez une ligne pour voir le détail.</p>
+        </div>
+    </aside>
+
+    {# Panneau des commentaires : meme glissement a droite, mais plus etroit et sans
+       navigation ligne a ligne. Le contenu est charge en fetch par le controleur, et
+       non par un lien vers une turbo-frame : l'icone doit couper la propagation du clic
+       pour ne pas ouvrir aussi le panneau de detail, ce qui ferait rater le clic a
+       l'interception de frame de Turbo. #}
+    <div data-commentaires-drawer-target="backdrop" data-action="click->commentaires-drawer#fermer" class="fixed inset-0 z-40 hidden bg-navy/20"></div>
+    <aside data-commentaires-drawer-target="panel" class="fixed inset-y-0 right-0 z-50 w-full max-w-md translate-x-full transform overflow-y-auto bg-white shadow-2xl shadow-navy/20 transition-transform duration-200">
+        <div class="flex items-center gap-2 border-b border-hairline px-5 py-3">
+            <h2 class="flex-1 font-semibold text-navy">Commentaires</h2>
+            <button type="button" data-action="commentaires-drawer#fermer" class="rounded-md p-1.5 text-ink/55 hover:bg-surface hover:text-navy" aria-label="Fermer (Échap)" title="Fermer (Échap)">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div data-commentaires-drawer-target="contenu"></div>
+    </aside>
+</div>
+{% endblock %}

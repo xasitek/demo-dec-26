@@ -1,0 +1,117 @@
+# Configuration des marques de garantie : pour chaque marque, on declare
+# son onglet dans le Google Sheet centralise + la maniere de mapper les
+# concessions et statuts du portail vers nos codes internes.
+#
+# La commande `app:garanties:sync-sheets` itere sur cette config.
+# Ajouter une marque = ajouter une entree ci-dessous (zero code).
+
+parameters:
+    garanties.sheet_id: '' # identifiant du classeur retire de la copie de demonstration
+
+    garanties.marques:
+        # ===== PORTAIL A =====
+        opel:
+            onglet: PORTAIL A
+            emetteur: PORTAIL A
+            marque_libelle: Marque A
+            # true = le robot reprend tout le portail (on detecte les DG disparues).
+            # false = robot incremental (n'envoie que les dernieres) : on n'efface
+            # pas le flag des DG hors batch. Aucun impact sur les doublons (cle OR).
+            scrape_complet: true
+            # WMI (3 premiers chars du VIN) qui identifient cette marque dans Progiciel
+            # meme quand la BU comptable du progiciel porte un autre libelle que la marque.
+            wmi: [VXK, W0L, W0V, VXE, KL1]
+            # Mapping statut brut sheet -> code interne (21=Payé, 20=Annulé, 29=Refusé, 23=En traitement)
+            statuts:
+                Paye: '21'
+                Payé: '21'
+                Refuse: '29'
+                Refusé: '29'
+                Annule: '20'
+                Annulé: '20'
+            # Mapping concession brute sheet -> concession portail normalisee.
+            # Si la valeur du sheet n'est pas listee, on prefixe par "MARQUE C ".
+            concessions:
+                SITE_BRUT_1_1: 'SITE 1-1'
+                SITE_BRUT_1_2: 'SITE 1-2'
+                SITE_BRUT_1_3: 'SITE 1-3'
+                SITE_BRUT_1_4: 'SITE 1-4'
+                SITE_BRUT_1_5: 'SITE 1-5'
+                SITE_BRUT_1_6: 'SITE 1-6'
+                SITE_BRUT_1_7: 'SITE 1-7'
+                SITE_BRUT_1_8: 'SITE 1-8'
+                SITE_BRUT_1_9: 'SITE 1-9'
+
+        # ===== PORTAIL B =====
+        toyota:
+            onglet: PORTAIL B
+            emetteur: PORTAIL B
+            marque_libelle: Marque B
+            scrape_complet: true
+            wmi: [VNK, JTM, JTD, AHT, JTP, YAR, KMH, JTE, JT2, JT3, JT4, JT5, JTH, MHF, NMT, NMP, SB1, SXY]
+            statuts:
+                Approved: '21'
+                AP: '21'
+                Paye: '21'
+                Payé: '21'
+                Rejected: '29'
+                DR: '29'
+                Refuse: '29'
+                Refusé: '29'
+                Annule: '20'
+                Annulé: '20'
+                AD: '20'
+                Decided: '23'
+                DE: '23'
+                Pending: '23'
+                PD: '23'
+            concessions:
+                SITE_BRUT_2_1: 'SITE 2-1'
+                SITE_BRUT_2_2: 'SITE 2-2'
+                SITE_BRUT_2_3: 'SITE 2-3'
+                SITE_BRUT_2_4: 'SITE 2-4'
+                SITE_BRUT_2_5: 'SITE 2-5'
+                SITE_BRUT_2_6: 'SITE 2-6'
+                SITE_BRUT_2_7: 'SITE 2-7'
+                SITE_BRUT_2_8: 'SITE 2-8'
+                SITE_BRUT_2_9: 'SITE 2-9'
+
+        # ===== PORTAIL C =====
+        fiat:
+            onglet: PORTAIL C
+            emetteur: PORTAIL C
+            marque_libelle: Marque C
+            scrape_complet: true
+            wmi: []  # pas de detection WMI : Fiat est la BU par defaut Progiciel
+            # Statuts deja en code numerique cote portail Fiat -> passthrough
+            statuts:
+                '20': '20'
+                '21': '21'
+                '22': '22'
+                '23': '23'
+                '24': '24'
+                '25': '25'
+                '29': '29'
+            concessions:
+                SITE_BRUT_3_1: 'SITE 3-1'
+                SITE_BRUT_3_2: 'SITE 3-2'
+                SITE_BRUT_3_3: 'SITE 3-3'
+                SITE_BRUT_3_4: 'SITE 3-4'
+                SITE_BRUT_3_5: 'SITE 3-5'
+
+        # ===== PORTAIL D =====
+        bmw:
+            onglet: PORTAIL D
+            emetteur: PORTAIL D
+            marque_libelle: Marque D
+            scrape_complet: true
+            # WMI BMW (3 premiers chars du VIN) - documentaire, non utilise en matching.
+            wmi: [WBA, WBS, WBX, WBY, WB1, WB5, 4US, 5UX, 5YM]
+            # Portail BMW : 3 statuts (Error / Success / Warning) + vides.
+            # Provisoire (demande de la responsable technique 2026) : Success = Paye (21), tout le reste = Refuse (29).
+            statuts:
+                SUCCESS: '21'
+                ERROR: '29'
+                WARNING: '29'
+                '': '29'
+            concessions: {}

@@ -1,0 +1,89 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Accès — Suite Créances Automobile{% endblock %}
+
+{# On reprend l'ecran de connexion de l'application : meme grille .auth,
+   meme vitrine a gauche, meme boite a droite. Seul le moyen d'authentification
+   change, puisqu'il n'y a aucun fournisseur d'identite en demonstration. #}
+{% block body %}
+<div class="auth">
+
+    <section class="auth-showcase">
+        <span class="showcase-grid" aria-hidden="true"></span>
+        <span class="showcase-euro" aria-hidden="true">&euro;</span>
+        <span class="shape shape-triangle" aria-hidden="true"></span>
+        <span class="shape shape-arc" aria-hidden="true"></span>
+
+        <div class="showcase-top">
+            {% include 'demo/_marque.html.twig' with { taille: 52 } only %}
+        </div>
+
+        <div class="showcase-body">
+            <p class="eyebrow">Mémoire d'expertise comptable &middot; Démonstration</p>
+            <h1 class="showcase-title">Diagnostiquer.<br>Fiabiliser.<br><span class="gold">Piloter.</span></h1>
+            <p class="showcase-lead">
+                Dix outils pour le cycle créances d'un groupe automobile multimarques
+                et multi-concessions, réunis dans un seul environnement.
+            </p>
+
+            <div class="demo-card">
+                <div class="demo-head">
+                    <span class="demo-label">La chaîne</span>
+                    <span class="demo-tag">10 outils</span>
+                </div>
+                <ul class="demo-list">
+                    <li class="on"><span class="dot"></span>Diagnostiquer &mdash; cadrer, cartographier, mesurer</li>
+                    <li class="on"><span class="dot"></span>Fiabiliser &mdash; identifier, lettrer</li>
+                    <li class="on"><span class="dot"></span>Piloter et sécuriser &mdash; BFR, grands comptes, remboursements</li>
+                    <li class="on"><span class="dot"></span>Agir &mdash; comités, relance utile</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="showcase-stats">
+            <div><strong>10</strong><span>Outils</span></div>
+            <div><strong>6</strong><span>Profils</span></div>
+            <div><strong>100 %</strong><span>Synthétique</span></div>
+        </div>
+    </section>
+
+    <section class="auth-panel">
+        <div class="auth-box">
+
+            {% for message in app.flashes('acces_erreur') %}
+                <p class="login-error" role="alert">{{ message }}</p>
+            {% endfor %}
+
+            <h2 class="auth-title">Suite Créances Automobile</h2>
+            <p class="auth-sub">Accès réservé au jury. Les identifiants vous ont été transmis séparément du lien.</p>
+
+            <form method="post" action="{{ path('demo_acces', {vers: vers}) }}" autocomplete="off" novalidate>
+                <label class="acces-champ">
+                    <span class="acces-libelle">Identifiant</span>
+                    <input type="text" name="identifiant" class="fc-input" required autofocus
+                           autocapitalize="none" spellcheck="false" {{ bloque ? 'disabled' : '' }}>
+                </label>
+
+                <label class="acces-champ">
+                    <span class="acces-libelle">Mot de passe</span>
+                    <input type="password" name="mot_de_passe" class="fc-input" required
+                           autocomplete="current-password" {{ bloque ? 'disabled' : '' }}>
+                </label>
+
+                <button type="submit" class="acces-bouton" {{ bloque ? 'disabled' : '' }}>Se connecter</button>
+            </form>
+
+            <p class="auth-domain">
+                Environnement de démonstration &mdash; données synthétiques
+            </p>
+
+            <div class="auth-foot">
+                <span>Session de {{ minutes // 60 }} h</span>
+                <span>Démonstration DEC</span>
+            </div>
+
+        </div>
+    </section>
+
+</div>
+{% endblock %}

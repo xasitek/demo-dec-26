@@ -1,0 +1,136 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Stratégies de relance - Recouvrement - Finance Créances{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+{% block topbar_nav %}{% include 'recouvrement/_topbar_nav.html.twig' with {active: 'strategies'} %}{% endblock %}
+
+{% macro resume_filtre(f, champs, operateurs) %}
+    {%- set champ = champs[f.champ] ?? f.champ -%}
+    {%- set op = operateurs[f.operateur] ?? f.operateur -%}
+    {%- set val = f.valeur is iterable ? (f.valeur|join(', ')) : f.valeur -%}
+    <span class="inline-flex items-center rounded bg-surface px-1.5 py-0.5 text-[0.7rem] text-ink/70">{{ champ }} <span class="mx-1 text-ink/40">{{ op }}</span> <span class="font-medium text-navy">{{ val }}</span></span>
+{% endmacro %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-6xl px-3">
+
+    <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+            <h1 class="mb-1 text-2xl font-bold text-navy">Stratégies de relance</h1>
+            <p class="max-w-2xl text-sm text-ink/60">Chaque règle décide qui relancer (filtres), à quel rythme (cadence) et comment. La première règle active (par ordre) qui correspond à un compte s'applique. Une stratégie <span class="font-medium text-gold-dark">en pause</span> ne part jamais automatiquement, mais vous pouvez la <span class="font-medium text-navy">lancer manuellement</span> pour tester.</p>
+        </div>
+        <a href="{{ path('app_recouvrement_regle_nouvelle') }}" class="rounded-md bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy-light">Nouvelle règle</a>
+    </div>
+
+    {% if regles is empty %}
+        <div class="rounded-lg border border-dashed border-hairline bg-white/50 py-16 text-center">
+            <h3 class="text-base font-semibold text-navy">Aucune règle</h3>
+            <p class="mt-1 text-sm text-ink/55">Créez une première règle de relance pour démarrer.</p>
+        </div>
+    {% else %}
+        <div class="overflow-x-auto rounded-lg border border-hairline bg-white">
+            <table class="fc-table-comptable">
+                <thead>
+                    <tr>
+                        <th class="fc-cell-fit">Ordre</th>
+                        <th>Règle</th>
+                        <th>Filtres</th>
+                        <th class="fc-cell-fit">Cadence</th>
+                        <th class="fc-cell-fit text-right">Périmètre</th>
+                        <th class="fc-cell-fit">État</th>
+                        <th class="fc-cell-fit">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for regle in regles %}
+                        {% set v = volumes[regle.id] ?? {comptes: 0, factures: 0, encours: '0'} %}
+                        <tr class="{{ regle.actif ? '' : 'opacity-55' }}">
+                            <td class="fc-cell-fit whitespace-nowrap">
+                                <div class="flex items-center gap-1">
+                                    <span class="w-6 text-center text-xs font-semibold text-ink/50">{{ loop.index }}</span>
+                                    <div class="flex flex-col">
+                                        <form method="post" action="{{ path('app_recouvrement_regle_deplacer', {id: regle.id}) }}">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('regle-relance') }}">
+                                            <input type="hidden" name="sens" value="haut">
+                                            <button type="submit" class="text-ink/40 hover:text-navy disabled:opacity-20" {{ loop.first ? 'disabled' : '' }} aria-label="Monter" title="Monter">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5"><path d="m18 15-6-6-6 6"/></svg>
+                                            </button>
+                                        </form>
+                                        <form method="post" action="{{ path('app_recouvrement_regle_deplacer', {id: regle.id}) }}">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('regle-relance') }}">
+                                            <input type="hidden" name="sens" value="bas">
+                                            <button type="submit" class="text-ink/40 hover:text-navy disabled:opacity-20" {{ loop.last ? 'disabled' : '' }} aria-label="Descendre" title="Descendre">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5"><path d="m6 9 6 6 6-6"/></svg>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-sm">
+                                <a href="{{ path('app_recouvrement_regle_editer', {id: regle.id}) }}" class="font-semibold text-navy hover:underline">{{ regle.nom }}</a>
+                                {% if regle.releveSeul %}<span class="ml-1 inline-flex items-center rounded-full bg-gold-soft/40 px-2 py-0.5 text-[0.6rem] font-semibold text-gold-dark">relevé seul</span>{% endif %}
+                            </td>
+                            <td class="text-xs">
+                                {% if regle.filtres is empty %}
+                                    <span class="text-ink/40">tous les impayés</span>
+                                {% else %}
+                                    <div class="flex flex-wrap gap-1">
+                                        {% for f in regle.filtres %}{{ _self.resume_filtre(f, champs, operateurs) }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td class="fc-cell-fit whitespace-nowrap text-xs text-ink/70">
+                                {{ regle.delaiInitial }}j puis /{{ regle.intervalle }}j<br>
+                                <span class="text-[0.7rem] text-negative">MED {{ regle.seuilMed }}j</span>
+                                {% if not regle.continuerApresMed %}<span class="text-[0.65rem] text-ink/45"> (stop)</span>{% endif %}
+                            </td>
+                            <td class="fc-cell-fit whitespace-nowrap text-right text-xs">
+                                <span class="font-semibold text-navy">{{ v.encours|number_format(0, ',', ' ') }} €</span><br>
+                                <span class="text-[0.7rem] text-ink/50">{{ v.comptes }} comptes · {{ v.factures }} fact.</span>
+                            </td>
+                            <td class="fc-cell-fit whitespace-nowrap">
+                                <form method="post" action="{{ path('app_recouvrement_regle_basculer', {id: regle.id}) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('regle-relance') }}">
+                                    {% if regle.actif %}
+                                        <button type="submit" class="inline-flex items-center gap-1 rounded-full bg-positive/10 px-2.5 py-0.5 text-[0.7rem] font-semibold text-positive hover:bg-positive/20" title="Active — cliquer pour mettre en pause"><span class="h-1.5 w-1.5 rounded-full bg-positive"></span>Active</button>
+                                    {% else %}
+                                        <button type="submit" class="inline-flex items-center gap-1 rounded-full bg-gold-soft/40 px-2.5 py-0.5 text-[0.7rem] font-semibold text-gold-dark hover:bg-gold-soft/60" title="En pause — cliquer pour réactiver">
+                                            <svg viewBox="0 0 24 24" fill="currentColor" class="h-2.5 w-2.5"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>En pause</button>
+                                    {% endif %}
+                                </form>
+                            </td>
+                            <td class="fc-cell-fit whitespace-nowrap">
+                                <div class="flex items-center gap-2">
+                                    {% set en_cours = run_en_cours is not null and run_en_cours.regleId == regle.id %}
+                                    {% if en_cours %}
+                                        <span class="inline-flex items-center gap-1.5 rounded-md bg-gold-soft/40 px-2.5 py-1 text-[0.7rem] font-semibold text-gold-dark" title="Lancement en cours">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" class="h-3.5 w-3.5 animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>En cours
+                                        </span>
+                                    {% else %}
+                                        <form method="post" action="{{ path('app_recouvrement_regle_lancer', {id: regle.id}) }}" onsubmit="if(!confirm('Lancer la stratégie « {{ regle.nom|e('js') }} » maintenant ?\n\nJusqu\'à {{ v.comptes }} compte(s) concernés — les relances éligibles partent immédiatement par e-mail.')){return false;} var b=this.querySelector('button'); setTimeout(function(){b.disabled=true;},0); return true;">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('regle-relance') }}">
+                                            <button type="submit" {{ run_en_cours is not null ? 'disabled' : '' }} class="inline-flex items-center gap-1.5 rounded-md border border-navy/20 bg-navy/5 px-2.5 py-1 text-[0.7rem] font-semibold text-navy transition hover:bg-navy hover:text-white disabled:cursor-not-allowed disabled:opacity-40" title="Préparer et envoyer les relances de cette stratégie maintenant">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5"><polygon points="6 3 20 12 6 21 6 3"/></svg>Lancer
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                    <a href="{{ path('app_recouvrement_regle_editer', {id: regle.id}) }}" class="text-ink/55 hover:text-navy" aria-label="Éditer" title="Éditer">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                    </a>
+                                    <form method="post" action="{{ path('app_recouvrement_regle_supprimer', {id: regle.id}) }}" onsubmit="return confirm('Supprimer la règle « {{ regle.nom|e('js') }} » ?')">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('regle-relance') }}">
+                                        <button type="submit" class="text-ink/45 hover:text-negative" aria-label="Supprimer" title="Supprimer">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}

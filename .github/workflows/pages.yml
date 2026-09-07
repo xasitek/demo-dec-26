@@ -1,0 +1,37 @@
+# Publie la plateforme statique de public/ sur GitHub Pages.
+#
+# POURQUOI UN WORKFLOW, ET PAS LE REGLAGE SIMPLE. GitHub Pages ne sait servir
+# que la racine du depot ou /docs. Or la plateforme vit dans public/, et ce
+# chemin n'est pas negociable : l'application Symfony lit les memes fichiers de
+# donnees par app/../public/donnees. Le workflow publie donc public/ sans qu'on
+# ait a dupliquer quarante megaoctets de donnees synthetiques.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publier:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - id: deploiement
+        uses: actions/deploy-pages@v4

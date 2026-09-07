@@ -1,0 +1,90 @@
+{#
+    Lettre de relance papier (vecteur COURRIER), refondue et alignée sur le relevé :
+    corps premium `_releve_corps` (tableau sobre par établissement, carte RIB en avant,
+    QR virement SEPA scannable même imprimé). Le texte (objet, corps, clause) reste
+    fonction du niveau ; fermeture POSTALE (pas de renvoi e-mail). Styles inline (dompdf).
+    Variables : lettre (DonneesLettre : groupe, niveau, destinataire_nom, adresse,
+    formule_appel, total, nb_factures, est_med, date_jour, courrier).
+#}
+{% set c = lettre.courrier %}
+{% set niveau = lettre.niveau %}
+{% set navy = '#2D3250' %}
+{% set gold = '#C8AA73' %}
+{% set negative = '#B0413E' %}
+<div style="font-family: 'DejaVu Sans', sans-serif; color: #3A3A3A; font-size: 12px; line-height: 1.55;">
+
+    {# En-tete SYNTHAUTO : bandeau navy + logo blanc + filet or. #}
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
+        <tr>
+            <td style="padding: 14px 18px; background-color: {{ navy }}; vertical-align: middle;">
+                {% if logo_src|default('') %}
+                    <img src="{{ logo_src }}" alt="SYNTHAUTO Automobile" style="height: 30px;">
+                {% else %}
+                    <span style="color: #ffffff; font-size: 16px; font-weight: 700; letter-spacing: 0.04em;">GROUPE SYNTHAUTO</span>
+                {% endif %}
+            </td>
+            <td style="padding: 14px 18px; background-color: {{ navy }}; vertical-align: middle; text-align: right; color: {{ gold }}; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">Service recouvrement</td>
+        </tr>
+    </table>
+    <div style="height: 3px; background-color: {{ gold }};"></div>
+    <div style="padding: 7px 18px; font-size: 9.5px; color: #8b8f9c; background-color: #F7F7F9; border-bottom: 1px solid #ECECEF;">
+        GROUPE SYNTHAUTO &middot; entité fictive &middot; document de démonstration &middot; mentions légales retirées
+    </div>
+
+    {# Emis le (gauche) + destinataire (droite). #}
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-top: 18px;">
+        <tr>
+            <td style="vertical-align: top; width: 52%; font-size: 11px; color: #666666;">Émis le {{ lettre.date_jour|date('d/m/Y') }}<br>OSKNEM</td>
+            <td style="vertical-align: top; width: 48%; text-align: right;">
+                <div style="font-weight: 700; color: {{ navy }};">{{ lettre.destinataire_nom ?: c.compteCode }}</div>
+                {% if lettre.adresse %}<div style="margin-top: 2px; color: #555555; white-space: pre-line;">{{ lettre.adresse }}</div>{% endif %}
+                <div style="margin-top: 6px; font-size: 10px; color: #6b7280;">Compte : {{ c.compteCode }}</div>
+            </td>
+        </tr>
+    </table>
+
+    {# Objet + reference. #}
+    <p style="margin: 20px 0 2px; font-weight: 700; color: {{ navy }};">
+        Objet :
+        {% if niveau >= 3 %}<span style="color: {{ negative }}; text-transform: uppercase;">Mise en demeure de payer</span>
+        {% elseif niveau == 2 %}Relance pour factures impayées
+        {% else %}Rappel de factures impayées{% endif %}
+    </p>
+    <p style="margin: 0 0 3px; color: {{ navy }};">Référence dossier : <strong style="letter-spacing: 0.5px;">[{{ c.compteCode }}]</strong></p>
+    <p style="margin: 0 0 14px; color: {{ negative }}; font-weight: bold; font-size: 11px;">(à rappeler dans toute correspondance et en libellé de virement)</p>
+
+    <p style="margin: 12px 0;">{{ lettre.formule_appel }},</p>
+
+    {# Corps selon le niveau. #}
+    {% if niveau >= 3 %}
+        <p style="margin: 0 0 14px;">En dépit de nos relances successives, {{ lettre.nb_factures > 1 ? 'les factures détaillées ci-dessous demeurent impayées' : 'la facture détaillée ci-dessous demeure impayée' }}. Par la présente, nous vous <strong>mettons en demeure</strong> de procéder à {{ lettre.nb_factures > 1 ? 'leur' : 'son' }} règlement intégral sous un délai de <strong>huit (8) jours</strong> à compter de la réception de ce courrier.</p>
+    {% elseif niveau == 2 %}
+        <p style="margin: 0 0 14px;">Malgré notre précédent rappel, {{ lettre.nb_factures > 1 ? 'les factures ci-dessous restent impayées' : 'la facture ci-dessous reste impayée' }} à ce jour. Nous vous remercions de procéder à {{ lettre.nb_factures > 1 ? 'leur' : 'son' }} règlement dans les meilleurs délais.</p>
+    {% else %}
+        <p style="margin: 0 0 14px;">Sauf erreur ou omission de notre part, {{ lettre.nb_factures > 1 ? 'les factures ci-dessous demeurent impayées' : 'la facture ci-dessous demeure impayée' }} à ce jour. Nous vous remercions de bien vouloir procéder à {{ lettre.nb_factures > 1 ? 'leur' : 'son' }} règlement.</p>
+    {% endif %}
+
+    {# Corps premium : tableau sobre par etablissement + carte RIB + QR + total (aligne sur le releve). #}
+    {% if lettre.groupe %}
+        {% include 'recouvrement/pdf/_releve_corps.html.twig' with { groupe: lettre.groupe } %}
+    {% else %}
+        <p style="margin: 14px 0;">Total restant dû : <strong>{{ lettre.total|number_format(2, ',', ' ') }} € TTC</strong></p>
+    {% endif %}
+
+    {# Clause MED / fermeture. #}
+    {% if niveau >= 3 %}
+        <p style="margin: 14px 0;">À défaut de paiement dans le délai imparti, nous nous réservons le droit d'engager toute procédure de recouvrement, amiable ou judiciaire, ainsi que l'application des intérêts de retard et de l'indemnité forfaitaire pour frais de recouvrement prévus par la loi.</p>
+        <p style="margin: 0 0 14px;">Si vous estimez cette demande infondée ou si votre règlement a été effectué récemment, nous vous remercions de nous contacter sans délai.</p>
+    {% else %}
+        <p style="margin: 14px 0;">Si ce règlement a déjà été effectué, nous vous prions de ne pas tenir compte de ce courrier. Nous restons à votre disposition pour toute information complémentaire.</p>
+    {% endif %}
+
+    <p style="margin: 18px 0 6px;">Nous vous prions d'agréer, {{ lettre.formule_appel }}, l'expression de nos salutations distinguées.</p>
+    <p style="margin: 22px 0 0; font-weight: 700; color: {{ navy }};">Le service recouvrement — SYNTHAUTO Automobile</p>
+    {% if niveau >= 3 %}
+        <p style="margin-top: 18px; font-size: 9px; color: #9ca3af; font-style: italic;">Courrier à envoyer en recommandé avec accusé de réception (LRAR).</p>
+    {% endif %}
+
+    {# Pied legal. #}
+    {% include 'recouvrement/email/_pied_legal.html.twig' %}
+</div>

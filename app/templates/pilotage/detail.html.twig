@@ -1,0 +1,129 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Détail — Cockpit{% endblock %}
+{% block page_title %}Cockpit BFR et DSO{% endblock %}
+{% block topbar_nav %}{% include 'pilotage/_nav.html.twig' with { active: 'cockpit' } %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1500px]">
+
+  {# ---------------------------------------- le fil d'Ariane : les filtres tiennent #}
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="mb-2 flex flex-wrap items-center gap-2 text-[12.5px]">
+      <a href="{{ path('app_cockpit') }}" class="font-semibold text-ink/50 hover:text-navy">Cockpit</a>
+      <span class="text-ink/30">›</span>
+      <a href="{{ path('app_cockpit_detail', {niveau: 'societe', nature: nature}) }}"
+         class="font-semibold {{ chemin is empty ? 'text-navy' : 'text-ink/50 hover:text-navy' }}">Groupe</a>
+      {% for c in chemin %}
+        <span class="text-ink/30">›</span>
+        <span class="rounded bg-navy/5 px-2 py-0.5 font-mono text-[11.5px] font-semibold text-navy">
+          {{ c.libelle }} {{ c.valeur }}
+        </span>
+      {% endfor %}
+      <span class="ml-auto text-[11px] text-ink/45">
+        niveau {{ niveaux[niveau].libelle }} · {{ lignes|length }} ligne{{ lignes|length > 1 ? 's' }} ·
+        {{ ms|number_format(1, ',', ' ') }} ms
+      </span>
+    </div>
+    <p class="text-[11.5px] leading-relaxed text-ink/60">
+      Chaque descente <b>conserve les filtres du niveau précédent</b>. Sept niveaux, six clics :
+      groupe, société, établissement, payeur, compte client, facture, écriture.
+      {% if nature != 'encours' %}
+        Périmètre : <b>{{ nature == 'exposition' ? "exposition à traiter" : 'encours fiabilisé' }}</b>.
+      {% endif %}
+    </p>
+  </section>
+
+  <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="mb-3 flex flex-wrap items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">
+        {{ niveaux[niveau].libelle }}{{ niveau not in ['ecriture', 'facture'] ? 's' }}
+      </h3>
+      <span class="ml-auto font-mono text-sm font-bold text-navy">
+        {{ (total / 1000)|number_format(0, ',', ' ') }} k€
+      </span>
+    </div>
+
+    {% if niveau == 'ecriture' %}
+      <table class="fc-table-comptable w-full">
+        <thead><tr><th>Écriture</th><th>Date</th><th>Compte</th><th>Jl</th><th>Sens</th>
+          <th class="text-right">Montant</th><th>Lettrage</th><th>N° série</th><th>Référence</th></tr></thead>
+        <tbody>
+          {% for l in lignes %}
+            <tr>
+              <td class="font-mono text-[11.5px]">{{ l.cle }}</td>
+              <td class="font-mono text-[11.5px]">{{ l.date_ecriture|date('d/m/Y') }}</td>
+              <td class="font-mono text-[11.5px]">{{ l.complement }}</td>
+              <td class="font-mono text-[11px] text-ink/50">{{ l.journal }}</td>
+              <td class="text-[11.5px] font-semibold {{ l.sens == 'D' ? 'text-navy' : 'text-positive' }}">{{ l.sens }}</td>
+              <td class="text-right font-mono text-[12px] font-semibold">{{ l.montant|number_format(2, ',', ' ') }} €</td>
+              <td class="font-mono text-[11px] {{ l.lettrage ? 'text-positive' : 'text-warning' }}">
+                {{ l.lettrage ?: 'non lettrée' }}</td>
+              <td class="font-mono text-[11px] text-ink/55">{{ l.vin8 ?: '—' }}</td>
+              <td class="font-mono text-[11px] text-ink/55">{{ l.reference_piece ?: '—' }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="9" class="py-8 text-center text-[12px] text-ink/40">
+              Aucune écriture rattachée à cette créance.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="mt-2 text-[11px] text-ink/45">
+        Fin de la descente : l'écriture comptable. C'est ici que le chiffre de plusieurs millions
+        affiché sur le cockpit finit de s'expliquer.
+      </p>
+
+    {% else %}
+      <table class="fc-table-comptable w-full">
+        <thead><tr>
+          <th>{{ niveaux[niveau].libelle }}</th>
+          {% if niveau == 'facture' %}<th>Cause</th><th>Échéance</th><th>Soldée par</th>{% endif %}
+          {% if niveau in ['payeur', 'compte'] %}<th>Type</th>{% endif %}
+          <th class="text-right">Créances</th><th class="text-right">Montant</th>
+          <th class="text-right">Part</th><th class="text-right">Sous-niveaux</th><th></th>
+        </tr></thead>
+        <tbody>
+          {% for l in lignes %}
+            <tr>
+              <td class="font-mono text-[12px] font-semibold">{{ l.libelle }}</td>
+              {% if niveau == 'facture' %}
+                <td class="text-[11.5px]">{{ l.complement }}</td>
+                <td class="font-mono text-[11.5px]">{{ l.echeance|date('d/m/Y') }}</td>
+                <td class="font-mono text-[11px] {{ l.soldee_par ? 'text-positive' : 'text-warning' }}">
+                  {{ l.soldee_par ?: 'encore ouverte' }}</td>
+              {% endif %}
+              {% if niveau in ['payeur', 'compte'] %}
+                <td class="text-[11.5px] text-ink/55">{{ l.complement }}</td>
+              {% endif %}
+              <td class="text-right font-mono text-[12px]">{{ l.factures|number_format(0, ',', ' ') }}</td>
+              <td class="text-right font-mono text-[12px] font-semibold">{{ l.montant|number_format(2, ',', ' ') }} €</td>
+              <td class="text-right font-mono text-[12px] text-ink/55">
+                {{ total > 0 ? (l.montant / total * 100)|number_format(1, ',', ' ') : '0,0' }} %</td>
+              <td class="text-right font-mono text-[12px] text-ink/55">{{ l.sous_niveaux }}</td>
+              <td class="text-right">
+                {% if niveau == 'facture' %}
+                  <a href="{{ path('app_cockpit_facture', {id: l.cle}) }}"
+                     class="whitespace-nowrap text-[12px] font-semibold text-navy hover:underline">Pourquoi ? →</a>
+                {% elseif niveaux[niveau].suivant %}
+                  {% set suite = {
+                    'groupe': {'societe_id': l.cle},
+                    'societe': {'societe_id': l.cle},
+                    'etablissement': {'etablissement_id': l.cle},
+                    'payeur': {'client_id': l.cle},
+                    'compte': {'client_id': l.cle}
+                  }[niveau] %}
+                  <a href="{{ path('app_cockpit_detail', filtres|merge(suite)|merge({niveau: niveaux[niveau].suivant, nature: nature})) }}"
+                     class="whitespace-nowrap text-[12px] font-semibold text-navy hover:underline">Descendre →</a>
+                {% endif %}
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="9" class="py-8 text-center text-[12px] text-ink/40">Aucune ligne à ce niveau.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </section>
+
+</div>
+{% endblock %}

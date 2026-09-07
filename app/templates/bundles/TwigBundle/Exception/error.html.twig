@@ -1,0 +1,293 @@
+{#
+ # Page d'erreur universelle (prod). Symfony l'utilise pour tous les codes HTTP
+ # rendus en HTML : 404, 403, 500, 503, etc. Variables fournies par Symfony :
+ # status_code, status_text, exception.
+ #
+ # Volontairement autonome :
+ #  - n'etend pas layout.html.twig (qui appelle Mercure, le voter de module et
+ #    la base pour les notifications : sur une 500 causee par la base ou Redis,
+ #    la page d'erreur planterait a son tour) ;
+ #  - CSS en ligne et aucun JS applicatif, donc lisible meme si les assets sont
+ #    casses ou si le build Tailwind n'est pas a jour.
+ #
+ # Previsualisation en dev : /_error/404, /_error/500, etc.
+ #}
+{% extends 'base.html.twig' %}
+
+{% block title %}Erreur {{ status_code }} - Finance Créances{% endblock %}
+
+{% block javascripts %}{% endblock %}
+
+{% block stylesheets %}
+<style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+        margin: 0;
+        background: #2D3250;
+        color: #FFFFFF;
+        font-family: 'Montserrat', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        font-weight: 400;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    .err {
+        position: relative;
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        isolation: isolate;
+    }
+
+    /* Territoire graphique SYNTHAUTO : triangle navy en haut-gauche, arc gold en bas-droite. */
+    .err-shape {
+        position: absolute;
+        z-index: -1;
+        pointer-events: none;
+    }
+    .err-triangle {
+        top: 0;
+        left: 0;
+        width: 46vw;
+        height: 46vw;
+        max-width: 620px;
+        max-height: 620px;
+        background: #232740;
+        clip-path: polygon(0 0, 100% 0, 0 100%);
+    }
+    .err-arc {
+        right: -8vw;
+        bottom: -14vw;
+        width: 52vw;
+        height: 52vw;
+        max-width: 680px;
+        max-height: 680px;
+        border-radius: 50%;
+        border: 2px solid rgba(200, 170, 115, 0.45);
+        border-left-color: transparent;
+        border-top-color: transparent;
+    }
+    .err-arc-fill {
+        right: -18vw;
+        bottom: -22vw;
+        width: 40vw;
+        height: 40vw;
+        max-width: 520px;
+        max-height: 520px;
+        border-radius: 50%;
+        background: rgba(200, 170, 115, 0.06);
+    }
+
+    .err-head {
+        padding: 28px 32px;
+    }
+    .err-logo {
+        height: 30px;
+        width: auto;
+        display: block;
+    }
+
+    .err-main {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        padding: 8px 32px 48px;
+    }
+    .err-box {
+        max-width: 620px;
+        margin: 0 auto;
+    }
+
+    .err-code {
+        display: block;
+        font-size: clamp(72px, 16vw, 148px);
+        font-weight: 800;
+        line-height: 0.9;
+        letter-spacing: 0.02em;
+        color: #C8AA73;
+        margin: 0;
+    }
+    .err-status {
+        display: block;
+        margin: 14px 0 0;
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.45);
+    }
+
+    .err-title {
+        margin: 20px 0 0;
+        font-size: clamp(24px, 4.2vw, 34px);
+        font-weight: 700;
+        line-height: 1.2;
+        color: #FFFFFF;
+    }
+    .err-lead {
+        margin: 14px 0 0;
+        font-size: 15px;
+        line-height: 1.65;
+        color: rgba(255, 255, 255, 0.7);
+        max-width: 46ch;
+    }
+
+    .err-path {
+        margin: 22px 0 0;
+        padding: 11px 14px;
+        border-left: 2px solid #C8AA73;
+        background: rgba(255, 255, 255, 0.05);
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.6);
+        overflow-wrap: anywhere;
+    }
+    .err-path span {
+        display: block;
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.35);
+        margin-bottom: 3px;
+    }
+
+    .err-actions {
+        margin-top: 32px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .err-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        padding: 11px 20px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+    }
+    .err-btn svg {
+        width: 16px;
+        height: 16px;
+        flex: none;
+    }
+    .err-btn-primary {
+        background: #C8AA73;
+        color: #2D3250;
+    }
+    .err-btn-primary:hover { background: #E5D4B0; }
+    .err-btn-ghost {
+        background: transparent;
+        border-color: rgba(255, 255, 255, 0.25);
+        color: rgba(255, 255, 255, 0.85);
+    }
+    .err-btn-ghost:hover {
+        border-color: #C8AA73;
+        color: #FFFFFF;
+    }
+    .err-btn:focus-visible {
+        outline: 2px solid #C8AA73;
+        outline-offset: 3px;
+    }
+
+    .err-foot {
+        padding: 0 32px 26px;
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.3);
+    }
+
+    @media (max-width: 640px) {
+        .err-head { padding: 22px 20px; }
+        .err-main { padding: 4px 20px 36px; }
+        .err-foot { padding: 0 20px 20px; }
+        .err-triangle { width: 70vw; height: 70vw; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+{% set messages = {
+    404: {
+        titre: 'Cette page a quitté le parc',
+        texte: "On a fouillé tout le showroom : aucune trace de cette adresse. Vendue, renommée, ou elle n'a jamais existé."
+    },
+    403: {
+        titre: 'Zone atelier, badge refusé',
+        texte: "Vous êtes bien connecté, mais cette porte ne s'ouvre pas avec votre badge."
+    },
+    419: {
+        titre: 'Votre session a pris une pause café',
+        texte: 'Reconnectez-vous, on garde votre place.'
+    },
+    500: {
+        titre: 'Le moteur a calé',
+        texte: "Ce n'est pas vous, c'est nous. L'incident est enregistré, ça sent déjà le cambouis."
+    },
+    503: {
+        titre: 'Passage au garage',
+        texte: 'Maintenance en cours. On remet le capot en place et on revient.'
+    }
+} %}
+{% set message = messages[status_code]|default({
+    titre: 'Sortie de route',
+    texte: "Erreur #{status_code}. On ne sait pas bien ce qui s'est passé, mais on ne va pas rester là."
+}) %}
+{% set uri = app.request is not null ? app.request.requestUri : '' %}
+
+<div class="err">
+    <span class="err-shape err-triangle" aria-hidden="true"></span>
+    <span class="err-shape err-arc-fill" aria-hidden="true"></span>
+    <span class="err-shape err-arc" aria-hidden="true"></span>
+
+    <header class="err-head">
+        <a href="{{ path('app_home') }}">
+            <img src="{{ asset('images/logo-fc-automobile-white.png') }}" alt="Groupe Synthauto" class="err-logo">
+        </a>
+    </header>
+
+    <main class="err-main">
+        <div class="err-box">
+            <p class="err-code">{{ status_code }}</p>
+            <p class="err-status">{{ status_text }}</p>
+
+            <h1 class="err-title">{{ message.titre }}</h1>
+            <p class="err-lead">{{ message.texte }}</p>
+
+            {% if status_code == 404 and uri is not empty %}
+                <p class="err-path">
+                    <span>Adresse demandée</span>
+                    {{ uri|slice(0, 120) }}{{ uri|length > 120 ? '...' : '' }}
+                </p>
+            {% endif %}
+
+            <div class="err-actions">
+                <a href="{{ path('app_home') }}" class="err-btn err-btn-primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M3 10.5 12 3l9 7.5"/>
+                        <path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5"/>
+                    </svg>
+                    Retour à l'accueil
+                </a>
+                <button type="button" class="err-btn err-btn-ghost" onclick="history.back()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M19 12H5"/>
+                        <path d="m12 19-7-7 7-7"/>
+                    </svg>
+                    Page précédente
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <footer class="err-foot">Finance Créances</footer>
+</div>
+{% endblock %}

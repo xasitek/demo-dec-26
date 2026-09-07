@@ -1,0 +1,15 @@
+{#
+    Lot de lettres de relance papier : une lettre par page.
+    Variables : lettres (list<DonneesLettre>).
+    Chaque lettre est rendue via le template unitaire, suivie d'un saut de page
+    (sauf la derniere) pour une impression groupee propre.
+#}
+<div style="font-family: 'DejaVu Sans', sans-serif;">
+    {% for lettre in lettres %}
+        <div{% if not loop.last %} style="page-break-after: always;"{% endif %}>
+            {% include 'recouvrement/courrier/lettre.html.twig' with { lettre: lettre, logo_src: logo_src|default('') } only %}
+        </div>
+    {% else %}
+        <p style="font-family: 'DejaVu Sans', sans-serif; font-size: 12px; color: #6b7280;">Aucun courrier en attente.</p>
+    {% endfor %}
+</div>

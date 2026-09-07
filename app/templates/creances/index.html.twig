@@ -1,0 +1,266 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Recouvrement - Finance Créances{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+
+{% macro th(label, key, tri, sens, filtres, align, tooltip) %}
+    {% set actif = tri == key %}
+    {% set sens_suiv = (actif and sens == 'desc') ? 'asc' : 'desc' %}
+    <th class="{{ align == 'right' ? 'is-num' : '' }}"{% if tooltip %} title="{{ tooltip }}"{% endif %}>
+        <a href="{{ path('app_creances_index', filtres|merge({ tri: key, sens: sens_suiv })) }}"
+           data-turbo-frame="creances-liste"
+           class="inline-flex items-center gap-1 hover:text-navy {{ actif ? 'text-navy' : '' }}">
+            {{ label }}
+            {% if tooltip %}<span class="text-ink/30" aria-hidden="true">ⓘ</span>{% endif %}
+            {% if actif %}<span class="text-gold-dark">{{ sens == 'asc' ? '↑' : '↓' }}</span>{% endif %}
+        </a>
+    </th>
+{% endmacro %}
+
+{% block content %}
+{% import '_ui.html.twig' as ui %}
+{% import _self as t %}
+
+{# Options des dropdowns multi-select #}
+{% set tranche_opts = {} %}{% for k, lbl in tranches %}{% set tranche_opts = tranche_opts|merge({ (k): lbl }) %}{% endfor %}
+{% set etab_opts = {} %}{% for e in etablissements %}{% set etab_opts = etab_opts|merge({ (e): e }) %}{% endfor %}
+{% set marque_opts = {} %}{% for m in marques %}{% set marque_opts = marque_opts|merge({ (m): m }) %}{% endfor %}
+{# societe et vendeur retires du module 2026-06-02 : non disponibles dans bal_eloficash #}
+
+{# Score : couleur selon valeur (10 = vert, 0 = rouge) #}
+{% set score = indicateurs.score|default(0) %}
+{% set score_couleur = score >= 7 ? 'text-emerald-600' : (score >= 5 ? 'text-amber-600' : 'text-rose-600') %}
+
+<div class="mx-auto max-w-7xl"
+     data-controller="detail-panel filter-pills"
+     data-detail-panel-url-value="{{ path('app_creances_ecriture_detail', { numero: '__ID__' }) }}">
+
+    {% include 'creances/_module_nav.html.twig' with { actif: 'liste' } %}
+    {% include 'creances/_flashes.html.twig' %}
+
+    {# ===== FILTRES AVANCES (hors turbo-frame pour conserver l'etat des dropdowns) ===== #}
+    <form method="get"
+          data-turbo-frame="creances-liste"
+          data-turbo-action="advance"
+          class="mb-4 rounded-md border border-hairline bg-white p-4 shadow-sm">
+        <input type="hidden" name="tri" value="{{ tri }}">
+        <input type="hidden" name="sens" value="{{ sens }}">
+
+        <div class="fc-filter-section is-source-sage">
+            <div class="fc-filter-section-label">Filtres Progiciel</div>
+            <div class="flex flex-wrap gap-2">
+                {{ ui.fc_multi_select('tranches', tranche_opts, filtres.tranches|default([]), 'Toutes les tranches', 'tranches') }}
+                {{ ui.fc_multi_select('etablissement', etab_opts, filtres.etablissement|default([]), 'Tous les etablissements', 'etablissements') }}
+                {{ ui.fc_multi_select('marque', marque_opts, filtres.marque|default([]), 'Toutes les marques', 'marques') }}
+            </div>
+        </div>
+
+        <div class="mt-3 fc-filter-section is-source-calcul">
+            <div class="fc-filter-section-label">Recherche</div>
+            <div class="flex flex-wrap items-center gap-2">
+                <input type="text" name="code" value="{{ filtres.code|default('') }}"
+                       placeholder="Code tiers"
+                       class="w-32 rounded-md border border-hairline px-3 py-1.5 font-mono text-sm focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/30">
+                <input type="text" name="texte" value="{{ filtres.texte|default('') }}"
+                       placeholder="Nom, prenom, piece, immat..."
+                       class="w-64 rounded-md border border-hairline px-3 py-1.5 text-sm focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/30">
+                <input type="number" name="montant_min" value="{{ filtres.montant_min|default('') }}"
+                       placeholder="Montant min (EUR)" step="100" min="0"
+                       class="w-40 rounded-md border border-hairline px-3 py-1.5 text-sm focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/30">
+                <button type="submit"
+                        class="inline-flex items-center gap-1.5 rounded-md border border-navy bg-navy px-3 py-1.5 text-sm font-medium text-white transition hover:bg-navy-light">
+                    <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
+                    </svg>
+                    Rechercher
+                </button>
+            </div>
+        </div>
+    </form>
+
+    {# ===== CARTES SYNTHESE ===== #}
+    <div class="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+
+        {# 1. Encours total #}
+        <div class="rounded-md border border-hairline bg-white p-4 shadow-sm">
+            <p class="text-2xl font-bold text-navy">
+                {{ synthese.encours_total|number_format(0, ',', ' ') }} <span class="text-base text-ink/40">EUR</span>
+            </p>
+            <p class="text-xs uppercase tracking-wider text-ink/50">Encours total</p>
+            <p class="mt-1 text-[0.7rem] text-ink/45">{{ pluriel(synthese.nb_comptes, 'compte', 'comptes') }} · {{ pluriel(synthese.nombre, 'creance', 'creances') }}</p>
+        </div>
+
+        {# 2. Encours > 60j (cible recouvrement) #}
+        <div class="rounded-md border border-hairline bg-white p-4 shadow-sm">
+            <p class="text-2xl font-bold text-orange-600">
+                {{ synthese.encours_grt_60j|number_format(0, ',', ' ') }} <span class="text-base text-ink/40">EUR</span>
+            </p>
+            <p class="text-xs uppercase tracking-wider text-ink/50">Encours &gt; 60 jours</p>
+            <p class="mt-1 text-[0.7rem] text-ink/45">
+                {% if synthese.encours_total > 0 %}
+                    {{ ((synthese.encours_grt_60j / synthese.encours_total) * 100)|number_format(1, ',', ' ') }}% du total
+                {% else %}—{% endif %}
+            </p>
+        </div>
+
+        {# 3. Encours > 180j (criticite) #}
+        <div class="rounded-md border border-hairline bg-white p-4 shadow-sm">
+            <p class="text-2xl font-bold text-rose-700">
+                {{ synthese.encours_grt_180j|number_format(0, ',', ' ') }} <span class="text-base text-ink/40">EUR</span>
+            </p>
+            <p class="text-xs uppercase tracking-wider text-ink/50">Encours &gt; 180 jours</p>
+            <p class="mt-1 text-[0.7rem] text-ink/45">Zone critique (contentieux)</p>
+        </div>
+
+        {# 4. DSO / BPDSO #}
+        <div class="rounded-md border border-hairline bg-white p-4 shadow-sm">
+            <p class="text-2xl font-bold text-navy">
+                {{ indicateurs.dso|number_format(1, ',', ' ') }} <span class="text-base text-ink/40">jours</span>
+            </p>
+            <p class="text-xs uppercase tracking-wider text-ink/50">DSO</p>
+            <p class="mt-1 text-[0.7rem] text-ink/45">
+                BPDSO : {{ indicateurs.bpdso|number_format(1, ',', ' ') }}j · Retard moyen : {{ indicateurs.retard_moyen_jours|number_format(0, ',', ' ') }}j
+            </p>
+        </div>
+
+        {# 5. Score global #}
+        <div class="rounded-md border border-hairline bg-white p-4 shadow-sm">
+            <p class="text-2xl font-bold {{ score_couleur }}">
+                {{ score|number_format(1, ',', ' ') }}<span class="text-base text-ink/40">/10</span>
+            </p>
+            <p class="text-xs uppercase tracking-wider text-ink/50">Score sante</p>
+            <p class="mt-1 text-[0.7rem] text-ink/45">Encaissement M : {{ indicateurs.encaissement_mois|number_format(0, ',', ' ') }} EUR</p>
+        </div>
+    </div>
+
+    {# ===== TURBO FRAME : tout ce qui se rafraichit avec les filtres ===== #}
+    <turbo-frame id="creances-liste">
+
+        {# Pills + Toggle vue + Actions #}
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div class="fc-filter-pills">
+                {% if pills is empty %}
+                    <span class="text-xs text-ink/40">Aucun filtre actif</span>
+                {% else %}
+                    {% for p in pills %}
+                        <button type="button"
+                                class="fc-filter-pill is-source-{{ p.source }}"
+                                data-action="click->filter-pills#remove"
+                                data-filter-pills-name-param="{{ p.name }}"
+                                data-filter-pills-value-param="{{ p.valeur_brute }}"
+                                data-filter-pills-url-param="{{ p.url }}"
+                                title="Retirer ce filtre">
+                            <span class="fc-filter-pill-label">{{ p.label }} :</span>
+                            <span>{{ p.valeur }}</span>
+                            <span class="fc-filter-pill-close" aria-hidden="true">×</span>
+                        </button>
+                    {% endfor %}
+                    <a href="{{ path('app_creances_index') }}" data-turbo-frame="_top" class="ml-1 text-xs text-ink/55 hover:text-navy">Tout effacer</a>
+                {% endif %}
+            </div>
+
+            <div class="flex items-center gap-2">
+                {# Toggle vue : par facture (1 ligne = 1 creance) ou par client
+                   (1 ligne = 1 compte agrege). Conserve les filtres + tri actifs. #}
+                {% set _params_facture = filtres|merge({ tri: tri, sens: sens, vue: 'facture' }) %}
+                {% set _params_client = filtres|merge({ tri: tri, sens: sens, vue: 'client' }) %}
+                <div class="inline-flex overflow-hidden rounded-md border border-hairline bg-white">
+                    <a href="{{ path('app_creances_index', _params_facture) }}"
+                       class="inline-flex items-center gap-1.5 px-3 py-1.5 text-[0.78rem] font-medium transition {{ vue|default('facture') == 'facture' ? 'bg-navy text-white' : 'text-ink/65 hover:bg-navy/[0.04] hover:text-navy' }}"
+                       title="1 ligne = 1 facture / ecriture">
+                        <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        Par facture
+                    </a>
+                    <a href="{{ path('app_creances_index', _params_client) }}"
+                       class="inline-flex items-center gap-1.5 border-l border-hairline px-3 py-1.5 text-[0.78rem] font-medium transition {{ vue|default('facture') == 'client' ? 'bg-navy text-white' : 'text-ink/65 hover:bg-navy/[0.04] hover:text-navy' }}"
+                       title="1 ligne = 1 client (encours et echu agreges)">
+                        <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        Par client
+                    </a>
+                </div>
+
+                <a href="{{ path('app_creances_export', filtres|merge({ tri: tri, sens: sens })) }}"
+                   data-turbo="false"
+                   class="inline-flex items-center gap-1.5 rounded-md border border-navy bg-navy px-3 py-1.5 text-sm font-medium text-white transition hover:bg-navy-light"
+                   title="Telecharger les creances filtrees au format CSV (compatible Excel)">
+                    <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/>
+                    </svg>
+                    Exporter CSV
+                    {% if filtres is not empty %}<span class="text-[0.65rem] uppercase tracking-wider text-gold-soft">(filtré)</span>{% endif %}
+                </a>
+            </div>
+        </div>
+
+        {# Tableau dense avec scroll infini — branche selon la vue active #}
+        {% if vue|default('facture') == 'client' %}
+            <div class="overflow-hidden rounded-md border border-hairline bg-white shadow-sm"
+                 data-controller="infinite-scroll"
+                 data-infinite-scroll-url-value="{{ path('app_creances_index', filtres|merge({ tri: tri, sens: sens, vue: 'client' })) }}"
+                 data-infinite-scroll-page-value="{{ page }}"
+                 data-infinite-scroll-total-pages-value="{{ total_pages }}">
+                <table class="fc-table-comptable">
+                    <thead>
+                        <tr>
+                            {{ t.th('Compte', 'compte', tri, sens, filtres|merge({ vue: 'client' }), '', 'Code compte Progiciel') }}
+                            {{ t.th('Client', 'nom', tri, sens, filtres|merge({ vue: 'client' })) }}
+                            {{ t.th('Encours total', 'montant', tri, sens, filtres|merge({ vue: 'client' }), 'right', 'Encours total agrege (echu + non echu)') }}
+                            <th class="is-num" title="Encours echu uniquement">Echu</th>
+                            <th class="is-num" title="Encours echu / encours total">% echu</th>
+                            {{ t.th('Pire tranche', 'retard', tri, sens, filtres|merge({ vue: 'client' }), 'center', 'Pire tranche d\'anciennete trouvee sur ce compte') }}
+                            <th class="is-num" title="Nombre de creances ouvertes pour ce compte">Creances</th>
+                            <th class="is-num" title="Anciennete moyenne ponderee">Anciennete</th>
+                        </tr>
+                    </thead>
+                    <tbody data-infinite-scroll-target="items">
+                        {% include 'creances/_rows_comptes.html.twig' %}
+                    </tbody>
+                </table>
+                <div data-infinite-scroll-target="sentinel" class="h-px"></div>
+                <p data-infinite-scroll-target="loading" class="py-4 text-center text-sm text-ink/50" style="display:none">Chargement...</p>
+            </div>
+            <p class="mt-4 text-center text-xs text-ink/40">{{ pluriel(total, 'compte', 'comptes') }} · {{ pluriel(synthese.nombre, 'creance', 'creances') }} au total</p>
+        {% else %}
+            <div class="overflow-hidden rounded-md border border-hairline bg-white shadow-sm"
+                 data-controller="infinite-scroll"
+                 data-infinite-scroll-url-value="{{ path('app_creances_index', filtres|merge({ tri: tri, sens: sens })) }}"
+                 data-infinite-scroll-page-value="{{ page }}"
+                 data-infinite-scroll-total-pages-value="{{ total_pages }}">
+                <table class="fc-table-comptable">
+                    <thead>
+                        <tr>
+                            {{ t.th('Anciennete', 'retard', tri, sens, filtres, '', 'Tranche d\'anciennete telle que calculee par Progiciel') }}
+                            {{ t.th('Client', 'nom', tri, sens, filtres) }}
+                            <th title="Numero de piece et date d'ecriture Progiciel">Piece / Date <span class="text-ink/30" aria-hidden="true">ⓘ</span></th>
+                            {{ t.th('Vehicule', 'marque', tri, sens, filtres, '', 'Marque et immatriculation issues du dossier Progiciel') }}
+                            <th title="Etablissement et societe Synthauto">Etablissement</th>
+                            {{ t.th('Montant', 'montant', tri, sens, filtres, 'right', 'Solde absolu de l ecriture en EUR') }}
+                            <th>Vendeur</th>
+                        </tr>
+                    </thead>
+                    <tbody data-infinite-scroll-target="items">
+                        {% include 'creances/_rows.html.twig' %}
+                    </tbody>
+                </table>
+                <div data-infinite-scroll-target="sentinel" class="h-px"></div>
+                <p data-infinite-scroll-target="loading" class="py-4 text-center text-sm text-ink/50" style="display:none">Chargement...</p>
+            </div>
+            <p class="mt-4 text-center text-xs text-ink/40">{{ pluriel(total, 'creance', 'creances') }} · {{ pluriel(synthese.nb_comptes, 'compte', 'comptes') }}</p>
+        {% endif %}
+    </turbo-frame>
+
+    {# Panneau de detail (sera enrichi en PHASE 2 avec le contenu reel) #}
+    <div data-detail-panel-target="backdrop" data-action="click->detail-panel#close" class="fixed inset-0 z-40 bg-navy-deep/40 opacity-0 pointer-events-none transition-opacity duration-200"></div>
+    <aside data-detail-panel-target="panel" class="fixed inset-y-0 right-0 z-50 w-full max-w-2xl translate-x-full transform overflow-y-auto bg-white shadow-2xl shadow-navy/20 transition-transform duration-200">
+        <div class="flex items-center justify-between border-b border-hairline px-5 py-3">
+            <h2 class="font-semibold text-navy">Detail de la creance</h2>
+            <button type="button" data-action="detail-panel#close" class="rounded-md p-1.5 text-ink/55 hover:bg-surface hover:text-navy" aria-label="Fermer">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div data-detail-panel-target="content" class="p-5">
+            <p class="text-sm text-ink/60">Selectionnez une creance pour voir son detail.</p>
+        </div>
+    </aside>
+</div>
+{% endblock %}

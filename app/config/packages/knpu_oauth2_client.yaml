@@ -1,0 +1,16 @@
+knpu_oauth2_client:
+    clients:
+        # Authentification Google OAuth (domaine @demonstration.invalid).
+        # Les credentials sont dans .env.local (non versionne). Voir docs/SECURITY.md.
+        google:
+            type: google
+            client_id: '%env(GOOGLE_CLIENT_ID)%'
+            client_secret: '%env(GOOGLE_CLIENT_SECRET)%'
+            # Route de callback definie par le controleur OAuth (Phase 1).
+            redirect_route: oauth_google_check
+            redirect_params: {}
+            # PAS de hosted_domain ici : la lib refuserait cote client tout compte hors
+            # du domaine configure, ce qui empeche les domaines secretaires autorises
+            # (partenaire-a.invalid, groupe-demonstration.invalid, partenaire-b.invalid sur le depot remboursement).
+            # Le parametre `hd` est pose PAR REQUETE dans SecurityController::connect
+            # (filtre Google) et la liste blanche qui fait foi est dans GoogleAuthenticator.

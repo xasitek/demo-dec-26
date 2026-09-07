@@ -1,0 +1,58 @@
+{# Les gestes d'une ligne. Trois formes, et la difference est la doctrine :
+
+   - un LIEN vers le module qui execute : affecter ouvre CE virement dans
+     l'outil 4, lettrer ouvre CE lot dans l'outil 5. La decision est prise
+     et journalisee la-bas ;
+   - un lien PREPARE, visiblement inactif, quand le module n'existe pas
+     encore. Rien n'est simule, rien n'est journalise comme fait ;
+   - un formulaire POST pour le seul acte propre a l'outil 6 : la note.
+
+   Parametres attendus : actions (deja resolues par Gestes::pour), objet_type,
+   objet_id, retour, file. #}
+<div class="flex flex-wrap items-center justify-end gap-1">
+  {% for a in actions %}
+    {% if a.nature == 'execution' or a.nature == 'navigation' %}
+      {% if a.url %}
+        <a href="{{ a.url }}" title="{{ a.effet }}"
+           class="whitespace-nowrap rounded-md border px-2 py-1 text-[11px] font-semibold transition
+                  {{ a.nature == 'execution'
+                     ? 'border-positive/50 text-positive hover:bg-positive/10'
+                     : 'border-hairline text-navy hover:border-navy/40 hover:bg-navy/5' }}">
+          {{ a.libelle }}{% if a.module %} <span class="font-mono text-[9.5px] opacity-60">{{ a.module }}</span>{% endif %}
+        </a>
+      {% endif %}
+
+    {% elseif a.nature == 'preparee' %}
+      {# Le module cible n'existe pas encore. On le dit, et on ne fait rien
+         d'autre : simuler une execution serait mentir au jury. #}
+      <span title="{{ a.effet }} — {{ a.module }} en cours de construction"
+            class="cursor-not-allowed whitespace-nowrap rounded-md border border-dashed
+                   border-ink/25 px-2 py-1 text-[11px] font-semibold text-ink/40">
+        {{ a.libelle }}{% if a.niveaux %} {{ a.niveaux|join('/') }}{% endif %}
+        <span class="font-mono text-[9.5px]">{{ a.module }} à venir</span>
+      </span>
+
+    {% elseif a.nature == 'annotation' %}
+      <details class="relative">
+        <summary class="cursor-pointer whitespace-nowrap rounded-md border border-hairline
+                        px-2 py-1 text-[11px] font-semibold text-ink/60 transition
+                        hover:border-ink/30 hover:bg-ink/5">Note</summary>
+        <form method="post" action="{{ path('app_travail_geste') }}"
+              class="absolute right-0 z-20 mt-1 w-72 rounded-xl border border-hairline
+                     bg-white p-2 text-left shadow-lg">
+          <input type="hidden" name="type" value="note">
+          <input type="hidden" name="objet_type" value="{{ objet_type }}">
+          <input type="hidden" name="objet_id" value="{{ objet_id }}">
+          <input type="hidden" name="file" value="{{ file }}">
+          <input type="hidden" name="retour" value="{{ retour }}">
+          <textarea name="note" rows="3" required maxlength="400"
+                    placeholder="Ce que le prochain comptable doit savoir…"
+                    class="w-full rounded-lg border border-hairline px-2 py-1.5 text-[12px]"></textarea>
+          <button type="submit"
+                  class="mt-1 w-full rounded-lg bg-navy px-2 py-1.5 text-[11.5px] font-semibold
+                         text-white hover:bg-navy-deep">Consigner la note</button>
+        </form>
+      </details>
+    {% endif %}
+  {% endfor %}
+</div>

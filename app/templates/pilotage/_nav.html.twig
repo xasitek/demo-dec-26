@@ -1,0 +1,17 @@
+{# Barre d'onglets du module, meme composant que les autres modules. #}
+{% set onglets = {
+  'cockpit': { 'route': 'app_cockpit', 'libelle': 'Cockpit' },
+  'multisites': { 'route': 'app_cockpit_multisites', 'libelle': 'Multi-sites' },
+  'avant': { 'route': 'app_cockpit_avant_apres', 'libelle': 'Avant / après' },
+  'risque': { 'route': 'app_cockpit_risque', 'libelle': 'Risque' },
+  'methode': { 'route': 'app_cockpit_methode', 'libelle': 'Conventions' }
+} %}
+<nav class="flex items-center gap-1">
+  {% for cle, o in onglets %}
+    <a href="{{ path(o.route) }}"
+       class="rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition
+              {{ active == cle ? 'bg-navy text-white' : 'text-ink/60 hover:bg-ink/5 hover:text-ink' }}">
+      {{ o.libelle }}
+    </a>
+  {% endfor %}
+</nav>

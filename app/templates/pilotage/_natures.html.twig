@@ -1,0 +1,67 @@
+{# Les trois natures. La premiere est un FLUX de contexte, les deux autres des
+   POSITIONS a l'arrete. Elles sont donc separees visuellement, et rien ne les
+   presente sur la meme ligne : un lecteur ne doit pas pouvoir les additionner.
+
+   C'est la signature de la suite : un reglement deja encaisse mais mal impute
+   est deja en banque. Le lettrer ne cree pas un euro, il fiabilise une lecture. #}
+
+{% set contexte = natures.cash %}
+<div class="mb-3 rounded-xl border border-positive/40 bg-positive/5 px-4 py-3">
+  <div class="flex flex-wrap items-baseline gap-2">
+    <span class="rounded bg-white px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-positive">
+      Indicateur de contexte
+    </span>
+    <span class="text-[10px] font-semibold uppercase tracking-wider text-ink/45">{{ contexte.libelle }}</span>
+  </div>
+  <div class="mt-0.5 flex flex-wrap items-baseline gap-2">
+    <span class="font-mono text-xl font-bold text-positive">
+      {{ (encours.natures.cash / 1000000)|number_format(1, ',', ' ') }} <span class="text-sm text-gold">M€</span>
+    </span>
+    <span class="text-[12px] font-semibold text-ink/70">
+      — {{ contexte.suffixe }}, sur {{ mois_periode|default(18) }} mois
+    </span>
+  </div>
+  <p class="mt-1 text-[11.5px] leading-relaxed text-ink/60">
+    {{ contexte.definition }}
+  </p>
+  <p class="mt-1.5 border-t border-positive/30 pt-1.5 text-[11.5px] font-semibold text-ink/70">
+    Ne se cumule pas avec les positions ci-dessous.
+  </p>
+  <a href="{{ path('app_travail', {file: 'virements_non_affectes'}) }}"
+     class="mt-1 inline-block text-[11.5px] font-semibold text-navy hover:underline">
+    Traiter les règlements qui n'ont pas trouvé leur compte →</a>
+</div>
+
+<div class="rounded-xl border border-hairline bg-surface p-3">
+  <div class="mb-2 text-[10px] font-bold uppercase tracking-wider text-ink/45">
+    Positions à la date d'arrêté — grandeurs de nature différente du flux ci-dessus
+  </div>
+  <div class="grid gap-3 sm:grid-cols-2">
+    {% for cle in ['fiabilise', 'exposition'] %}
+      {% set n = natures[cle] %}
+      <div class="rounded-xl border-2 bg-white p-4 shadow-sm
+                  {{ cle == 'fiabilise' ? 'border-navy/30' : 'border-warning/50' }}">
+        <div class="text-[10px] font-semibold uppercase tracking-wider
+                    {{ cle == 'fiabilise' ? 'text-navy' : 'text-warning' }}">
+          {{ n.libelle }}
+          <span class="ml-1 font-normal normal-case text-ink/40">{{ n.suffixe }}</span>
+        </div>
+        <div class="font-mono text-2xl font-bold {{ cle == 'fiabilise' ? 'text-navy' : 'text-warning' }}">
+          {{ (encours.natures[cle] / 1000000)|number_format(2, ',', ' ') }} <span class="text-sm text-gold">M€</span>
+        </div>
+        <p class="mt-1.5 text-[11.5px] leading-relaxed text-ink/60">{{ n.definition }}</p>
+        <a href="{{ path('app_cockpit_detail', {niveau: 'societe', nature: cle == 'fiabilise' ? 'fiabilise' : 'exposition'}) }}"
+           class="mt-2 inline-block text-[11.5px] font-semibold text-navy hover:underline">
+          Voir les lignes qui composent ce chiffre →
+        </a>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<p class="mt-2 text-[11.5px] leading-relaxed text-ink/55">
+  Ces trois montants ne s'additionnent <b>jamais</b>, et l'écran ne les met pas sur la même ligne
+  pour cette raison. Le premier est un flux de trésorerie sur la période ; les deux autres sont des
+  positions à la date d'arrêté. Les sommer compterait deux fois un argent déjà reçu — et
+  présenterait une fiabilisation comptable comme du cash créé.
+</p>

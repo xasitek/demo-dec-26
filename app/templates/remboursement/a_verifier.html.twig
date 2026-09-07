@@ -1,0 +1,76 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{% if nbAVerifier > 0 %}({{ nbAVerifier }}) {% endif %}Remboursement client{% endblock %}
+{% block page_title %}Remboursement client{% endblock %}
+{% block topbar_nav %}{% include 'remboursement/_nav.html.twig' with { active: 'verifier', nbAVerifier: nbAVerifier } %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1500px]" data-controller="remboursement-statut controle-modal"
+     data-controle-modal-fiche-url-value="{{ path('app_remboursement_dossier_panneau', {id: '__ID__'}) }}">
+    {% for message in app.flashes('success') %}<div class="mb-4 rounded-lg border border-positive/30 bg-positive/10 px-4 py-2.5 text-sm text-positive">{{ message }}</div>{% endfor %}
+    {% for message in app.flashes('error') %}<div class="mb-4 rounded-lg border border-negative/30 bg-negative/10 px-4 py-2.5 text-sm text-negative">{{ message }}</div>{% endfor %}
+    <div data-controller="remboursement-liste"
+         data-remboursement-liste-ligne-url-value="{{ path('app_remboursement_ligne', {id: '__ID__'}) }}">
+
+        {# Message fun quand il n'y a plus rien a verifier #}
+        <div data-remboursement-liste-target="vide" class="{{ aVerifier is not empty ? 'hidden' }} mx-auto mt-8 max-w-lg rounded-2xl border border-hairline bg-gradient-to-b from-surface to-white px-8 py-14 text-center shadow-sm">
+            <div class="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-gold/15">
+                <svg class="h-8 w-8 text-gold" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5L3 8z"/><path d="M5 19h14"/></svg>
+            </div>
+            <h2 class="text-xl font-bold text-navy">Tout est vérifié !</h2>
+            <p class="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-ink/60">Plus rien à vérifier — tu peux prendre un thé et souffler. Tu gères tout, <span class="font-semibold text-gold">queen</span>.</p>
+        </div>
+
+        {# Table "A verifier" (masquee si vide, reaffichee des qu'un dossier arrive) #}
+        <section data-remboursement-liste-target="section" class="{{ aVerifier is empty ? 'hidden' }}">
+            <div class="mb-2 flex items-center gap-2">
+                <h2 class="text-sm font-bold uppercase tracking-wide text-navy">À vérifier</h2>
+                <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800" data-remboursement-liste-target="compteur">{{ aVerifier|length }}</span>
+            </div>
+            <div class="overflow-x-auto rounded-xl border border-amber-200 bg-white shadow-sm">
+                <table class="w-full text-sm">
+                    <thead class="bg-amber-50/60">{% include 'remboursement/_entetes.html.twig' with { controle: true } %}</thead>
+                    <tbody data-remboursement-liste-target="rows">
+                        {% include 'remboursement/_liste_rows.html.twig' with { dossiers: aVerifier, etabs: etabs, directeurs: directeurs, mode: 'page', meta: meta, controle: true } %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    {# Panneau glissant a DROITE : clic sur le tag « Doublon » d'une ligne -> liste les
+       dossiers du groupe (meme beneficiaire). Le clic sur la LIGNE ouvre la verif ; le tag
+       stoppe la propagation. Rempli en JS depuis data-groupe du badge. #}
+    <aside data-controle-modal-target="panneau" class="fixed inset-y-0 right-0 z-50 w-full max-w-md translate-x-full transform overflow-y-auto bg-white shadow-2xl shadow-navy/20 transition-transform duration-200">
+        <div class="flex items-center gap-2 border-b border-hairline px-5 py-3">
+            <div class="flex flex-1 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+                Doublon — même bénéficiaire
+            </div>
+            <button type="button" data-action="controle-modal#fermerPanneau" class="rounded-md p-1.5 text-ink/55 transition hover:bg-surface hover:text-navy" aria-label="Fermer">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="px-4 py-4">
+            <p class="mb-3 text-xs text-ink/55">Ces dossiers partagent le même bénéficiaire. Cliquez sur l'un d'eux pour voir son détail.</p>
+            <ul data-controle-modal-target="liste" class="space-y-2"></ul>
+        </div>
+    </aside>
+
+    {# Modal CENTRAL : detail d'UN dossier de la liste (fragment panneau charge a la volee). #}
+    <div data-controle-modal-target="fiche" class="fixed inset-0 z-[60] hidden items-center justify-center p-4">
+        <div class="absolute inset-0 bg-navy/40 backdrop-blur-sm" data-action="click->controle-modal#fermerFiche"></div>
+        <div class="relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl shadow-navy/30">
+            <div class="flex items-center gap-2 border-b border-hairline px-5 py-3">
+                <h2 class="flex-1 text-sm font-semibold text-navy">Détail du dossier</h2>
+                <button type="button" data-action="controle-modal#fermerFiche" class="rounded-md p-1.5 text-ink/55 transition hover:bg-surface hover:text-navy" aria-label="Fermer">
+                    <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div data-controle-modal-target="ficheContenu" class="overflow-y-auto">
+                <p class="px-5 py-10 text-center text-sm text-ink/55">Chargement…</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

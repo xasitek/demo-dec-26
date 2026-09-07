@@ -1,0 +1,74 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Lettrages à revoir{% endblock %}
+{% block page_title %}Lettrage des écritures{% endblock %}
+{% block topbar_nav %}{% include 'lettrage/_nav.html.twig' with { active: 'relecture' } %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1500px]">
+
+  <section class="mb-4 rounded-xl border-2 border-negative/40 bg-negative/5 p-4 shadow-sm">
+    <h3 class="mb-2 text-sm font-bold uppercase tracking-wide text-ink/70">
+      Lettrage existant à revoir
+    </h3>
+    <p class="text-[13px] leading-relaxed text-ink/80">
+      Un moteur qui n'automatiserait que l'avenir laisserait derrière lui tout ce que des mois de
+      lettrage manuel ont pu poser de travers. Ces <b>{{ total|number_format(0, ',', ' ') }}</b>
+      lettrages ont été relus, et quatre défauts se détectent <b>sans rien savoir d'autre que le
+      groupe lui-même</b> : un solde qui ne tombe pas, une clé sectorielle qui se contredit, une
+      clé qui ne prouve rien, un règlement compté deux fois.
+    </p>
+  </section>
+
+  <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+    {% for r in recap %}
+      <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">
+          {{ {'conforme': 'Conforme',
+              'a_revoir_solde': 'Solde résiduel',
+              'a_revoir_contradiction': 'Clé contradictoire',
+              'a_revoir_cle': 'Clé sans valeur',
+              'a_revoir_doublon': 'Règlement en double',
+              'a_revoir_incomplet': 'Une seule jambe'}[r.verdict]|default(r.verdict) }}
+        </div>
+        <div class="text-lg font-bold {{ r.verdict == 'conforme' ? 'text-positive' : 'text-negative' }}">{{ r.n|number_format(0, ',', ' ') }}</div>
+        <div class="text-[11px] text-ink/45">{{ r.solde|number_format(0, ',', ' ') }} € en jeu</div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="mb-3 flex items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">Les lettrages contestés</h3>
+      <span class="rounded-full bg-ink/10 px-2 py-0.5 text-xs font-semibold text-ink/60">{{ lignes|length }}</span>
+      <span class="ml-auto text-[11px] text-ink/40">triés par solde en jeu</span>
+    </div>
+    <table class="fc-table-comptable w-full">
+      <thead><tr>
+        <th>Code de lettrage</th><th>Compte client</th><th>Posé le</th>
+        <th class="text-right">Débit</th><th class="text-right">Crédit</th>
+        <th class="text-right">Solde</th><th>Motif</th>
+      </tr></thead>
+      <tbody>
+        {% for l in lignes %}
+          <tr>
+            <td class="font-mono text-[12px] font-semibold">{{ l.code_lettrage }}</td>
+            <td class="text-[12px]">{{ l.client_nom ?: l.client_id }}</td>
+            <td class="font-mono text-[11.5px]">{{ l.pose_le|date('d/m/Y') }}</td>
+            <td class="text-right font-mono text-[12px]">{{ l.montant_debit|number_format(2, ',', ' ') }} €</td>
+            <td class="text-right font-mono text-[12px]">{{ l.montant_credit|number_format(2, ',', ' ') }} €</td>
+            <td class="text-right font-mono text-[12px] font-bold {{ l.solde|abs > 0.01 ? 'text-negative' : 'text-ink/40' }}">
+              {{ l.solde|number_format(2, ',', ' ') }} €</td>
+            <td class="text-[11.5px] leading-snug text-ink/70">{{ l.motif }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="7" class="py-8 text-center text-[12px] text-ink/40">
+            Aucune relecture. Lancez <span class="font-mono">app:lettrage:relire</span>.
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+</div>
+{% endblock %}

@@ -1,0 +1,63 @@
+{# Onglet "Toutes les ecritures" : historique complet du tiers (bal_eloficash). #}
+
+{% if ecritures is empty %}
+    <div class="p-8 text-center text-sm text-ink/55">
+        <p>Aucune ecriture comptable pour ce tiers.</p>
+    </div>
+{% else %}
+    <div class="overflow-hidden">
+        <table class="fc-table-comptable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Piece</th>
+                    <th>Libelle</th>
+                    <th>Vehicule</th>
+                    <th class="is-num">Debit</th>
+                    <th class="is-num">Credit</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ligne in ecritures %}
+                    {% set dd = ligne.donnees is iterable ? ligne.donnees : ligne.donnees|json_decode %}
+                    {% set debit = (dd.debit|default(0)) + 0 %}
+                    {% set credit = (dd.credit|default(0)) + 0 %}
+                    <tr class="cursor-pointer hover:bg-surface/60 transition-colors"
+                        data-action="click->detail-panel#open"
+                        data-detail-panel-id-param="{{ dd.numero|default('') }}">
+                        <td class="text-[0.78rem] text-ink/70 whitespace-nowrap">
+                            {% if dd.dateecriture is defined and dd.dateecriture %}
+                                {{ dd.dateecriture|slice(0, 10)|replace({'-': '/'}) }}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="font-mono text-[0.78rem] text-ink/80 whitespace-nowrap">{{ dd.numpiece|default('—') }}</td>
+                        <td class="text-[0.78rem] text-ink/70">
+                            {{ dd.libelle|default(dd['Libellé']|default(dd.designation|default('—'))) }}
+                        </td>
+                        <td class="text-[0.78rem] text-ink/70 whitespace-nowrap">
+                            {% if dd.marque is defined and dd.marque %}{{ dd.marque }}{% endif %}
+                            {% if dd.numimmat is defined and dd.numimmat %}<span class="ml-1 font-mono text-[0.7rem] text-ink/45">{{ dd.numimmat }}</span>{% endif %}
+                        </td>
+                        <td class="is-num">
+                            {% if debit > 0 %}
+                                <span class="font-mono text-navy">{{ debit|number_format(2, ',', ' ') }}</span>
+                            {% else %}
+                                <span class="text-ink/20">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="is-num">
+                            {% if credit > 0 %}
+                                <span class="font-mono text-emerald-700">{{ credit|number_format(2, ',', ' ') }}</span>
+                            {% else %}
+                                <span class="text-ink/20">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="border-t border-hairline px-4 py-2 text-[0.7rem] text-ink/45">
+        {{ pluriel(ecritures|length, 'ecriture', 'ecritures') }} · Historique complet du tiers
+    </p>
+{% endif %}

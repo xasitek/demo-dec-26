@@ -1,0 +1,42 @@
+{# Partial "Vue par client" : 1 ligne par compte (agrege depuis balance_agee).
+   Memes filtres que la vue "Par facture", mais on regroupe sur le code compte.
+   Permet de cibler en pilotage les clients problematiques (et pas chaque
+   facture individuellement). #}
+
+{% set tranche_classes = {
+    '<30':  'bg-sky-50 text-sky-700 ring-sky-200',
+    '>30':  'bg-amber-50 text-amber-700 ring-amber-200',
+    '>60':  'bg-orange-50 text-orange-700 ring-orange-200',
+    '>90':  'bg-red-50 text-red-700 ring-red-200',
+    '>120': 'bg-rose-100 text-rose-700 ring-rose-200',
+    '>180': 'bg-rose-200 text-rose-900 ring-rose-300',
+    '>240': 'bg-rose-300 text-rose-950 ring-rose-400'
+} %}
+
+{% for c in comptes %}
+    {% set nom_complet = ((c.prenom|default('')) ~ ' ' ~ (c.nom|default('')))|trim ?: '—' %}
+    {% set txt_taux = c.taux_echu > 50 ? 'text-rose-600' : (c.taux_echu > 25 ? 'text-amber-600' : 'text-emerald-600') %}
+    <tr class="cursor-pointer hover:bg-surface/60 transition-colors"
+        onclick="window.location.href='{{ path('app_creances_fiche', { code: c.compte }) }}'">
+        <td class="font-mono text-[0.78rem] tabular-nums text-ink/65">{{ c.compte }}</td>
+        <td class="text-[0.85rem]">
+            <p class="font-medium text-navy">{{ nom_complet }}</p>
+        </td>
+        <td class="is-num font-mono text-[0.82rem] font-semibold tabular-nums text-navy">{{ c.encours|number_format(0, ',', ' ') }}</td>
+        <td class="is-num font-mono text-[0.82rem] tabular-nums {{ c.encours_echu > 0 ? txt_taux : 'text-ink/40' }}">
+            {{ c.encours_echu|number_format(0, ',', ' ') }}
+        </td>
+        <td class="is-num font-mono text-[0.78rem] tabular-nums">
+            <span class="font-semibold {{ txt_taux }}">{{ c.taux_echu|number_format(0) }}%</span>
+        </td>
+        <td class="text-center">
+            {% if c.pire_tranche %}
+                <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[0.65rem] font-medium ring-1 ring-inset {{ tranche_classes[c.pire_tranche]|default('bg-surface text-ink/60 ring-hairline') }}">{{ c.pire_tranche }}</span>
+            {% else %}
+                <span class="text-[0.7rem] text-ink/40">—</span>
+            {% endif %}
+        </td>
+        <td class="is-num font-mono text-[0.78rem] tabular-nums text-ink/65">{{ c.nb_creances }}</td>
+        <td class="is-num font-mono text-[0.78rem] tabular-nums text-ink/65">{{ c.anciennete_moyenne_jours|number_format(0) }}j</td>
+    </tr>
+{% endfor %}

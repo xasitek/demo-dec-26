@@ -1,0 +1,31 @@
+{#
+    Relance niveau 2 : rappel ferme. Le ton se durcit, on cite le retard.
+    Variables : groupe (GroupeARelancer), token.
+#}
+{% extends 'recouvrement/email/_layout.html.twig' %}
+
+{% block titre %}Deuxième relance - factures impayées{% endblock %}
+
+{% block contenu %}
+    <p style="margin: 0 0 16px;">{{ groupe.formule_appel }},</p>
+
+    <p style="margin: 0 0 16px;">
+        Malgré notre précédent rappel, votre compte reste débiteur à ce jour.
+        Nous vous demandons de bien vouloir régulariser cette situation dans les meilleurs délais.
+    </p>
+
+    {% include 'recouvrement/email/_acces_factures.html.twig' %}
+
+    <p style="margin: 0 0 16px;">
+        À défaut de règlement de votre part, nous serions contraints d'engager les démarches de
+        recouvrement prévues, ce que nous souhaitons éviter.
+    </p>
+
+    <p style="margin: 0 0 16px;">
+        Si un différend porte sur ces sommes, nous vous invitons à nous en faire part par retour
+        de cet email afin que nous puissions étudier votre situation.
+    </p>
+
+    <p style="margin: 0;">Cordialement,</p>
+    <p style="margin: 4px 0 0; color: #2D3250; font-weight: 600;">Le service recouvrement - Groupe Synthauto</p>
+{% endblock %}

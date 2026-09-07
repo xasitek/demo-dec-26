@@ -1,0 +1,17 @@
+{# Badge d'etat SECRETAIRE : libelle simplifie + couleur. Attend un DossierStatut ;
+   le regroupement/couleur vient de StatutSecretaire. "Correction requise" ressort. #}
+{% macro badge(statut) %}
+    {%- set sec = statut.statutSecretaire -%}
+    {%- set cls = {
+        'neutre':     'bg-ink/10 text-ink/70',
+        'ia':         'bg-indigo-100 text-indigo-700',
+        'comptable':  'bg-amber-100 text-amber-800',
+        'correction': 'bg-orange-100 text-orange-800 ring-1 ring-inset ring-orange-300',
+        'directeur':  'bg-sky-100 text-sky-700',
+        'valide':     'bg-emerald-100 text-emerald-700',
+        'paiement':   'bg-teal-100 text-teal-700',
+        'paye':       'bg-green-100 text-green-700',
+        'refuse':     'bg-red-100 text-red-700',
+    } -%}
+    <span class="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium {{ cls[sec.couleur]|default('bg-ink/10 text-ink/70') }}">{{ sec.libelle }}</span>
+{% endmacro %}

@@ -1,0 +1,16 @@
+{
+  "tables": {
+    "truth_virement": 36500,
+    "truth_reglement": 36500,
+    "truth_livraison": 3400,
+    "truth_remboursement": 2500,
+    "truth_relance": 12400,
+    "truth_scenario": 54800,
+    "truth_facture": 62000,
+    "truth_lettrage": 6991,
+    "truth_lettrage_historique": 700,
+    "truth_dossier_gc": 3400,
+    "truth_anomalie_gc": 2142
+  },
+  "avertissement": "Verite de reference. Ne doit jamais etre lue par un moteur de decision."
+}

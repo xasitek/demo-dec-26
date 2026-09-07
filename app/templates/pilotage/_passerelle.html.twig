@@ -1,0 +1,126 @@
+{# La passerelle : de l'encours comptable a l'exposition financiere.
+   Chaque etape est nommee, chiffree, et pointe vers les lignes qui la composent.
+   Aucune difference residuelle n'est laissee sans nom. #}
+<div class="space-y-2">
+
+  {# --- 1. l'encours comptable #}
+  <div class="flex flex-wrap items-center gap-3 rounded-xl border-2 border-ink/20 bg-surface px-4 py-3">
+    <div class="min-w-[13rem]">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/45">Encours comptable</div>
+      <div class="font-mono text-xl font-bold text-ink">{{ (passerelle.encours_comptable / 1000000)|number_format(2, ',', ' ') }} <span class="text-xs text-gold">M€</span></div>
+    </div>
+    <p class="flex-1 text-[11.5px] leading-relaxed text-ink/60">
+      Le poste client tel que le grand livre l'affiche, avant tout retraitement.
+    </p>
+    <a href="{{ path('app_cockpit_detail', {niveau: 'societe'}) }}"
+       class="whitespace-nowrap text-[11.5px] font-semibold text-navy hover:underline">Voir les lignes →</a>
+  </div>
+
+  {# --- la première flèche : les retraitements #}
+  <details class="rounded-xl border border-warning/40 bg-warning/5">
+    <summary class="flex cursor-pointer flex-wrap items-center gap-3 px-4 py-2.5">
+      <span class="font-mono text-lg text-warning">↓</span>
+      <span class="text-[12.5px] font-semibold text-ink/80">Retraitements</span>
+      <span class="font-mono text-[13px] font-bold text-warning">
+        − {{ (passerelle.total_retraitements / 1000000)|number_format(2, ',', ' ') }} M€</span>
+      <span class="ml-auto text-[11px] font-semibold text-navy">ce que cette flèche retire ▾</span>
+    </summary>
+    <div class="border-t border-warning/30 px-4 py-3">
+      <p class="mb-2 text-[11.5px] leading-relaxed text-ink/70">
+        Quatre populations qui figurent dans le poste client sans être des créances à recouvrer.
+        Deux étaient <b>déjà réglées</b> et la chaîne l'a établi ; deux ne sont <b>pas dues par le
+        client final</b>.
+      </p>
+      <table class="fc-table-comptable w-full">
+        <tbody>
+          {% for r in retraitements %}
+            <tr>
+              <td class="text-[12px] font-semibold">{{ r.libelle }}</td>
+              <td class="text-[11px] leading-snug text-ink/60">{{ r.motif }}</td>
+              <td class="text-right font-mono text-[12px] font-semibold">
+                − {{ (passerelle.retraitements[r.code] / 1000000)|number_format(2, ',', ' ') }} M€</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  {# --- 2. l'encours à piloter #}
+  <div class="flex flex-wrap items-center gap-3 rounded-xl border-2 border-navy/40 bg-navy/5 px-4 py-3">
+    <div class="min-w-[13rem]">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-navy">Encours à piloter</div>
+      <div class="font-mono text-xl font-bold text-navy">{{ (passerelle.encours_a_piloter / 1000000)|number_format(2, ',', ' ') }} <span class="text-xs text-gold">M€</span></div>
+    </div>
+    <p class="flex-1 text-[11.5px] leading-relaxed text-ink/60">
+      Ce qui reste après avoir isolé le déjà-réglé et le non-dû par le client. Une partie attend
+      encore une décision interne.
+    </p>
+    <a href="{{ path('app_cockpit_detail', {niveau: 'societe', nature: 'exposition'}) }}"
+       class="whitespace-nowrap text-[11.5px] font-semibold text-navy hover:underline">Voir les lignes →</a>
+  </div>
+
+  {# --- la seconde flèche : la segmentation #}
+  <details class="rounded-xl border border-ink/25 bg-surface">
+    <summary class="flex cursor-pointer flex-wrap items-center gap-3 px-4 py-2.5">
+      <span class="font-mono text-lg text-ink/60">↓</span>
+      <span class="text-[12.5px] font-semibold text-ink/80">Segmentation — en attente d'une décision interne</span>
+      <span class="font-mono text-[13px] font-bold text-ink/70">
+        − {{ (passerelle.total_decisions_internes / 1000000)|number_format(2, ',', ' ') }} M€</span>
+      <span class="ml-auto text-[11px] font-semibold text-navy">ce que cette flèche retire ▾</span>
+    </summary>
+    <div class="border-t border-ink/20 px-4 py-3">
+      <p class="mb-2 text-[11.5px] leading-relaxed text-ink/70">
+        <b>C'est la population qui manquait à l'explication.</b> Ces créances sont bien ouvertes et
+        bien dues, mais aucune action de recouvrement n'a de sens tant qu'une décision n'est pas
+        prise à l'intérieur du groupe. Les compter dans l'exposition financière ferait relancer un
+        client alors que la décision appartient à la concession ou au comptable.
+      </p>
+      <table class="fc-table-comptable w-full">
+        <tbody>
+          <tr>
+            <td class="text-[12px] font-semibold">Décision de concession en attente</td>
+            <td class="text-[11px] leading-snug text-ink/60">
+              Geste commercial, litige ou abandon : le comité de créances doit trancher. Outil 9.</td>
+            <td class="text-right font-mono text-[12px] font-semibold">
+              − {{ (passerelle.decisions_internes.decision_concession / 1000000)|number_format(2, ',', ' ') }} M€</td>
+          </tr>
+          <tr>
+            <td class="text-[12px] font-semibold">Exception comptable</td>
+            <td class="text-[11px] leading-snug text-ink/60">
+              Écart, avoir en attente ou imputation à revoir : la main passe au comptable.</td>
+            <td class="text-right font-mono text-[12px] font-semibold">
+              − {{ (passerelle.decisions_internes.exception_comptable / 1000000)|number_format(2, ',', ' ') }} M€</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  {# --- 3. l'exposition financière #}
+  <div class="flex flex-wrap items-center gap-3 rounded-xl border-2 border-warning/50 bg-warning/5 px-4 py-3">
+    <div class="min-w-[13rem]">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-warning">Exposition financière à traiter</div>
+      <div class="font-mono text-xl font-bold text-warning">{{ (passerelle.exposition / 1000000)|number_format(2, ',', ' ') }} <span class="text-xs text-gold">M€</span></div>
+    </div>
+    <p class="flex-1 text-[11.5px] leading-relaxed text-ink/60">
+      Créances ouvertes, dues par le client, sans blocage technique et sans décision interne en
+      attente. <b>C'est le seul montant sur lequel une relance a un sens.</b>
+    </p>
+    <a href="{{ path('app_cockpit_detail', {niveau: 'payeur', nature: 'exposition'}) }}"
+       class="whitespace-nowrap text-[11.5px] font-semibold text-navy hover:underline">Voir les lignes →</a>
+  </div>
+
+  <p class="text-[11.5px] leading-relaxed text-ink/55">
+    {% if passerelle.boucle %}
+      Le chemin se referme exactement : aucune différence résiduelle n'est laissée sans nom, et un
+      contrôle de réconciliation le vérifie à chaque construction.
+    {% else %}
+      <b class="text-negative">Le chemin ne se referme pas.</b> Ce message ne devrait jamais
+      s'afficher : les contrôles de réconciliation font échouer la construction dans ce cas.
+    {% endif %}
+    La catégorie <b>« créance ouverte sans cause technique bloquante identifiée »</b> recense
+    toutes les créances sans blocage — <b>y compris celles que la chaîne a soldées depuis</b>. Elle
+    n'est donc pas l'exposition : cette dernière n'en retient que la part encore ouverte.
+  </p>
+</div>

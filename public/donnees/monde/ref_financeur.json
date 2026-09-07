@@ -1,0 +1,1 @@
+{"n":6,"cols":{"id":{"v":["FIN-01","FIN-02","FIN-03","FIN-04","FIN-05","FIN-06"]},"nom":{"v":["FINANCEUR I","FINANCEUR II","FINANCEUR III","FINANCEUR IV","FINANCEUR V","FINANCEUR VI"]},"type":{"d":["captive","independant"],"i":[0,0,1,1,1,1]},"marque_id":{"d":["MRQ-01","MRQ-02",null],"i":[0,1,2,2,2,2]}}}

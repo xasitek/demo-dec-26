@@ -1,0 +1,13 @@
+{# Onglets du module, meme structure que les autres modules de la suite. #}
+{% set onglets = {
+    'file':      { route: 'app_affectation_file',      libelle: 'File des virements' },
+    'pilotage':  { route: 'app_affectation_pilotage',  libelle: 'Pilotage' },
+    'methode':   { route: 'app_affectation_methode',   libelle: 'Méthode et performance' }
+} %}
+{% for cle, o in onglets %}
+    <a href="{{ path(o.route) }}"
+       class="rounded-lg px-3 py-1.5 text-sm font-semibold transition
+              {{ active == cle ? 'bg-navy text-white' : 'text-ink/60 hover:bg-ink/5 hover:text-navy' }}">
+        {{ o.libelle }}
+    </a>
+{% endfor %}

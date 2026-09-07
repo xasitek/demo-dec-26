@@ -1,0 +1,13 @@
+{#- En-tete de colonnes commun aux tables "A verifier" et "Suivi dossier". -#}
+<tr class="border-b border-hairline text-left text-[11px] uppercase tracking-wider text-ink/45">
+    <th class="px-3 py-2.5 font-semibold">Réf.</th>
+    <th class="px-3 py-2.5 font-semibold">Établissement</th>
+    <th class="px-3 py-2.5 font-semibold">Directeur</th>
+    <th class="px-3 py-2.5 font-semibold">Motif</th>
+    <th class="px-3 py-2.5 font-semibold">Immat / ICAR</th>
+    <th class="px-3 py-2.5 font-semibold">Client</th>
+    <th class="px-3 py-2.5 text-right font-semibold">Montant</th>
+    <th class="px-3 py-2.5 font-semibold">État</th>
+    {% if controle|default(false) %}<th class="px-3 py-2.5 font-semibold">Doublon</th>{% endif %}
+    <th class="px-3 py-2.5 font-semibold">Déposé le</th>
+</tr>

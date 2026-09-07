@@ -1,0 +1,51 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Outil {{ outil.numero }} — {{ outil.nom }}{% endblock %}
+{% block page_title %}{{ outil.nom }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1500px]">
+
+  {# Meme structure que les ecrans de l'application : cartes d'indicateurs,
+     titre de section, puis le contenu. #}
+  {% if chiffres is not empty %}
+    <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {% for c in chiffres %}
+        <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">{{ c.libelle }}</div>
+          <div class="text-lg font-bold text-navy">{{ c.valeur }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="mb-2 flex items-center gap-2">
+    <h2 class="text-sm font-bold uppercase tracking-wide text-ink/70">Outil {{ outil.numero }}</h2>
+    <span class="rounded-full bg-ink/10 px-2 py-0.5 text-xs font-semibold text-ink/60">{{ outil.etape }}</span>
+  </div>
+
+  <div class="rounded-xl border border-hairline bg-white p-6 shadow-sm">
+    <h3 class="text-[15px] font-bold text-navy-deep">Le problème</h3>
+    <p class="mt-2 max-w-[75ch] text-sm leading-relaxed text-ink/70">{{ outil.probleme }}</p>
+
+    <div class="mt-6 rounded-lg border-l-2 border-warning bg-warning/5 px-4 py-3">
+      <p class="text-[13px] leading-relaxed text-ink/75">
+        <b>Cet écran est un écran d'attente.</b> Le moteur de cet outil est livré à son lot, et il
+        s'affichera ici, dans cette place exacte de l'application. Les indicateurs ci-dessus sont
+        déjà calculés sur la base de démonstration : ce n'est pas une maquette, c'est un
+        emplacement qui fonctionne et qui attend son contenu.
+      </p>
+    </div>
+
+    <div class="mt-6 flex flex-wrap gap-3">
+      <a href="{{ path('demo_portail') }}" class="inline-flex items-center gap-2 rounded-lg border border-hairline bg-white px-4 py-2 text-sm font-semibold text-ink transition hover:border-navy hover:text-navy">
+        ← Tous les outils
+      </a>
+      <a href="{{ path('demo_outil_profils', {cle: outil.cle}) }}" class="inline-flex items-center gap-2 rounded-lg border border-hairline bg-white px-4 py-2 text-sm font-semibold text-ink transition hover:border-navy hover:text-navy">
+        Changer de profil
+      </a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

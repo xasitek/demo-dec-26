@@ -1,0 +1,263 @@
+{#- Contenu du panneau glissant "Tous les dossiers" (quick-view lecture seule). Mise en
+   forme sobre & pro (charte de la suite) : carte d'identite, meta a icones, tableau Saisie/IA/
+   Comptable avec divergences surlignees, pieces. Attend : dossier, pieces, etabNom, directeurEmail. -#}
+{% import 'remboursement/_statut_badge.html.twig' as badges %}
+{%- set libelles = {
+    'rib': 'RIB', 'facture_achat_vo': "Facture VO", 'estimation_salesforce': 'Estimation',
+    'carte_grise': 'Carte grise', 'certificat_situation': 'Certificat', 'releve_icar': 'Relevé ICAR',
+    'petits_comptes': 'Petits comptes',
+    'fichier_od': 'Écriture OD (CSV)', 'fichier_sepa': 'Virement SEPA',
+} -%}
+{%- set rachat = dossier.motif.value == 'rachat_sec' -%}
+{%- set invalide = dossier.verdictIa == 'invalide' -%}
+{#- IBAN EN CLAIR pour le poste interne (comptable / manager / directeur, seuls a
+   atteindre app_remboursement_dossier_panneau) : ils preparent et controlent le
+   virement, le masque leur faisait rouvrir la piece. La secretaire, elle, garde
+   l'IBAN masque sur ses propres dossiers (vueSecretaire). Groupe par 4 pour la
+   lecture, comme sur un RIB. -#}
+{%- set ibanClair = not vueSecretaire|default(false) -%}
+{%- set ibanSaisie = ibanClair and dossier.ibanClient ? dossier.ibanClient|split('', 4)|join(' ') : dossier.ibanClientMasque -%}
+{%- set ibanIa = ibanClair and dossier.controleIban ? dossier.controleIban|split('', 4)|join(' ') : dossier.controleIbanMasque -%}
+{%- set ibanRetenu = not dossier.valideIban ? '' : (ibanClair ? dossier.valideIban|split('', 4)|join(' ') : dossier.valideIbanMasque) -%}
+{#- Route d'affichage des pieces : comptable par defaut, secretaire pour ses dossiers. -#}
+{%- set pieceRoute = pieceRoute|default('app_remboursement_dossier_piece') -%}
+<div class="space-y-5 px-5 py-5">
+
+    {# ---- Carte d'identite ---- #}
+    <div class="rounded-xl border border-hairline bg-gradient-to-br from-surface to-white p-4">
+        <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+                <div class="font-mono text-sm font-semibold text-navy">{{ dossier.reference }}</div>
+                <div class="mt-0.5 text-[11px] font-semibold uppercase tracking-wider text-ink/45">{{ dossier.motif.libelle }}</div>
+            </div>
+            {{ badges.badge(dossier.statut) }}
+        </div>
+        <div class="mt-4 flex items-end justify-between gap-3">
+            <div class="min-w-0">
+                <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Client</div>
+                <div class="truncate text-base font-semibold text-navy">{{ (dossier.valideNom ?: dossier.nomClient) ?: '—' }}</div>
+            </div>
+            <div class="shrink-0 text-right">
+                <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Montant</div>
+                <div class="text-xl font-bold leading-tight text-navy">{{ (dossier.valideMontant ?: dossier.montant)|number_format(2, ',', ' ') }} <span class="text-sm font-semibold text-gold">€</span></div>
+            </div>
+        </div>
+    </div>
+
+    {# ---- Verdict IA (masque cote secretaire : controle interne au comptable) ---- #}
+    {% if dossier.verdictInfo and not vueSecretaire|default(false) %}
+        <div class="flex items-start gap-2 rounded-lg px-3 py-2 text-xs {{ invalide ? 'bg-amber-50 text-amber-800 ring-1 ring-amber-200' : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' }}">
+            <svg class="mt-0.5 h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                {% if invalide %}<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>{% else %}<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/>{% endif %}
+            </svg>
+            <span>{{ dossier.verdictInfo }}</span>
+        </div>
+    {% endif %}
+
+    {# ---- Meta (icones) ---- #}
+    <div class="grid grid-cols-2 gap-2.5">
+        {% set cell = 'flex items-start gap-2 rounded-lg bg-surface/50 px-3 py-2' %}
+        {% set lbl = 'text-[10px] font-semibold uppercase tracking-wider text-ink/40' %}
+        {% set ico = 'mt-0.5 h-4 w-4 shrink-0 text-ink/35' %}
+
+        <div class="{{ cell }}">
+            <svg class="{{ ico }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16"/><path d="M19 21V9a2 2 0 0 0-2-2h-2"/><path d="M9 7h2M9 11h2M9 15h2"/></svg>
+            <div class="min-w-0"><div class="{{ lbl }}">Établissement</div><div class="truncate text-sm text-ink">{{ etabNom ?: (dossier.etablissementCode ?: '—') }}{% if etabNom and dossier.etablissementCode %} <span class="text-ink/40">({{ dossier.etablissementCode }})</span>{% endif %}</div></div>
+        </div>
+
+        <div class="{{ cell }}">
+            <svg class="{{ ico }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11l-3 3-1.5-1.5"/></svg>
+            <div class="min-w-0"><div class="{{ lbl }}">Directeur</div><div class="break-all text-sm {{ directeurEmail ? 'text-ink' : 'text-ink/40' }}">{{ directeurEmail ?: '—' }}</div></div>
+        </div>
+
+        <div class="{{ cell }}">
+            <svg class="{{ ico }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <div class="min-w-0"><div class="{{ lbl }}">Secrétaire</div><div class="break-all text-sm text-ink">{{ dossier.creePar ?: '—' }}</div></div>
+        </div>
+
+        <div class="{{ cell }}">
+            <svg class="{{ ico }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            <div class="min-w-0"><div class="{{ lbl }}">Déposé le</div><div class="text-sm text-ink">{{ (dossier.deposeLe ?: dossier.creeLe)|date('d/m/Y') }}</div></div>
+        </div>
+
+        {# Identite du dossier. Au rachat sec les DEUX existent (immatriculation et code
+           client ICAR) : deux demi-cellules remplissent la ligne. Au trop-percu l'ICAR est
+           seul et occupe toute la largeur, comme avant. #}
+        {% if rachat %}
+            <div class="{{ cell }}">
+                <svg class="{{ ico }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h12"/></svg>
+                <div class="min-w-0"><div class="{{ lbl }}">Immatriculation</div><div class="font-mono text-sm text-ink">{{ (dossier.valideImmatriculation ?: dossier.immatriculation) ?: '—' }}</div></div>
+            </div>
+        {% endif %}
+        <div class="{{ cell }}{{ rachat ? '' : ' col-span-2' }}">
+            <svg class="{{ ico }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18"/></svg>
+            <div class="min-w-0"><div class="{{ lbl }}">Code client ICAR</div><div class="font-mono text-sm text-ink">{{ (dossier.valideIcar ?: dossier.codeIcar) ?: '—' }}</div></div>
+        </div>
+
+        {# Uniquement s'il y en a une : une cellule vide en permanence n'apprendrait rien. #}
+        {% if dossier.emailCopie %}
+            <div class="{{ cell }} col-span-2">
+                <svg class="{{ ico }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
+                <div class="min-w-0"><div class="{{ lbl }}">En copie de l'attestation</div><div class="break-all text-sm text-ink">{{ dossier.emailCopie }}</div></div>
+            </div>
+        {% endif %}
+    </div>
+
+    {# ---- Controle des donnees : Saisie / IA / Comptable ---- #}
+    {% macro ligne(champ, saisie, ia, mono, retenue) %}
+        {#- Ecart signale seulement s'il est REEL : la comparaison passe par les formes
+           normalisees, une difference de mise en forme (tirets d'immatriculation,
+           espaces d'IBAN, casse) n'allume plus la ligne.
+
+           DEUX comparaisons, pas une : saisie contre IA, mais aussi la VALEUR RETENUE
+           contre ce qui a ete lu. C'est elle qui part au virement -- une frappe du
+           comptable (AGRIFRPP825 pour 826) ne doit pas passer sans un signal. -#}
+        {%- set reference = ia|trim ?: saisie -%}
+        {%- set aRetenue = retenue|default('')|trim is not empty -%}
+        {%- set div = remb_ecart(saisie, ia, mono) or remb_ecart(retenue, reference, mono) -%}
+        <tr class="{{ div ? 'bg-amber-50/40' }}" title="{{ champ }}">
+            <td class="px-3 py-1.5 {{ mono ? 'font-mono break-all' }}">{{ saisie|default('—') ?: '—' }}</td>
+            <td class="px-3 py-1.5 {{ mono ? 'font-mono break-all' }}">{{ ia|trim ? remb_diff(ia, saisie, mono) : '—' }}</td>
+            <td class="px-3 py-1.5 {{ mono ? 'font-mono break-all' }} {{ aRetenue ? 'font-semibold text-navy' : 'text-ink/40' }}">{{ aRetenue ? remb_diff(retenue, reference, mono) : '—' }}</td>
+        </tr>
+    {% endmacro %}
+
+    {# Message laisse par la comptable (uniquement si refuse / correction requise) #}
+    {% if messageComptable %}
+        {% set refuse = dossier.statut.statutSecretaire.value == 'refuse' %}
+        <div class="border-l px-3 py-2.5 {{ refuse ? 'border-red-400 bg-red-50/60' : 'border-amber-400 bg-amber-50/60' }}">
+            <div class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider {{ refuse ? 'text-red-700' : 'text-amber-700' }}">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                {{ refuse ? 'Motif du refus' : 'Correction demandée' }}
+            </div>
+            <p class="mt-1 whitespace-pre-line text-sm text-ink">{{ messageComptable.texte }}</p>
+            {# Auteur du message toujours nomme, comme dans l'historique. #}
+            <p class="mt-1 break-words text-[11px] italic text-ink/45">
+                {{- (messageComptable.par ?? '')|trim ?: 'auteur non enregistré' -}}
+                {%- if messageComptable.le %} · {{ messageComptable.le|date('d/m/Y H:i') }}{% endif -%}
+            </p>
+        </div>
+    {% endif %}
+
+    {# Acces direct a la fiche EDITABLE (le panneau est en lecture seule). Secretaire +
+       dossier en correction requise uniquement : utile quand le statut vient de passer en
+       correction en direct (la ligne, elle, ouvre encore ce panneau). #}
+    {% if lienCorrection is defined and lienCorrection and dossier.statut.value == 'complement_requis' %}
+        <a href="{{ lienCorrection }}" class="flex items-center justify-center gap-2 rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            Corriger le dossier
+        </a>
+    {% endif %}
+
+    <div>
+        <div class="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink/45">
+            <svg class="h-3.5 w-3.5 text-ink/35" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            Contrôle des données
+        </div>
+        <div class="overflow-hidden rounded-xl border border-hairline">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="border-b border-hairline bg-navy/[0.04] text-left text-[10px] uppercase tracking-wider text-ink/50">
+                        <th class="px-3 py-2 font-semibold">Saisie</th>
+                        <th class="px-3 py-2 font-semibold">Lu sur la pièce</th>
+                        <th class="px-3 py-2 font-semibold">Valeur retenue</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-hairline/60">
+                    {{ _self.ligne('Nom', dossier.nomClient, dossier.controleNom, false, dossier.valideNom) }}
+                    {{ _self.ligne('IBAN', ibanSaisie, ibanIa, true, ibanRetenu) }}
+                    {{ _self.ligne('BIC', dossier.bicClient, dossier.controleBic, true, dossier.valideBic) }}
+                    {{ _self.ligne('Montant', dossier.montant ? dossier.montant|number_format(2, ',', ' ') ~ ' €' : '', dossier.controleMontant ? dossier.controleMontant|number_format(2, ',', ' ') ~ ' €' : '', false, dossier.valideMontant ? dossier.valideMontant|number_format(2, ',', ' ') ~ ' €' : '') }}
+                    {% if rachat %}
+                        {{ _self.ligne('Immat.', dossier.immatriculation, dossier.controleImmatriculation, true, dossier.valideImmatriculation) }}
+                    {% endif %}
+                    {# Code client ICAR : exige aux deux motifs, donc controle aux deux. #}
+                    {{ _self.ligne('Code ICAR', dossier.codeIcar, dossier.controleIcar, true, dossier.valideIcar) }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {# ---- Pieces ---- #}
+    <div>
+        <div class="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink/45">
+            <svg class="h-3.5 w-3.5 text-ink/35" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+            Pièces
+        </div>
+        <div class="flex flex-wrap gap-1.5">
+            {% for p in pieces %}
+                <a href="{{ path(pieceRoute, {id: p.id}) }}" target="_blank" rel="noopener"
+                   class="inline-flex items-center gap-1.5 rounded-lg border border-hairline bg-white px-2.5 py-1.5 text-xs font-medium text-ink/75 shadow-sm transition hover:border-navy/30 hover:bg-surface hover:text-navy">
+                    <svg class="h-3.5 w-3.5 text-ink/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                    {{ libelles[p.type]|default(p.type) }}
+                </a>
+            {% else %}
+                <span class="text-xs text-ink/45">Aucune pièce.</span>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# ---- Historique des transitions (libellés compréhensibles par tout le monde) ---- #}
+    {% if historique is defined and historique is not empty %}
+        {%- set etapes = {
+            'deposer': 'Dossier déposé',
+            'demarrer_extraction': 'Lecture automatique des pièces',
+            'terminer_extraction': 'Transmis au service comptabilité',
+            'echec_extraction': 'Transmis au service comptabilité',
+            'demander_complement': 'Correction demandée à la secrétaire',
+            'renvoyer_correction': 'Corrigé et renvoyé au service comptabilité',
+            'basculer_icar': 'Mis en attente (à vérifier)',
+            'resoudre_icar': 'Repris par le service comptabilité',
+            'envoyer_directeur': 'Validé par le service comptabilité',
+            'valider_directeur': 'Validé par la direction',
+            'refuser_directeur': 'Refusé par la direction',
+            'refuser_comptable': 'Refusé par le service comptabilité',
+            'refuser_apres_validation': 'Refusé après validation',
+            'demarrer_generation': 'Virement en préparation par la direction',
+            'terminer_generation': 'Remboursement effectué',
+            'echec_generation': 'Souci lors de la mise en paiement',
+            'relancer_generation': 'Nouvelle tentative de paiement',
+            'lettrer': 'Rapproché en comptabilité',
+            'marquer_doublon': 'Marqué comme doublon',
+            'rouvrir_doublon': 'Rouvert',
+            'marquer_fraude': 'Signalé pour vérification',
+            'rouvrir': 'Rouvert',
+        } -%}
+        <div>
+            <div class="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink/45">
+                <svg class="h-3.5 w-3.5 text-ink/35" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                Historique
+            </div>
+            <ul class="divide-y divide-hairline/60 overflow-hidden rounded-xl border border-hairline">
+                {# Étapes techniques automatiques masquées (sans valeur pour le suivi). #}
+                {% set masquees = ['confirmer', 'demarrer_extraction'] %}
+                {% for t in historique %}
+                    {% if t.transition not in masquees %}
+                        <li class="px-3 py-2 text-xs">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="font-medium text-navy">{{ etapes[t.transition]|default(t.versStatut.libelle) }}</span>
+                                <span class="whitespace-nowrap text-ink/45">{{ t.le|date('d/m/Y à H:i') }}</span>
+                            </div>
+                            {# Auteur TOUJOURS affiche : savoir qui a agi fait partie de la
+                               piste d'audit, et une ligne absente laissait croire que
+                               personne n'etait identifie. Les etapes sans acteur humain
+                               (lecture IA, generation des fichiers) sont nommees comme
+                               telles plutot que laissees vides. #}
+                            {# ... SAUF ces deux etapes : leur libelle dit deja « par la
+                               direction », et nommer la personne n'y ajoute rien tout en
+                               exposant une adresse. La colonne `par` reste ENREGISTREE en
+                               base : la piste d'audit est intacte, seul l'affichage se tait. #}
+                            {% if t.transition not in ['valider_directeur', 'terminer_generation'] %}
+                                {% set auteur = (t.par ?? '')|trim %}
+                                <div class="mt-0.5 break-words text-[11px] italic text-ink/50">
+                                    {{- auteur is empty or auteur == 'systeme' ? 'étape automatique' : 'par ' ~ auteur -}}
+                                </div>
+                            {% endif %}
+                            {% if t.commentaire %}<div class="mt-0.5 whitespace-pre-line italic text-ink/60">{{ t.commentaire }}</div>{% endif %}
+                        </li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+</div>

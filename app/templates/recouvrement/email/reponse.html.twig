@@ -1,0 +1,37 @@
+{#
+    Réponse manuelle d'un comptable à un retour client (charte de la suite).
+    Variables : message (texte saisi, multi-lignes, échappé),
+                auteur (nom + prénom de l'agent connecté qui traite ; peut être vide),
+                reference (code compte du dossier ; peut être vide -> chip masqué),
+                logo_src (cid du logo, fourni par le service pour l'en-tête).
+#}
+{% extends 'recouvrement/email/_layout.html.twig' %}
+
+{% block titre %}Réponse - Service recouvrement Groupe Synthauto{% endblock %}
+
+{% block contenu %}
+    {% if reference is defined and reference %}
+        {# Chip reference dossier : aide le rattachement des re-reponses. Masque si
+           le retour n'a pas de compte (orphelin). #}
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #F5F5F5; border-left: 4px solid #C8AA73; margin-bottom: 18px;">
+            <tr>
+                <td style="padding: 12px 16px; font-size: 13px; line-height: 1.55; color: #4A4A4A;">
+                    <span style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #2D3250; margin-bottom: 3px;">Votre référence dossier</span>
+                    <span style="display: block; font-size: 16px; font-weight: 700; color: #2D3250; letter-spacing: 0.02em;">[ref. {{ reference }}]</span>
+                    <span style="display: block; margin-top: 6px; color: #6b6f80; font-size: 12px;">Merci de conserver cette référence dans nos échanges.</span>
+                </td>
+            </tr>
+        </table>
+    {% endif %}
+
+    <div style="margin: 0; white-space: pre-wrap; font-size: 14px; line-height: 1.65; color: #4A4A4A;">{{ message }}</div>
+
+    <div style="height: 1px; background-color: #E5E5E5; margin: 18px 0 14px;"></div>
+    <div style="font-size: 14px; line-height: 1.5; color: #4A4A4A;">
+        <p style="margin: 0;">Cordialement,</p>
+        {% if auteur is defined and auteur %}
+            <p style="margin: 6px 0 0; font-weight: 700; color: #2D3250;">{{ auteur }}</p>
+        {% endif %}
+        <p style="margin: 2px 0 0; color: #6b6f80;">Service recouvrement &middot; SYNTHAUTO Automobile</p>
+    </div>
+{% endblock %}

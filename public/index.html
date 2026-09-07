@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fr" data-theme="clair">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>Suite Créances Automobile</title>
+<link rel="stylesheet" href="socle/charte.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230f3a5f'/><path d='M8 21V11h4l4 6 4-6h4v10' stroke='%23fff' stroke-width='2.4' fill='none' stroke-linejoin='round'/></svg>">
+</head>
+<body>
+
+<div id="chargement" class="chargement">
+  <div class="chargement__marque">Suite Créances Automobile</div>
+  <div class="chargement__barre"><i></i></div>
+  <div class="chargement__etat" id="chargement-etat">Chargement de l'environnement de démonstration</div>
+</div>
+
+<header class="entete" hidden id="entete">
+  <a class="entete__marque" href="#/">
+    <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><rect width="32" height="32" rx="7" fill="var(--accent)"/><path d="M8 21V11h4l4 6 4-6h4v10" stroke="#fff" stroke-width="2.4" fill="none" stroke-linejoin="round"/></svg>
+    <span>Suite Créances Automobile</span>
+  </a>
+  <nav class="entete__nav" id="nav"></nav>
+  <form class="rech" id="rech-globale" role="search">
+    <input id="rech-champ" type="search" placeholder="Rechercher TX-000874, un client, un n° de série…" autocomplete="off" aria-label="Recherche transverse">
+    <div class="rech__suggestions" id="rech-suggestions" hidden></div>
+  </form>
+  <div class="entete__actions">
+    <button type="button" class="btn btn--fant" id="btn-reset" title="Remet la démonstration dans son état initial">↻ Réinitialiser</button>
+    <button type="button" class="btn btn--fant btn--icone" id="btn-theme" title="Basculer le thème">◐</button>
+  </div>
+</header>
+
+<main id="vue" class="vue" hidden></main>
+
+<footer class="pied" hidden id="pied">
+  <span class="pied__mention"><b>Environnement de démonstration</b> — données entièrement synthétiques</span>
+  <a href="#/methode">Données, contrôles et limites</a>
+  <span class="pied__sep">·</span>
+  <span id="pied-graine"></span>
+</footer>
+
+<script type="module">
+  // Le portail d'abord : l'application n'est chargee qu'une fois la porte
+  // franchie. Un site statique ne peut pas verifier cote serveur -- voir le
+  // commentaire de tete de socle/portail.js, qui dit ce que ce filtre est et
+  // ce qu'il n'est pas.
+  import { franchir } from './socle/portail.js';
+  await franchir();
+  await import('./socle/app.js');
+</script>
+<noscript><p style="padding:2rem;font:16px system-ui">Cette plateforme a besoin de JavaScript pour recalculer ses indicateurs à l'affichage. Aucun indicateur n'est stocké : ils sont tous recalculés à partir des lignes.</p></noscript>
+</body>
+</html>

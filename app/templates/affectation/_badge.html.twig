@@ -1,0 +1,22 @@
+{# Badge de decision. Teintes de la palette de statuts de la suite. #}
+{% set couleurs = {
+  'automatique': ['#ecfdf5', '#16a34a'],
+  'validation':  ['#eff6ff', '#0284c7'],
+  'exception':   ['#fff7ed', '#d97706'],
+  'refus':       ['#fef2f2', '#dc2626']
+} %}
+{% set libelles = {
+  'automatique': 'Affectation automatique',
+  'validation':  'À valider',
+  'exception':   'Intervention humaine',
+  'refus':       'Aucune affectation'
+} %}
+{% if decision %}
+  {% set c = couleurs[decision]|default(['#f4f4f5','#6b7280']) %}
+  <span class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold"
+        style="background: {{ c[0] }}; color: {{ c[1] }}">
+    {{ libelles[decision]|default(decision) }}{% if score is defined and score is not null %} · {{ score }}{% endif %}
+  </span>
+{% else %}
+  <span class="text-[11px] text-ink/35">non analysé</span>
+{% endif %}

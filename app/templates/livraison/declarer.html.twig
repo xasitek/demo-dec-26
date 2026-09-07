@@ -1,0 +1,229 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Déclarer une livraison - Finance Créances{% endblock %}
+{% block page_title %}Livraison{% endblock %}
+{% block topbar_nav %}{% include '_secretaire_topbar.html.twig' with { active: 'declarer' } only %}{% endblock %}
+
+{% set champ = 'w-full rounded-lg border border-hairline bg-white px-3 py-2.5 text-sm text-ink transition placeholder:text-ink/35 focus:border-navy focus:outline-none focus:ring-4 focus:ring-navy/10' %}
+{% macro num(n) %}<span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-navy text-xs font-bold text-white">{{ n }}</span>{% endmacro %}
+{% macro req() %}<span class="text-negative" title="Champ obligatoire">*</span>{% endmacro %}
+{% import _self as f %}
+
+{# Le balisage du select est recopie de la macro `fc_select` de `_ui.html.twig`
+   au lieu d'etre appele : la macro construit ses options par `merge`, et PHP
+   renumerote les cles entieres. Deux concessions sont ici des codes etablissement
+   numeriques (111 et 364, absents du referentiel societe), qui seraient donc
+   remplaces par leur rang. Meme classes, meme controleur Stimulus, meme rendu. #}
+{% macro select_charte(name, options, selected, desactive = false) %}
+<div class="fc-select {{ desactive ? 'pointer-events-none opacity-50' : '' }}" data-controller="custom-select" data-action="change->custom-select#submit">
+    <select name="{{ name }}" {{ desactive ? 'disabled' }} data-custom-select-target="native" class="fc-select-native" tabindex="-1" aria-hidden="true">
+        {% for o in options %}<option value="{{ o.value }}" {{ o.value == selected ? 'selected' }}>{{ o.label }}</option>{% endfor %}
+    </select>
+    <button type="button" {{ desactive ? 'disabled' }} class="fc-select-button" data-custom-select-target="button" data-action="custom-select#toggle">
+        <span data-custom-select-target="label"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <ul class="fc-select-menu" data-custom-select-target="menu" hidden></ul>
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-3xl">
+
+    {% for message in app.flashes('error') %}
+        <div class="mb-4 rounded-lg border border-negative/30 bg-negative/10 px-4 py-2.5 text-sm text-negative">{{ message }}</div>
+    {% endfor %}
+
+    <div class="mb-4">
+        <h1 class="text-xl font-bold text-navy">Déclarer une livraison</h1>
+        <p class="mt-0.5 text-sm text-ink/55">Votre concession, puis le loueur, puis les véhicules livrés.</p>
+    </div>
+
+    {# Le formulaire est public : on donne son lien direct aux secretaires. Mais rien
+       n'est choisissable avant la connexion — c'est elle qui dit QUI declare, et le
+       depot reel exige ROLE_SECRETAIRE. D'ou la banniere, et l'etape 1 grisee. #}
+    {% if not app.user %}
+        <div class="mb-6 flex flex-col items-start gap-3 rounded-xl border border-gold/40 bg-gold/[0.06] p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <p class="text-sm font-semibold text-navy">Une connexion est nécessaire pour déclarer</p>
+                <p class="mt-0.5 text-xs text-ink/60">Connectez-vous avec votre compte Synthauto pour choisir votre concession.</p>
+            </div>
+            <a href="{{ path('oauth_google_connect', { redirect: path('app_livraison_declarer'), secretaire: 1 }) }}"
+               class="inline-flex shrink-0 items-center gap-2 rounded-lg border border-hairline bg-white px-4 py-2 text-sm font-semibold text-navy shadow-sm transition hover:border-navy/30 hover:shadow">
+                <svg viewBox="0 0 48 48" class="h-4 w-4" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                Se connecter avec Google
+            </a>
+        </div>
+    {% endif %}
+
+    {# Etape 1 : la concession. Un formulaire GET distinct, pour que changer de
+       concession ne perde rien du reste. #}
+    <form method="get" action="{{ path('app_livraison_declarer') }}" class="mb-4 rounded-xl border border-hairline bg-white p-5 shadow-sm">
+        <div class="mb-3 flex items-center gap-3">
+            {{ f.num(1) }}
+            <span class="text-sm font-semibold {{ app.user ? 'text-navy' : 'text-ink/40' }}">Votre concession {{ f.req() }}</span>
+        </div>
+        {# Meme regle qu'au niveau loueur : « complet » quand il n'y a plus rien, et
+           rien du tout sinon. Le nombre d'etablissements, lui, reste utile — il
+           previent que la concession couvre plusieurs sites. #}
+        {% set opts_soc = [{ value: '', label: 'Choisir une concession…' }] %}
+        {% for c in concessions %}
+            {% set opts_soc = opts_soc|merge([{
+                value: c.code_societe,
+                label: c.code_societe ~ (c.hors_referentiel ? ' (hors référentiel)' : '')
+                    ~ ' · ' ~ pluriel(c.nb_etablissements, 'établissement', 'établissements')
+            }]) %}
+        {% endfor %}
+        {{ f.select_charte('soc', opts_soc, concession, not app.user) }}
+        <noscript><button type="submit" class="mt-3 rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white">Afficher les loueurs</button></noscript>
+    </form>
+
+    {% if concession == '' %}
+        <div class="rounded-xl border border-dashed border-hairline bg-white/60 px-5 py-10 text-center text-sm text-ink/55">
+            {% if app.user %}Choisissez votre concession pour voir les loueurs.{% else %}Connectez-vous pour commencer.{% endif %}
+        </div>
+    {% else %}
+
+        {# Etape 2 : le loueur. C'est la liste deroulante « Choisissez un client : »
+           du formulaire Google, compteur de restes inclus. Un depot ne vaut que pour
+           un loueur : les pieces jointes sont les memes pour tous les vehicules
+           coches, et un PV de livraison ne part pas chez deux loueurs. #}
+        <form method="get" action="{{ path('app_livraison_declarer') }}" class="mb-4 rounded-xl border border-hairline bg-white p-5 shadow-sm">
+            <input type="hidden" name="soc" value="{{ concession }}">
+            <div class="mb-3 flex items-center gap-3">
+                {{ f.num(2) }}
+                <span class="text-sm font-semibold text-navy">Le loueur {{ f.req() }}</span>
+                <span class="ml-auto text-xs text-ink/45">{{ pluriel(loueurs|length, 'loueur', 'loueurs') }} dans cette concession</span>
+            </div>
+
+            {% if loueurs is empty %}
+                <p class="text-sm text-ink/55">Aucune facture loueur en attente en comptabilité pour cette concession.</p>
+            {% else %}
+                {# Un meme loueur peut porter deux codes payeur (un loueur peut en avoir deux) :
+                   on ne desambigue par le code que dans ce cas. #}
+                {% set noms = {} %}
+                {% for l in loueurs %}{% set noms = noms|merge({ (l.loueur): (noms[l.loueur]|default(0)) + 1 }) %}{% endfor %}
+                {# On ne reprend PAS le « n non livrés » du formulaire Google : le mot
+                   est faux. Sa colonne de statut ne dit pas qu'un véhicule n'a pas été
+                   livré, elle dit qu'aucune réponse de formulaire n'a été retrouvée —
+                   par un VLOOKUP sur du texte, qui se trompe (un loueur affichait 1 non
+                   livré alors que ses 10 véhicules étaient tous déclarés).
+
+                   Ne reste donc que « (complet) » quand il n'y a plus rien à déclarer.
+                   Le nombre, lui, s'affiche à l'étape 3 une fois le loueur choisi. #}
+                {% set opts_loueur = [{ value: '', label: 'Choisir un loueur…' }] %}
+                {% for l in loueurs %}
+                    {% set opts_loueur = opts_loueur|merge([{
+                        value: l.code_payeur,
+                        label: l.loueur ~ (noms[l.loueur] > 1 ? ' — ' ~ l.code_payeur : '')
+                    }]) %}
+                {% endfor %}
+                {{ f.select_charte('loueur', opts_loueur, code_payeur) }}
+                <noscript><button type="submit" class="mt-3 rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white">Afficher les véhicules</button></noscript>
+            {% endif %}
+        </form>
+
+        {% if loueurs is not empty and code_payeur == '' %}
+            <div class="rounded-xl border border-dashed border-hairline bg-white/60 px-5 py-10 text-center text-sm text-ink/55">
+                Choisissez le loueur pour voir ses véhicules à déclarer.
+            </div>
+        {% elseif code_payeur != '' and a_declarer is empty %}
+            <div class="rounded-xl border border-positive/30 bg-positive/[0.07] px-5 py-8 text-center">
+                <p class="text-sm font-semibold text-navy">Rien à déclarer chez ce loueur.</p>
+                <p class="mt-1 text-sm text-ink/60">
+                    {% if declares is not empty %}
+                        Ses {{ pluriel(declares|length, 'véhicule a', 'véhicules ont') }} déjà été déclaré{{ declares|length > 1 ? 's' }}.
+                    {% else %}
+                        Aucune facture en attente pour ce loueur dans cette concession.
+                    {% endif %}
+                </p>
+            </div>
+        {% elseif code_payeur != '' %}
+
+            <form method="post" action="{{ path('app_livraison_declarer_valider') }}" enctype="multipart/form-data" class="space-y-6">
+                <input type="hidden" name="_token" value="{{ csrf_token('livraison_declarer') }}">
+                <input type="hidden" name="concession" value="{{ concession }}">
+                <input type="hidden" name="loueur" value="{{ code_payeur }}">
+
+
+                {# Etape 3 : les vehicules de CE loueur, en selection multiple — le
+                   formulaire Google le permettait deja par cases a cocher. #}
+                <section class="rounded-xl border border-hairline bg-white p-5 shadow-sm">
+                    <div class="mb-4 flex items-center gap-3">
+                        {{ f.num(3) }}
+                        <span class="text-sm font-semibold text-navy">Véhicules livrés {{ f.req() }}</span>
+                        <span class="ml-auto rounded-full bg-surface px-2.5 py-0.5 text-xs font-semibold text-ink/60">{{ pluriel(a_declarer|length, 'en attente', 'en attente') }}</span>
+                    </div>
+
+                    <div class="divide-y divide-hairline overflow-hidden rounded-lg border border-hairline">
+                        {% for v in a_declarer %}
+                            <label class="flex cursor-pointer items-start gap-3 bg-white p-3.5 transition hover:bg-gold/[0.05]">
+                                <input type="checkbox" name="vehicules[]" value="{{ v.identifiant_vehicule }}"
+                                       class="mt-0.5 h-4 w-4 shrink-0 rounded border-hairline text-navy focus:ring-navy/20">
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                        <span class="font-mono text-sm font-bold text-navy">{{ v.immatriculation ?? v.identifiant_vehicule }}</span>
+                                        {% if v.immatriculation is null %}
+                                            <span class="rounded bg-gold/15 px-1.5 py-0.5 text-[11px] font-semibold text-ink/70" title="Véhicule facturé avant immatriculation : identifié par son numéro de série">non immatriculé</span>
+                                        {% endif %}
+                                        <span class="text-xs text-ink/45">établissement {{ v.code_etab }}</span>
+                                    </div>
+                                    <p class="mt-0.5 text-xs text-ink/50">
+                                        {{ pluriel(v.nb_factures, 'facture', 'factures') }}
+                                        {%- if v.derniere_facture %} · dernière le {{ v.derniere_facture|date('d/m/Y') }}{% endif %}
+                                        {%- if v.vin %} · VIN {{ v.vin }}{% endif %}
+                                    </p>
+                                </div>
+                                <span class="shrink-0 text-right text-sm font-semibold text-ink/70">{{ v.solde_total|number_format(2, ',', ' ') }} €</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </section>
+
+                {# Etape 4 : les pieces. Trois, comme le formulaire Google. Elles
+                   valent pour tous les vehicules coches — donc pour un seul loueur. #}
+                <section class="rounded-xl border border-hairline bg-white p-5 shadow-sm">
+                    <div class="mb-4 flex items-center gap-3">{{ f.num(4) }}<span class="text-sm font-semibold text-navy">Pièces du dossier {{ f.req() }}</span></div>
+                    <div class="space-y-4">
+                        {% for p in pieces %}
+                            <div>
+                                <label for="piece_{{ p.value }}" class="mb-1.5 block text-sm font-medium text-ink">{{ p.libelle }} {{ f.req() }}</label>
+                                <p class="mb-1.5 text-xs text-ink/50">{{ p.precision }} — PDF ou image, 100 Mo maximum.</p>
+                                <input type="file" id="piece_{{ p.value }}" name="piece_{{ p.value }}" required
+                                       accept=".pdf,image/*"
+                                       class="{{ champ }} file:mr-3 file:rounded file:border-0 file:bg-navy file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white">
+                            </div>
+                        {% endfor %}
+                        <div>
+                            <label for="commentaire" class="mb-1.5 block text-sm font-medium text-ink">Commentaire <span class="font-normal text-ink/45">(facultatif)</span></label>
+                            <textarea id="commentaire" name="commentaire" rows="2" class="{{ champ }}" placeholder="Une précision utile à la comptabilité…"></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p class="text-xs text-ink/50">Les pièces s'appliquent à tous les véhicules cochés, qui relèvent tous de ce loueur.</p>
+                    <button type="submit" {{ app.user ? '' : 'disabled' }}
+                            class="rounded-lg bg-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-deep disabled:cursor-not-allowed disabled:opacity-40">
+                        Déclarer la livraison
+                    </button>
+                </div>
+            </form>
+        {% endif %}
+
+        {% if declares is not empty %}
+            <details class="mt-6 rounded-xl border border-hairline bg-white/70">
+                <summary class="cursor-pointer px-5 py-3 text-sm font-medium text-ink/70">Déjà déclarés chez ce loueur ({{ declares|length }})</summary>
+                <ul class="divide-y divide-hairline border-t border-hairline">
+                    {% for v in declares %}
+                        <li class="flex items-center justify-between px-5 py-2.5 text-sm">
+                            <span class="font-mono font-semibold text-ink/70">{{ v.immatriculation ?? v.identifiant_vehicule }}</span>
+                            <span class="text-ink/50">établissement {{ v.code_etab }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </details>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

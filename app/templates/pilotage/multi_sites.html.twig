@@ -1,0 +1,82 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Multi-sites — Cockpit{% endblock %}
+{% block page_title %}Cockpit BFR et DSO{% endblock %}
+{% block topbar_nav %}{% include 'pilotage/_nav.html.twig' with { active: 'multisites' } %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1500px]">
+
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="mb-2 flex flex-wrap items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">Les établissements, côte à côte</h3>
+      <span class="rounded-full bg-ink/10 px-2 py-0.5 text-xs font-semibold text-ink/60">{{ lignes|length }}</span>
+      <span class="ml-auto text-[11px] text-ink/45">arrêté au {{ arrete|date('d/m/Y') }} · calculé en {{ ms|number_format(0, ',', ' ') }} ms</span>
+    </div>
+    <p class="mb-3 text-[12px] leading-relaxed text-ink/65">
+      <b>Deux teintes seulement, et chacune a un sens documenté.</b>
+      <span class="mx-1 rounded bg-negative/10 px-1.5 py-0.5 font-semibold text-negative">rouge</span>
+      délai de recouvrement dans le quartile le plus lent, au-delà de
+      <b class="font-mono">{{ seuil_quartile|number_format(1, ',', ' ') }}</b> jours.
+      <span class="mx-1 rounded bg-warning/15 px-1.5 py-0.5 font-semibold text-warning">ambre</span>
+      établissement portant à lui seul plus de 10 % de l'encours du groupe.
+      Aucune autre couleur n'est posée.
+    </p>
+    <div class="overflow-x-auto">
+      <table class="fc-table-comptable w-full" data-controller="tri">
+        <thead><tr>
+          <th>Établissement</th><th>Société</th>
+          <th class="text-right">Encours</th><th class="text-right">Part</th>
+          <th class="text-right">DSO</th><th class="text-right">Plus de 90 j</th>
+          <th class="text-right">Non lettré</th><th class="text-right">Lignes non lettrées</th>
+          <th class="text-right">Dossiers bloqués</th><th></th>
+        </tr></thead>
+        <tbody>
+          {% for l in lignes %}
+            {% set part = encours_total > 0 ? l.encours / encours_total : 0 %}
+            {% set lent = l.dso > 0 and l.dso >= seuil_quartile %}
+            {% set concentre = part > 0.10 %}
+            <tr class="{{ lent ? 'bg-negative/5' : (concentre ? 'bg-warning/5' : '') }}">
+              <td class="font-mono text-[12px] font-semibold">{{ l.etablissement_id }}
+                <span class="block font-sans text-[11px] font-normal text-ink/50">{{ l.nom }}</span></td>
+              <td class="font-mono text-[11.5px] text-ink/55">{{ l.societe_id }}</td>
+              <td class="text-right font-mono text-[12px] font-semibold">{{ (l.encours / 1000)|number_format(0, ',', ' ') }} k€</td>
+              <td class="text-right font-mono text-[12px] {{ concentre ? 'font-bold text-warning' : 'text-ink/55' }}">
+                {{ (part * 100)|number_format(1, ',', ' ') }} %</td>
+              <td class="text-right font-mono text-[12px] {{ lent ? 'font-bold text-negative' : '' }}">
+                {{ l.dso|number_format(1, ',', ' ') }} j</td>
+              <td class="text-right font-mono text-[12px]">{{ (l.plus90 / 1000)|number_format(0, ',', ' ') }} k€</td>
+              <td class="text-right font-mono text-[12px]">{{ (l.non_lettre / 1000)|number_format(0, ',', ' ') }} k€</td>
+              <td class="text-right font-mono text-[12px] text-ink/55">{{ l.lignes_non_lettrees|number_format(0, ',', ' ') }}</td>
+              <td class="text-right font-mono text-[12px] {{ l.dossiers_bloques > 0 ? 'font-semibold text-warning' : 'text-ink/35' }}">
+                {{ l.dossiers_bloques }}</td>
+              <td class="text-right">
+                <a href="{{ path('app_cockpit_detail', {niveau: 'payeur', etablissement_id: l.etablissement_id}) }}"
+                   class="whitespace-nowrap text-[12px] font-semibold text-navy hover:underline">Descendre →</a>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="10" class="py-8 text-center text-[12px] text-ink/40">Aucun établissement.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <h3 class="mb-2 text-sm font-bold uppercase tracking-wide text-ink/70">Ce que la matrice montre immédiatement</h3>
+    {% set lents = lignes|filter(l => l.dso > 0 and l.dso >= seuil_quartile) %}
+    {% set concentres = lignes|filter(l => encours_total > 0 and l.encours / encours_total > 0.10) %}
+    <ul class="space-y-1.5 text-[12.5px] leading-relaxed text-ink/70">
+      <li>— <b>{{ lents|length }}</b> établissement{{ lents|length > 1 ? 's' }} dans le quartile le plus
+        lent : {{ lents|map(l => l.etablissement_id)|join(', ') ?: 'aucun' }}.</li>
+      <li>— <b>{{ concentres|length }}</b> établissement{{ concentres|length > 1 ? 's' }} concentre{{ concentres|length > 1 ? 'nt' : '' }}
+        plus de 10 % de l'encours : {{ concentres|map(l => l.etablissement_id)|join(', ') ?: 'aucun' }}.
+        Une concentration n'est pas un défaut en soi — c'est une exposition à connaître.</li>
+      <li>— Le résiduel n'est pas réparti au hasard. Un établissement lent <i>et</i> concentré est le
+        premier endroit où une action a un effet mesurable sur le DSO du groupe.</li>
+    </ul>
+  </section>
+
+</div>
+{% endblock %}

@@ -1,0 +1,160 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Relance Expert - Recouvrement{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl">
+
+    {% include 'creances/_module_nav.html.twig' with { actif: 'relance' } %}
+    {% include 'creances/_flashes.html.twig' %}
+
+    <div class="mb-4 flex items-baseline justify-between">
+        <h2 class="text-lg font-semibold text-navy">Relance Expert</h2>
+        <p class="text-[0.7rem] text-ink/45">Selection + envoi automatique des relances selon les strategies.</p>
+    </div>
+
+    {# Widget statut #}
+    <div class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div class="rounded-md border border-hairline bg-white p-4 shadow-sm">
+            <p class="text-2xl font-bold text-amber-600">{{ a_relancer|length }}</p>
+            <p class="text-xs uppercase tracking-wider text-ink/50">Comptes a relancer</p>
+        </div>
+        <div class="rounded-md border border-hairline bg-white p-4 shadow-sm">
+            <p class="text-2xl font-bold text-sky-600">{{ a_envoyer|length }}</p>
+            <p class="text-xs uppercase tracking-wider text-ink/50">Relances en attente d'envoi</p>
+        </div>
+        <div class="rounded-md border border-hairline bg-white p-4 shadow-sm">
+            <p class="text-2xl font-bold text-emerald-600">{{ envoyes_recents|length }}</p>
+            <p class="text-xs uppercase tracking-wider text-ink/50">Envois recents</p>
+        </div>
+    </div>
+
+    {# 1. Comptes a relancer #}
+    <form method="post" action="{{ path('app_creances_relance_preparer') }}"
+          class="mb-6 rounded-md border border-hairline bg-white shadow-sm">
+        <input type="hidden" name="_token" value="{{ csrf_token('creances_relance_preparer') }}">
+        <div class="flex items-baseline justify-between border-b border-hairline px-4 py-3">
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-ink/55">Comptes a relancer</h3>
+            <button type="submit" class="rounded-md border border-navy bg-navy px-3 py-1.5 text-sm font-medium text-white hover:bg-navy-light">Preparer les selections</button>
+        </div>
+        {% if a_relancer is empty %}
+            <p class="p-6 text-sm text-ink/45">Aucun compte en attente de relance. Affecte une strategie aux tiers depuis leur fiche.</p>
+        {% else %}
+            <table class="fc-table-comptable">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" onclick="document.querySelectorAll('input[name=&quot;compte_strategie_id[]&quot;]').forEach(cb=>cb.checked=this.checked)"></th>
+                        <th>Compte</th>
+                        <th>Strategie</th>
+                        <th>Niveau courant</th>
+                        <th>Derniere relance</th>
+                        <th>Etat</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cs in a_relancer %}
+                        <tr>
+                            <td><input type="checkbox" name="compte_strategie_id[]" value="{{ cs.id }}"></td>
+                            <td><a href="{{ path('app_creances_fiche', { code: cs.compteCode }) }}" class="font-mono text-[0.78rem] text-navy hover:text-navy-light">{{ cs.compteCode }}</a></td>
+                            <td class="text-[0.78rem]">{{ cs.strategie ? cs.strategie.libelle : '—' }}</td>
+                            <td class="text-[0.78rem]">{{ cs.niveauCourant }}{% if cs.strategie %} / {{ cs.strategie.niveaux|length }}{% endif %}</td>
+                            <td class="text-[0.78rem] text-ink/65">{{ cs.dateDerniereRelance ? cs.dateDerniereRelance|date('d/m/Y') : 'Jamais' }}</td>
+                            <td>
+                                <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[0.7rem] font-semibold text-amber-700">{{ cs.etat.libelle }}</span>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </form>
+
+    {# 2. Envois en attente #}
+    <form method="post" action="{{ path('app_creances_relance_envoyer_selection') }}"
+          class="mb-6 rounded-md border border-hairline bg-white shadow-sm">
+        <input type="hidden" name="_token" value="{{ csrf_token('creances_relance_envoyer') }}">
+        <div class="flex items-baseline justify-between border-b border-hairline px-4 py-3">
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-ink/55">Relances a envoyer ({{ a_envoyer|length }})</h3>
+            {% if a_envoyer|length > 0 %}
+                <button type="submit" class="rounded-md border border-emerald-600 bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">Envoyer la selection</button>
+            {% endif %}
+        </div>
+        {% if a_envoyer is empty %}
+            <p class="p-6 text-sm text-ink/45">Aucun envoi prepare. Prepare une selection ci-dessus.</p>
+        {% else %}
+            <table class="fc-table-comptable">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" onclick="document.querySelectorAll('input[name=&quot;envoi_id[]&quot;]').forEach(cb=>cb.checked=this.checked)"></th>
+                        <th>Compte</th>
+                        <th>Vecteur</th>
+                        <th>Destinataire</th>
+                        <th>Sujet</th>
+                        <th>Modele</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in a_envoyer %}
+                        <tr>
+                            <td><input type="checkbox" name="envoi_id[]" value="{{ e.id }}" checked></td>
+                            <td class="font-mono text-[0.78rem]"><a href="{{ path('app_creances_fiche', { code: e.compteCode }) }}" class="text-navy hover:text-navy-light">{{ e.compteCode }}</a></td>
+                            <td class="text-[0.78rem]">{{ e.vecteur.libelle }}</td>
+                            <td class="text-[0.78rem] text-ink/65">{{ e.destinataire|default('—') }}</td>
+                            <td class="text-[0.78rem]">{{ e.sujet|default('—')|slice(0, 60) }}</td>
+                            <td class="text-[0.78rem] text-ink/65">{{ e.modeleCourrier ? e.modeleCourrier.libelle : '—' }}</td>
+                            <td>
+                                <form method="post" action="{{ path('app_creances_relance_supprimer', { id: e.id }) }}" class="inline">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('creances_relance_supprimer_' ~ e.id) }}">
+                                    <button type="submit" class="text-[0.65rem] text-rose-700 hover:text-rose-900 underline">Supprimer</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </form>
+
+    {# 3. Envois recents #}
+    <div class="rounded-md border border-hairline bg-white shadow-sm">
+        <div class="flex items-baseline justify-between border-b border-hairline px-4 py-3">
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-ink/55">Envois recents</h3>
+            {% if envoyes_recents|length > 0 %}
+                <form method="post" action="{{ path('app_creances_relance_archiver') }}" class="inline"
+                      onsubmit="return confirm('Archiver tous les envois reussis ? (les comptes pourront etre relances au prochain niveau)')">
+                    <input type="hidden" name="_token" value="{{ csrf_token('creances_relance_archiver') }}">
+                    <button type="submit" class="text-[0.7rem] text-navy hover:text-navy-light underline">Archiver tous</button>
+                </form>
+            {% endif %}
+        </div>
+        {% if envoyes_recents is empty %}
+            <p class="p-6 text-sm text-ink/45">Aucun envoi recent.</p>
+        {% else %}
+            <table class="fc-table-comptable">
+                <thead>
+                    <tr>
+                        <th>Envoye le</th>
+                        <th>Compte</th>
+                        <th>Vecteur</th>
+                        <th>Destinataire</th>
+                        <th>Sujet</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in envoyes_recents %}
+                        <tr>
+                            <td class="text-[0.78rem] text-ink/65">{{ e.envoyeLe ? e.envoyeLe|date('d/m/Y H:i') : '—' }}</td>
+                            <td class="font-mono text-[0.78rem]"><a href="{{ path('app_creances_fiche', { code: e.compteCode }) }}" class="text-navy hover:text-navy-light">{{ e.compteCode }}</a></td>
+                            <td class="text-[0.78rem]">{{ e.vecteur.libelle }}</td>
+                            <td class="text-[0.78rem] text-ink/65">{{ e.destinataire|default('—') }}</td>
+                            <td class="text-[0.78rem]">{{ e.sujet|default('—')|slice(0, 60) }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

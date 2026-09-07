@@ -1,0 +1,99 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Visites de la démonstration{% endblock %}
+{% block page_title %}Visites de la démonstration{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1100px]">
+
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">Ce que ce compteur sait, et ce qu'il ignore</h3>
+    <p class="mt-1.5 max-w-3xl text-[12.5px] leading-relaxed text-ink/70">
+      Il répond à une question : est-ce que quelqu'un est venu, et quand. Il ne stocke
+      <b>aucune adresse IP</b>, aucun nom, aucun identifiant de session en clair. L'empreinte de
+      visite est un jeton tiré au hasard à l'ouverture de la porte : elle distingue deux visites
+      sans désigner personne. Du navigateur, seule la famille est retenue.
+    </p>
+  </section>
+
+  <section class="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+    {% set cartes = [
+      { n: resume.visites,    l: 'visites au total' },
+      { n: resume.visites_7j, l: 'visites sur 7 jours' },
+      { n: resume.pages,      l: 'pages consultées' },
+      { n: resume.jours,      l: 'journées distinctes' }
+    ] %}
+    {% for c in cartes %}
+      <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+        <div class="text-2xl font-bold text-navy">{{ c.n|number_format(0, ',', ' ') }}</div>
+        <div class="text-[11.5px] text-ink/70">{{ c.l }}</div>
+      </div>
+    {% endfor %}
+  </section>
+
+  {% if resume.visites == 0 %}
+    <section class="mb-4 rounded-xl border border-warning/40 bg-warning/5 p-4 text-[12.5px] leading-relaxed text-ink/80">
+      <b>Aucune visite enregistrée pour l'instant.</b> Le compteur s'incrémente dès qu'une session
+      franchit la porte d'accès. Si vous venez d'installer les tables, votre propre visite en cours
+      n'y figure qu'à partir de la page suivante.
+    </section>
+  {% else %}
+    <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-2 text-sm font-bold uppercase tracking-wide text-ink/70">
+        Chaque visite, de la plus récente à la plus ancienne
+      </h3>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[760px] text-left text-[12px]">
+          <thead class="border-b border-hairline text-[11px] uppercase tracking-wide text-ink/55">
+            <tr>
+              <th class="px-3 py-2">Arrivée</th>
+              <th class="px-3 py-2">Dernière page</th>
+              <th class="px-3 py-2 text-right">Pages</th>
+              <th class="px-3 py-2">Navigateur</th>
+              <th class="px-3 py-2">Postes pris</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in visites %}
+              <tr class="border-t border-hairline/70">
+                <td class="px-3 py-2 font-mono text-xs text-navy">{{ v.premiere_vue|date('d/m/Y H:i') }}</td>
+                <td class="px-3 py-2 font-mono text-xs text-ink/65">{{ v.derniere_vue|date('d/m/Y H:i') }}</td>
+                <td class="px-3 py-2 text-right font-mono text-xs text-ink/75">{{ v.pages }}</td>
+                <td class="px-3 py-2 text-ink/70">{{ v.navigateur }}</td>
+                <td class="px-3 py-2 text-ink/75">{{ v.postes ?: '—' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-2 text-sm font-bold uppercase tracking-wide text-ink/70">
+        Le fil des entrées et des prises de poste
+      </h3>
+      <div class="max-h-[420px] overflow-y-auto">
+        <table class="w-full min-w-[560px] text-left text-[12px]">
+          <thead class="border-b border-hairline text-[11px] uppercase tracking-wide text-ink/55">
+            <tr>
+              <th class="px-3 py-2">Quand</th>
+              <th class="px-3 py-2">Quoi</th>
+              <th class="px-3 py-2">Détail</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in evenements %}
+              <tr class="border-t border-hairline/70">
+                <td class="px-3 py-2 font-mono text-xs text-navy">{{ e.le|date('d/m/Y H:i:s') }}</td>
+                <td class="px-3 py-2 text-ink/75">{{ e.type == 'entree' ? 'entrée par la porte' : 'prise de poste' }}</td>
+                <td class="px-3 py-2 text-ink/70">{{ e.detail ?: '—' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+
+</div>
+{% endblock %}

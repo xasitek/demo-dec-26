@@ -1,0 +1,165 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Pilotage du lettrage{% endblock %}
+{% block page_title %}Lettrage des écritures{% endblock %}
+{% block topbar_nav %}{% include 'lettrage/_nav.html.twig' with { active: 'pilotage' } %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1500px]">
+
+  <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+    <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Taux de lettrage</div>
+      <div class="text-lg font-bold text-positive">{{ recap.lots > 0 ? (recap.auto / recap.lots * 100)|number_format(1, ',', ' ') : '0,0' }} <span class="text-xs text-gold">%</span></div>
+      <div class="text-[11px] text-ink/45">{{ recap.auto|default(0)|number_format(0, ',', ' ') }} lots sur {{ recap.lots|default(0)|number_format(0, ',', ' ') }}</div>
+    </div>
+    <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Montant traité</div>
+      <div class="text-lg font-bold text-navy">{{ (recap.montant_auto|default(0) / 1000000)|number_format(1, ',', ' ') }} <span class="text-xs text-gold">M€</span></div>
+      <div class="text-[11px] text-ink/45">lettré sans intervention</div>
+    </div>
+    <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Résiduel manuel</div>
+      <div class="text-lg font-bold text-warning">{{ (recap.montant_humain|default(0) / 1000000)|number_format(1, ',', ' ') }} <span class="text-xs text-gold">M€</span></div>
+      <div class="text-[11px] text-ink/45">{{ (recap.humain|default(0) + recap.refus|default(0))|number_format(0, ',', ' ') }} lots à instruire</div>
+    </div>
+    <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Dé-lettrages proposés</div>
+      <div class="text-lg font-bold text-negative">{{ recap.a_revoir|default(0)|number_format(0, ',', ' ') }}</div>
+      <div class="text-[11px] text-ink/45"><a href="{{ path('app_lettrage_relecture') }}" class="hover:underline">voir la liste →</a></div>
+    </div>
+    <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Productivité</div>
+      <div class="text-lg font-bold text-navy">{{ recap.duree ?? '—' }} <span class="text-xs text-gold">ms</span></div>
+      <div class="text-[11px] text-ink/45">par lot, mesurée</div>
+    </div>
+  </div>
+
+  {# ------------------------------------------------- la cascade, en entonnoir #}
+  <section class="mb-3 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="mb-2 flex items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">La cascade, méthode par méthode</h3>
+      <span class="ml-auto text-[11px] text-ink/45">une ligne consommée n'est jamais reprise</span>
+    </div>
+    <table class="fc-table-comptable w-full">
+      <thead><tr><th>Rang</th><th>Méthode</th><th class="text-right">Écritures entrantes</th>
+        <th class="text-right">Consommées</th><th class="text-right">Groupes</th>
+        <th class="text-right">Montant</th><th class="text-right">Lots automatiques</th>
+        <th class="text-right">Exceptions</th><th class="text-right">Durée</th></tr></thead>
+      <tbody>
+        {% for m in parMethode %}
+          <tr class="{{ m.lignes_consommees == 0 ? 'opacity-55' : '' }}">
+            <td class="font-mono text-[11.5px] text-ink/50">{{ m.rang }}</td>
+            <td class="font-mono text-[12px] font-semibold">{{ m.methode }}</td>
+            <td class="text-right font-mono text-[12px] text-ink/60">{{ m.lignes_entrantes|number_format(0, ',', ' ') }}</td>
+            <td class="text-right font-mono text-[12px] font-semibold {{ m.lignes_consommees > 0 ? 'text-positive' : 'text-ink/35' }}">
+              {{ m.lignes_consommees|number_format(0, ',', ' ') }}</td>
+            <td class="text-right font-mono text-[12px]">{{ m.groupes|number_format(0, ',', ' ') }}</td>
+            <td class="text-right font-mono text-[12px]">{{ (m.montant / 1000)|number_format(0, ',', ' ') }} k€</td>
+            <td class="text-right font-mono text-[12px] text-positive">{{ m.auto|number_format(0, ',', ' ') }}</td>
+            <td class="text-right font-mono text-[12px] {{ m.exceptions > 0 ? 'text-warning' : 'text-ink/35' }}">{{ m.exceptions|number_format(0, ',', ' ') }}</td>
+            <td class="text-right font-mono text-[11px] text-ink/50">{{ m.duree_ms|number_format(0, ',', ' ') }} ms</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="9" class="py-8 text-center text-[12px] text-ink/40">
+            Aucune cascade exécutée. Lancez <span class="font-mono">app:lettrage:cascade</span>.
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="mt-2.5 text-[11.5px] leading-relaxed text-ink/60">
+      Une méthode qui consomme zéro écriture n'est pas en échec : les méthodes qui la précèdent
+      ont déjà pris la matière de sa nature. C'est le principe même de la cascade, et c'est
+      pourquoi l'ordre est un choix et non une commodité.
+    </p>
+  </section>
+
+  <div class="mb-3 grid gap-3 lg:grid-cols-2">
+    {# ------------------------------------------------- par établissement #}
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">Par établissement</h3>
+      <table class="fc-table-comptable w-full">
+        <thead><tr><th>Établissement</th><th class="text-right">Volume</th>
+          <th class="text-right">Automatisation</th><th class="text-right">Résiduel</th>
+          <th class="text-right">Anomalies</th><th class="text-right">Montant</th></tr></thead>
+        <tbody>
+          {% for e in parEtablissement %}
+            <tr>
+              <td class="font-mono text-[12px]">{{ e.etablissement_id }}</td>
+              <td class="text-right font-mono text-[12px]">{{ e.lots|number_format(0, ',', ' ') }}</td>
+              <td class="text-right font-mono text-[12px] text-positive">{{ e.lots > 0 ? (e.auto / e.lots * 100)|number_format(1, ',', ' ') : '0,0' }} %</td>
+              <td class="text-right font-mono text-[12px] font-semibold {{ e.residuel > 0 ? 'text-warning' : 'text-ink/35' }}">{{ e.residuel }}</td>
+              <td class="text-right font-mono text-[12px] {{ e.anomalies > 0 ? 'text-negative' : 'text-ink/35' }}">{{ e.anomalies }}</td>
+              <td class="text-right font-mono text-[12px]">{{ (e.montant / 1000)|number_format(0, ',', ' ') }} k€</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="mt-2 text-[11px] text-ink/45">
+        Le résiduel n'est pas réparti au hasard : c'est la lecture qui prépare le pilotage de l'encours.
+      </p>
+    </section>
+
+    {# ------------------------------------------------- causes du résiduel #}
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">Top des causes du résiduel manuel</h3>
+      <table class="fc-table-comptable w-full">
+        <thead><tr><th>Cause</th><th class="text-right">Lots</th><th class="text-right">Montant</th></tr></thead>
+        <tbody>
+          {% for c in causes %}
+            <tr>
+              <td class="text-[12.5px]">
+                {{ {'contradiction': 'Clé sectorielle contradictoire',
+                    'solde': 'Solde résiduel hors tolérance',
+                    'composition_multiple': "Plusieurs jeux d'écritures possibles",
+                    'aucune_methode': 'Aucune méthode ne revendique le lot',
+                    'aucun': 'Proposition soumise au comptable'}[c.cause]|default(c.cause) }}
+              </td>
+              <td class="text-right font-mono text-[12px]">{{ c.lots|number_format(0, ',', ' ') }}</td>
+              <td class="text-right font-mono text-[12px] font-semibold">{{ (c.montant / 1000)|number_format(0, ',', ' ') }} k€</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="mt-2.5 text-[11.5px] leading-relaxed text-ink/60">
+        Chaque cause appelle une action différente. Une clé contradictoire est une erreur de
+        saisie à corriger en amont ; un solde résiduel est un écart à justifier ; plusieurs
+        compositions possibles signalent un compte dont le suivi analytique est trop pauvre.
+        <b>C'est cette table qui alimente le cockpit de l'encours.</b>
+      </p>
+    </section>
+  </div>
+
+  {# ------------------------------------------------- la relecture #}
+  <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="mb-3 flex items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">Lettrages déjà posés, relus</h3>
+      <a href="{{ path('app_lettrage_relecture') }}" class="ml-auto text-[12px] font-semibold text-navy hover:underline">Ouvrir la liste →</a>
+    </div>
+    <table class="fc-table-comptable w-full">
+      <thead><tr><th>Verdict de la relecture</th><th class="text-right">Lettrages</th><th class="text-right">Solde en jeu</th></tr></thead>
+      <tbody>
+        {% for r in relecture %}
+          <tr>
+            <td class="text-[12.5px] {{ r.verdict == 'conforme' ? '' : 'font-semibold text-negative' }}">
+              {{ {'conforme': 'Conforme, rien à faire',
+                  'a_revoir_solde': 'À revoir — solde résiduel',
+                  'a_revoir_contradiction': 'À revoir — clé contradictoire',
+                  'a_revoir_cle': 'À revoir — clé sans valeur probante',
+                  'a_revoir_doublon': 'À revoir — règlement compté deux fois',
+                  'a_revoir_incomplet': 'À revoir — une seule jambe'}[r.verdict]|default(r.verdict) }}
+            </td>
+            <td class="text-right font-mono text-[12px]">{{ r.n|number_format(0, ',', ' ') }}</td>
+            <td class="text-right font-mono text-[12px]">{{ r.solde|number_format(0, ',', ' ') }} €</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="mt-2.5 text-[11.5px] leading-relaxed text-ink/60">
+      Un moteur qui n'automatiserait que l'avenir laisserait derrière lui tout ce que des mois de
+      lettrage manuel ont pu poser de travers. La relecture porte sur des écritures déjà passées.
+    </p>
+  </section>
+
+</div>
+{% endblock %}

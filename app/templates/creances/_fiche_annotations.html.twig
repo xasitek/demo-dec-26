@@ -1,0 +1,56 @@
+{# Onglet "Annotations" : notes libres attachees au compte (et a ses ecritures). #}
+
+<div class="pt-5">
+    {# Formulaire d'ajout #}
+    <form method="post"
+          action="{{ path('app_creances_note_compte', { code: compte_code }) }}"
+          class="mb-5 border-l-2 border-navy/15 pl-4">
+        <input type="hidden" name="_token" value="{{ csrf_token('creances_note_' ~ compte_code) }}">
+        <label class="mb-2 block text-[0.65rem] font-medium uppercase tracking-[0.12em] text-navy">Ajouter une annotation</label>
+        <textarea name="contenu" rows="2" required maxlength="4000"
+                  placeholder="Note libre visible des comptables et de l'audit..."
+                  class="w-full rounded-md border border-hairline px-3 py-2 text-sm focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/30"></textarea>
+        <div class="mt-2 flex justify-end">
+            <button type="submit"
+                    class="inline-flex items-center gap-1.5 rounded-md border border-navy bg-navy px-3 py-1.5 text-sm font-medium text-white transition hover:bg-navy-light">
+                <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 5v14M5 12h14"/>
+                </svg>
+                Enregistrer l'annotation
+            </button>
+        </div>
+    </form>
+
+    {% if notes is empty %}
+        <p class="text-sm text-ink/45">Aucune annotation enregistree pour ce tiers.</p>
+    {% else %}
+        <ul class="space-y-3">
+            {% for n in notes %}
+                <li class="rounded-md border border-hairline bg-white p-3">
+                    <div class="flex items-start gap-3">
+                        <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold/10 text-gold-dark">
+                            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-baseline justify-between gap-3">
+                                <p class="text-[0.78rem] font-medium text-navy">
+                                    {{ n.auteur ? (n.auteur.firstName ~ ' ' ~ n.auteur.lastName) : 'Utilisateur inconnu' }}
+                                </p>
+                                <p class="shrink-0 text-[0.65rem] text-ink/45">{{ n.creeLe|date('d/m/Y H:i') }}</p>
+                            </div>
+                            <p class="mt-1 text-[0.85rem] text-ink/80 whitespace-pre-line">{{ n.contenu }}</p>
+                            {% if n.ecritureNumero %}
+                                <p class="mt-1 text-[0.65rem] text-ink/45">
+                                    Liee a l'ecriture <span class="font-mono">{{ n.ecritureNumero }}</span>
+                                </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</div>

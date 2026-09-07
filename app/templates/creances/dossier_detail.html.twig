@@ -1,0 +1,312 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Dossier {{ dossier.type.libelle }} #{{ dossier.id }} - Recouvrement{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+
+{% block content %}
+{% set d = tiers ? (tiers.donnees is iterable ? tiers.donnees : tiers.donnees|json_decode) : {} %}
+{% set nom = ((d.prenom|default('')) ~ ' ' ~ (d.nom|default('')))|trim ?: dossier.compteCode %}
+{% set t = dossier.type.value %}
+{% set clos = dossier.statut.value == 'clos' %}
+
+{% set type_libelle = {
+    'echeancier': 'Echeancier',
+    'litige': 'Litige',
+    'contentieux': 'Contentieux'
+} %}
+{% set type_couleur = {
+    'echeancier': 'bg-sky-50 text-sky-700 ring-sky-200',
+    'litige': 'bg-amber-50 text-amber-700 ring-amber-200',
+    'contentieux': 'bg-rose-50 text-rose-700 ring-rose-200'
+} %}
+{% set classe_type = type_couleur[t]|default('bg-surface text-ink/60 ring-hairline') %}
+
+<div class="mx-auto max-w-7xl">
+
+    {# Fil d'Ariane #}
+    <div class="mb-3 text-sm">
+        <a href="{{ path('app_creances_fiche', { code: dossier.compteCode }) }}#tab=dossiers" class="text-ink/55 hover:text-navy">
+            ← Retour a la fiche {{ nom }}
+        </a>
+    </div>
+
+    {% include 'creances/_flashes.html.twig' %}
+
+    {# ===== ENTETE ===== #}
+    <div class="mb-4 rounded-md border border-hairline bg-white p-5 shadow-sm">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[0.7rem] font-semibold ring-1 ring-inset {{ classe_type }}">
+                        {{ type_libelle[t]|default(t) }}
+                    </span>
+                    <span class="inline-flex items-center rounded-full bg-{{ clos ? 'surface' : 'emerald-50' }} px-2 py-0.5 text-[0.7rem] font-semibold {{ clos ? 'text-ink/60' : 'text-emerald-700' }}">
+                        {{ dossier.statut.libelle }}
+                    </span>
+                </div>
+                <h1 class="mt-2 text-xl font-bold text-navy">{{ dossier.libelle }}</h1>
+                <p class="mt-1 text-sm text-ink/55">
+                    Tiers <a href="{{ path('app_creances_fiche', { code: dossier.compteCode }) }}" class="text-navy hover:text-navy-light font-mono">{{ dossier.compteCode }}</a>
+                    · {{ nom }}
+                    · Ouvert le {{ dossier.dateDebut|date('d/m/Y') }}
+                    {% if dossier.dateResolutionCible and not clos %} · Cible {{ dossier.dateResolutionCible|date('d/m/Y') }}{% endif %}
+                    {% if clos and dossier.dateResolution %} · Clos le {{ dossier.dateResolution|date('d/m/Y') }}{% endif %}
+                </p>
+                {% if dossier.responsable %}
+                    <p class="text-[0.7rem] text-ink/45">Responsable : {{ dossier.responsable.firstName }} {{ dossier.responsable.lastName }}</p>
+                {% endif %}
+            </div>
+            <div class="shrink-0 text-right">
+                {% if dossier.montantTotal %}
+                    <p class="text-2xl font-bold text-navy">{{ dossier.montantTotal|number_format(0, ',', ' ') }} <span class="text-base text-ink/40">EUR</span></p>
+                    <p class="text-[0.65rem] uppercase tracking-wider text-ink/45">Montant total</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if dossier.description %}
+            <p class="mt-3 text-[0.85rem] text-ink/70 whitespace-pre-line">{{ dossier.description }}</p>
+        {% endif %}
+
+        {% if clos and dossier.commentaireResolution %}
+            <div class="mt-3 rounded border border-hairline bg-surface/40 p-3 text-[0.85rem] text-ink/70">
+                <p class="mb-1 text-[0.65rem] uppercase tracking-wider text-ink/45">Resolution {{ dossier.resultat ? '— ' ~ dossier.resultat : '' }}</p>
+                <p class="whitespace-pre-line">{{ dossier.commentaireResolution }}</p>
+            </div>
+        {% endif %}
+
+        {# Actions : cloturer / rouvrir #}
+        <div class="mt-4 flex flex-wrap gap-2">
+            {% if not clos %}
+                <details class="inline-block">
+                    <summary class="cursor-pointer inline-flex items-center gap-1.5 rounded-md border border-emerald-600 bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 list-none">
+                        Cloturer le dossier
+                    </summary>
+                    <form method="post" action="{{ path('app_creances_dossier_cloturer', { id: dossier.id }) }}"
+                          class="mt-2 rounded border border-hairline bg-surface/40 p-3 space-y-2">
+                        <input type="hidden" name="_token" value="{{ csrf_token('creances_dossier_cloturer_' ~ dossier.id) }}">
+                        <div>
+                            <label class="block text-[0.7rem] text-ink/55">Resultat</label>
+                            <input type="text" name="resultat" required maxlength="50"
+                                   placeholder="Ex: resolu, abandonne, perdu, transige..."
+                                   class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-[0.7rem] text-ink/55">Commentaire de cloture (optionnel)</label>
+                            <textarea name="commentaire" rows="3" maxlength="2000"
+                                      class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm"></textarea>
+                        </div>
+                        <button type="submit" class="rounded-md border border-emerald-600 bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">
+                            Enregistrer la cloture
+                        </button>
+                    </form>
+                </details>
+            {% else %}
+                <form method="post" action="{{ path('app_creances_dossier_rouvrir', { id: dossier.id }) }}" class="inline">
+                    <input type="hidden" name="_token" value="{{ csrf_token('creances_dossier_rouvrir_' ~ dossier.id) }}">
+                    <button type="submit" class="inline-flex items-center gap-1.5 rounded-md border border-navy bg-navy px-3 py-1.5 text-sm font-medium text-white hover:bg-navy-light">
+                        Rouvrir le dossier
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ===== ECRITURES LIEES ===== #}
+    <div class="mb-4 rounded-md border border-hairline bg-white shadow-sm">
+        <div class="flex items-baseline justify-between border-b border-hairline px-4 py-3">
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-ink/55">Ecritures liees</h3>
+            <span class="rounded-full bg-surface px-2 py-0.5 text-[0.7rem] font-medium text-ink/60">{{ pluriel(dossier.ecritures|length, 'ecriture', 'ecritures') }}</span>
+        </div>
+        {% if dossier.ecritures|length == 0 %}
+            <p class="p-4 text-sm text-ink/45">Aucune ecriture associee pour l'instant.</p>
+        {% else %}
+            <table class="fc-table-comptable">
+                <thead>
+                    <tr>
+                        <th>Ecriture</th>
+                        <th class="is-num">Montant partiel</th>
+                        <th>Resolution</th>
+                        <th>Commentaire</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for de in dossier.ecritures %}
+                        <tr>
+                            <td class="font-mono text-[0.78rem]">{{ de.ecritureNumero }}</td>
+                            <td class="is-num font-mono text-[0.78rem]">
+                                {% if de.montantPartiel %}{{ de.montantPartiel|number_format(2, ',', ' ') }} EUR{% else %}<span class="text-ink/40">Totalite</span>{% endif %}
+                            </td>
+                            <td class="text-[0.78rem]">
+                                {% if de.resolue %}
+                                    <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[0.7rem] font-semibold text-emerald-700">Resolue le {{ de.dateResolution|date('d/m/Y') }}</span>
+                                {% else %}
+                                    <span class="text-ink/40">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-[0.78rem] text-ink/70">{{ de.commentaire|default('—') }}</td>
+                            <td>
+                                <div class="flex items-center justify-end gap-1">
+                                    {% if not clos %}
+                                        <form method="post" action="{{ path('app_creances_dossier_resoudre_ecriture', { id: dossier.id, lienId: de.id }) }}" class="inline">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('creances_dossier_ecriture_resoudre_' ~ de.id) }}">
+                                            {% if de.resolue %}
+                                                <input type="hidden" name="annuler" value="1">
+                                                <button type="submit" class="text-[0.65rem] text-ink/55 hover:text-navy underline">Annuler resolution</button>
+                                            {% else %}
+                                                <button type="submit" class="text-[0.65rem] text-emerald-700 hover:text-emerald-900 underline">Marquer resolue</button>
+                                            {% endif %}
+                                        </form>
+                                        <form method="post" action="{{ path('app_creances_dossier_retirer_ecriture', { id: dossier.id, lienId: de.id }) }}" class="inline"
+                                              onsubmit="return confirm('Retirer cette ecriture du dossier ?')">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('creances_dossier_ecriture_retirer_' ~ de.id) }}">
+                                            <button type="submit" class="text-[0.65rem] text-rose-700 hover:text-rose-900 underline">Retirer</button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+        {# Formulaire d'ajout d'une ecriture #}
+        {% if not clos and candidats|length > 0 %}
+            <form method="post" action="{{ path('app_creances_dossier_ajouter_ecriture', { id: dossier.id }) }}"
+                  class="border-t border-hairline bg-surface/40 p-3">
+                <input type="hidden" name="_token" value="{{ csrf_token('creances_dossier_ecriture_' ~ dossier.id) }}">
+                <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
+                    <div class="md:col-span-2">
+                        <label class="block text-[0.7rem] text-ink/55">Ajouter une ecriture du tiers</label>
+                        <select name="ecriture_numero" required class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                            <option value="">Selectionner...</option>
+                            {% for c in candidats %}
+                                <option value="{{ c.numero }}">
+                                    {{ c.piece }} · {{ c.date|slice(0, 10)|replace({'-': '/'}) }} · {{ c.montant|number_format(2, ',', ' ') }} EUR{% if c.retard %} · {{ c.retard }}{% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[0.7rem] text-ink/55">Montant partiel (optionnel)</label>
+                        <input type="number" name="montant_partiel" step="0.01" min="0"
+                               placeholder="Laisser vide = totalite"
+                               class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                    </div>
+                    <div class="md:col-span-3">
+                        <label class="block text-[0.7rem] text-ink/55">Commentaire (optionnel)</label>
+                        <input type="text" name="commentaire" maxlength="500"
+                               class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                    </div>
+                </div>
+                <div class="mt-2 flex justify-end">
+                    <button type="submit" class="rounded-md border border-navy bg-navy px-3 py-1.5 text-sm font-medium text-white hover:bg-navy-light">
+                        Ajouter au dossier
+                    </button>
+                </div>
+            </form>
+        {% elseif not clos %}
+            <p class="border-t border-hairline bg-surface/40 p-3 text-[0.78rem] text-ink/50">
+                Aucune autre creance ouverte a ajouter au dossier.
+            </p>
+        {% endif %}
+    </div>
+
+    {# ===== ECHEANCES (uniquement pour echeancier) ===== #}
+    {% if t == 'echeancier' %}
+        <div class="rounded-md border border-hairline bg-white shadow-sm">
+            <div class="flex items-baseline justify-between border-b border-hairline px-4 py-3">
+                <h3 class="text-sm font-semibold uppercase tracking-wider text-ink/55">Echeances de paiement</h3>
+                <span class="rounded-full bg-surface px-2 py-0.5 text-[0.7rem] font-medium text-ink/60">{{ pluriel(dossier.echeances|length, 'echeance', 'echeances') }}</span>
+            </div>
+            {% if dossier.echeances|length == 0 %}
+                <p class="p-4 text-sm text-ink/45">Aucune echeance saisie.</p>
+            {% else %}
+                <table class="fc-table-comptable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Date prevue</th>
+                            <th class="is-num">Montant</th>
+                            <th class="is-num">Regle</th>
+                            <th>Date reglement</th>
+                            <th>Statut</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in dossier.echeances %}
+                            {% set classe_e = {
+                                'a_venir': 'text-ink/70',
+                                'partiel': 'text-amber-700',
+                                'regle': 'text-emerald-700',
+                                'en_retard': 'text-rose-700'
+                            }[e.statut.value]|default('text-ink/60') %}
+                            <tr>
+                                <td class="font-mono text-[0.78rem] text-ink/60">{{ e.numero }}</td>
+                                <td class="text-[0.78rem]">{{ e.datePrevue|date('d/m/Y') }}</td>
+                                <td class="is-num font-mono">{{ e.montant|number_format(2, ',', ' ') }}</td>
+                                <td class="is-num font-mono {{ classe_e }}">{{ e.montantRegle|number_format(2, ',', ' ') }}</td>
+                                <td class="text-[0.78rem]">{{ e.dateReglement ? e.dateReglement|date('d/m/Y') : '—' }}</td>
+                                <td><span class="rounded-full bg-surface px-2 py-0.5 text-[0.7rem] font-semibold {{ classe_e }}">{{ e.statut.libelle }}</span></td>
+                                <td>
+                                    {% if not clos %}
+                                        <details class="inline-block">
+                                            <summary class="cursor-pointer text-[0.65rem] text-navy hover:text-navy-light underline list-none">Saisir reglement</summary>
+                                            <form method="post" action="{{ path('app_creances_echeance_regler', { id: e.id }) }}"
+                                                  class="absolute z-10 mt-1 w-64 rounded-md border border-hairline bg-white p-2 shadow-lg space-y-1">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('creances_echeance_regler_' ~ e.id) }}">
+                                                <div>
+                                                    <label class="block text-[0.65rem] text-ink/55">Montant regle</label>
+                                                    <input type="number" name="montant_regle" step="0.01" min="0" value="{{ e.montant }}" required
+                                                           class="w-full rounded-md border border-hairline px-2 py-1 text-[0.78rem]">
+                                                </div>
+                                                <div>
+                                                    <label class="block text-[0.65rem] text-ink/55">Date reglement</label>
+                                                    <input type="date" name="date_reglement" value="{{ "now"|date('Y-m-d') }}"
+                                                           class="w-full rounded-md border border-hairline px-2 py-1 text-[0.78rem]">
+                                                </div>
+                                                <button type="submit" class="rounded border border-emerald-600 bg-emerald-600 px-2 py-1 text-[0.7rem] font-medium text-white hover:bg-emerald-700">Enregistrer</button>
+                                            </form>
+                                        </details>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+
+            {# Formulaire d'ajout d'echeance #}
+            {% if not clos %}
+                <form method="post" action="{{ path('app_creances_echeance_ajouter', { id: dossier.id }) }}"
+                      class="border-t border-hairline bg-surface/40 p-3">
+                    <input type="hidden" name="_token" value="{{ csrf_token('creances_echeance_' ~ dossier.id) }}">
+                    <p class="mb-2 text-[0.7rem] uppercase tracking-wider text-ink/55">Ajouter une echeance</p>
+                    <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
+                        <div>
+                            <label class="block text-[0.7rem] text-ink/55">Date prevue</label>
+                            <input type="date" name="date_prevue" required class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-[0.7rem] text-ink/55">Montant (EUR)</label>
+                            <input type="number" name="montant" step="0.01" min="0.01" required class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-[0.7rem] text-ink/55">Commentaire (optionnel)</label>
+                            <input type="text" name="commentaire" maxlength="500" class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                        </div>
+                    </div>
+                    <div class="mt-2 flex justify-end">
+                        <button type="submit" class="rounded-md border border-navy bg-navy px-3 py-1.5 text-sm font-medium text-white hover:bg-navy-light">
+                            Ajouter l'echeance
+                        </button>
+                    </div>
+                </form>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

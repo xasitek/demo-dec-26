@@ -1,0 +1,22 @@
+{#
+    Acces au detail : le corps ne liste PAS les montants. On indique seulement ou
+    trouver les documents.
+      - cas normal  : factures + releve recapitulatif joints en PDF ;
+      - debordement : releve recapitulatif joint + lien pour telecharger les factures.
+    Rien en "releve seul" / sans piece. charte de la suite.
+    Attend : piece_jointe (bool), lien_telechargement (?string).
+#}
+{% if lien_telechargement is defined and lien_telechargement %}
+    <p style="margin: 16px 0;">Le <strong>relev&eacute; r&eacute;capitulatif</strong> est joint &agrave; cet e-mail au format PDF.</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 8px 0 16px; background-color: #F5F5F5; border: 1px solid #E5E5E5; border-left: 4px solid #C8AA73;">
+        <tr>
+            <td style="padding: 16px 18px; font-size: 14px; line-height: 1.55; color: #4A4A4A;">
+                Vos factures &eacute;tant trop nombreuses pour &ecirc;tre jointes, pour t&eacute;l&eacute;charger vos factures, cliquez ci-dessous&nbsp;:
+                <br>
+                <a href="{{ lien_telechargement }}" style="display: inline-block; margin-top: 12px; background-color: #2D3250; color: #FFFFFF; text-decoration: none; font-weight: 600; font-size: 14px; padding: 11px 22px; border-radius: 6px;">T&eacute;l&eacute;charger mes factures (PDF)</a>
+            </td>
+        </tr>
+    </table>
+{% elseif piece_jointe|default(false) %}
+    <p style="margin: 16px 0;">Vos <strong>factures</strong> et le <strong>relev&eacute; r&eacute;capitulatif</strong> sont joints &agrave; cet e-mail au format PDF.</p>
+{% endif %}

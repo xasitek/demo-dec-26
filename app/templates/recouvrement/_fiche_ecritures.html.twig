@@ -1,0 +1,59 @@
+{# Lignes d'ecritures d'une fiche client (fragment du scroll infini, ou inclus dans la
+   fiche). Attend : ecritures (list v_impayes, avec gel_type), compte.
+   Colonnes : Piece | Societe/Etab | Libelle | Echeance | Retard | Montant | Type |
+   Statut (gel + actions site/pause/reactiver) | PDF | Action (relance N1/N2/MED). #}
+{% for l in ecritures %}
+    {% set gele = l.gel_type is defined and l.gel_type %}
+    <tr class="border-b border-hairline/60 {{ gele ? 'bg-surface/50' }}">
+        <td class="py-2 pr-3 text-xs font-medium text-ink/75">{{ l.numpiece ?: l.reference_facture ?: '—' }}</td>
+        <td class="py-2 pr-3">
+            <div class="whitespace-nowrap text-ink/75">{{ l.codeetab|etablissement ?: '—' }}</div>
+            {% if l.code_entite %}<div class="text-xs text-ink/45">{{ l.code_entite }}</div>{% endif %}
+        </td>
+        <td class="py-2 pr-3 text-ink/70">{{ l.libelle ?: '—' }}</td>
+        <td class="py-2 pr-3 whitespace-nowrap text-ink/70">{{ l.date_echeance ? l.date_echeance|date('d/m/Y') : '—' }}</td>
+        <td class="py-2 pr-3 whitespace-nowrap text-right {{ l.jours_retard > 0 ? 'font-semibold text-negative' : 'text-ink/50' }}">{{ l.jours_retard > 0 ? l.jours_retard ~ ' j' : '—' }}</td>
+        <td class="py-2 pr-4 whitespace-nowrap text-right font-semibold text-navy">{{ l.montant_solde|number_format(2, ',', ' ') }} €</td>
+        <td class="py-2 pr-3 text-ink/60">{{ l.type_piece ?: '—' }}</td>
+        {# Statut + actions de gel par facture (site / pause / reactiver). #}
+        <td class="py-2 pr-3 whitespace-nowrap">
+            <form method="post" action="{{ path('app_recouvrement_facture_configurer') }}" class="inline-flex items-center gap-1.5">
+                <input type="hidden" name="_token" value="{{ csrf_token('facture-configurer') }}">
+                <input type="hidden" name="ecriture" value="{{ l.ecriture_id }}">
+                <input type="hidden" name="compte" value="{{ compte|default('') }}">
+                <input type="hidden" name="code_site" value="{{ l.codeetab }}">
+                {% if gele %}
+                    <span class="rounded-full px-1.5 py-0.5 text-[0.6rem] font-semibold {{ l.gel_type == 'relance_site' ? 'bg-navy/10 text-navy' : 'bg-ink/10 text-ink/60' }}">{{ l.gel_type == 'relance_site' ? 'Relance site' : 'En pause' }}</span>
+                    <button type="submit" name="action" value="degel" class="rounded border border-positive/40 px-1.5 py-0.5 text-[0.65rem] font-semibold text-positive transition hover:bg-positive/10" title="Réactiver la relance client">Réactiver</button>
+                {% else %}
+                    <button type="submit" name="action" value="relance_site" class="rounded border border-navy/25 px-1.5 py-0.5 text-[0.65rem] font-semibold text-navy transition hover:bg-navy/5" title="Transférer au site">Site</button>
+                    <button type="submit" name="action" value="ne_pas_relancer" class="rounded border border-ink/25 px-1.5 py-0.5 text-[0.65rem] font-semibold text-ink/60 transition hover:bg-ink/5" title="Ne pas relancer">Pause</button>
+                {% endif %}
+            </form>
+        </td>
+        <td class="py-2 pr-3 text-center">
+            {% if l.chemin_pdf and l.chemin_pdf starts with 'http' %}
+                <a href="{{ l.chemin_pdf }}" target="_blank" rel="noopener"
+                   class="inline-flex text-positive transition hover:text-navy" title="Voir le PDF de la facture (Progiciel)">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                </a>
+            {% else %}
+                <span class="text-xs text-ink/30">—</span>
+            {% endif %}
+        </td>
+        <td class="py-2 text-right">
+            {% if l.montant_initial_facturation > 0 and l.jours_retard > 0 and not gele %}
+                <div class="inline-flex items-center gap-1" title="Relancer cette facture au niveau choisi">
+                    <button type="button" data-action="relance-manuelle#relancerFacture" data-ecriture="{{ l.ecriture_id }}" data-niveau="1"
+                            class="rounded-md border border-navy/25 px-1.5 py-1 text-[0.7rem] font-semibold text-navy transition hover:bg-navy/5" title="Relance niveau 1">N1</button>
+                    <button type="button" data-action="relance-manuelle#relancerFacture" data-ecriture="{{ l.ecriture_id }}" data-niveau="2"
+                            class="rounded-md border border-navy/25 px-1.5 py-1 text-[0.7rem] font-semibold text-navy transition hover:bg-navy/5" title="Relance niveau 2">N2</button>
+                    <button type="button" data-action="relance-manuelle#relancerFacture" data-ecriture="{{ l.ecriture_id }}" data-niveau="med"
+                            class="rounded-md border border-negative/40 px-1.5 py-1 text-[0.7rem] font-semibold text-negative transition hover:bg-negative/10" title="Mise en demeure">MED</button>
+                </div>
+            {% endif %}
+        </td>
+    </tr>
+{% else %}
+    <tr><td colspan="10" class="py-6 text-center text-ink/45">Aucune écriture.</td></tr>
+{% endfor %}

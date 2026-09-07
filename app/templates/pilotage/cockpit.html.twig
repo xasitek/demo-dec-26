@@ -1,0 +1,371 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Cockpit BFR et DSO{% endblock %}
+{% block page_title %}Cockpit BFR et DSO{% endblock %}
+{% block topbar_nav %}{% include 'pilotage/_nav.html.twig' with { active: 'cockpit' } %}{% endblock %}
+
+{% set champ = 'w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink transition focus:border-navy focus:outline-none focus:ring-4 focus:ring-navy/10' %}
+
+{% block content %}
+{# Ou mene chaque indicateur. Un KPI qui ne s'ouvre pas sur une file de
+   travail ou sur ses propres lignes est une impasse : le lecteur apprend un
+   chiffre et ne peut rien en faire. Ces deux tables sont donc declarees une
+   fois, et servent partout dans l'ecran. #}
+{% set file_de_cause = {
+    'reellement_due': 'relancables',
+    'piece_manquante': 'grands_comptes_bloques',
+    'decision_concession': 'action_concession',
+    'exception_comptable': 'credits_non_lettres',
+    'financeur': ''
+  } %}
+{% set file_de_retraitement = {
+    'regle_non_affecte': 'virements_non_affectes',
+    'credit_non_lettre': 'credits_non_lettres',
+    'garantie_constructeur': 'grands_comptes_bloques',
+    'porte_par_financeur': ''
+  } %}
+<div class="mx-auto w-full max-w-[1500px]">
+
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <p class="text-[13.5px] leading-relaxed text-ink/80">
+      L'outil 4 a répondu à « à qui appartient l'argent », l'outil 5 à « quelles écritures
+      solde-t-il ». Celui-ci répond à la question de la direction :
+      <b class="text-navy">« maintenant que les comptes sont fiabilisés, que reste-t-il réellement
+      à piloter ? »</b>
+    </p>
+    {% if perimetre %}
+      <p class="mt-2 rounded border border-navy/30 bg-navy/5 px-2 py-1.5 text-[12px] text-ink/75">
+        <b>Périmètre :</b> établissement <span class="font-mono">{{ perimetre }}</span>.
+        Le filtre est appliqué <b>dans les requêtes</b>, pas à l'affichage : la consolidation du
+        groupe n'est ni calculée ni transmise.
+        {% if perimetre_par_defaut|default(false) %}
+          <span class="mt-1 block text-[11px] text-ink/55">
+            Aucun rattachement déclaré pour ce compte dans le référentiel des contacts
+            d'établissement : le périmètre a été résolu sur l'établissement portant le plus
+            d'encours. En production, il vient du rattachement.
+          </span>
+        {% endif %}
+      </p>
+    {% endif %}
+  </section>
+
+  {# ------------------------------------------------- filtres #}
+  <form method="get" class="mb-4 grid gap-2 sm:grid-cols-4">
+    <select name="societe_id" class="{{ champ }}" onchange="this.form.submit()">
+      <option value="">Toutes les sociétés</option>
+      {% for s in societes %}<option value="{{ s }}" {{ filtres.societe_id|default('') == s ? 'selected' }}>{{ s }}</option>{% endfor %}
+    </select>
+    <select name="etablissement_id" class="{{ champ }}" {{ perimetre ? 'disabled' }} onchange="this.form.submit()">
+      <option value="">Tous les établissements</option>
+      {% for id, nom in etablissements %}<option value="{{ id }}" {{ filtres.etablissement_id|default('') == id ? 'selected' }}>{{ id }} — {{ nom }}</option>{% endfor %}
+    </select>
+    <select name="cycle" class="{{ champ }}" onchange="this.form.submit()">
+      <option value="">Tous les cycles</option>
+      {% for c in cycles %}<option value="{{ c.code }}" {{ filtres.cycle|default('') == c.code ? 'selected' }}>{{ c.libelle }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy-deep">
+      Appliquer
+    </button>
+  </form>
+
+  {# ------------------------------------------------- les deux lectures #}
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="mb-3 flex flex-wrap items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">Les deux lectures de l'encours</h3>
+      <span class="ml-auto text-[11px] text-ink/45">arrêté au {{ arrete|date('d/m/Y') }} · calculé en {{ ms|number_format(0, ',', ' ') }} ms</span>
+    </div>
+    <div class="grid gap-3 lg:grid-cols-3">
+      <div class="rounded-xl border-2 border-ink/20 bg-surface p-4">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/45">Encours comptable</div>
+        <div class="font-mono text-2xl font-bold text-ink">{{ (encours.brut / 1000000)|number_format(2, ',', ' ') }} <span class="text-sm text-gold">M€</span></div>
+        <div class="text-[11.5px] text-ink/50">{{ encours.factures_brut|number_format(0, ',', ' ') }} créances,
+          {{ encours.comptes|number_format(0, ',', ' ') }} comptes clients</div>
+        <p class="mt-1.5 text-[11.5px] leading-relaxed text-ink/60">
+          Ce que le système affiche avant retraitements. C'est le chiffre du grand livre.
+        </p>
+        <a href="{{ path('app_cockpit_detail', {niveau: 'societe'}) }}"
+           class="mt-2 inline-block text-[11.5px] font-semibold text-navy hover:underline">
+          Voir les lignes qui composent ce chiffre →</a>
+      </div>
+
+      <div class="rounded-xl border-2 border-warning/40 bg-warning/5 p-4">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-warning">Écart entre les deux</div>
+        <div class="font-mono text-2xl font-bold text-warning">{{ (encours.ecart / 1000000)|number_format(2, ',', ' ') }} <span class="text-sm text-gold">M€</span></div>
+        <div class="text-[11.5px] text-ink/50">{{ encours.brut > 0 ? (encours.ecart / encours.brut * 100)|number_format(1, ',', ' ') : '0,0' }} % de l'encours comptable</div>
+        <table class="fc-table-comptable mt-2 w-full">
+          <tbody>
+            {% for r in retraitements %}
+              {% set f = file_de_retraitement[r.code]|default('') %}
+              <tr>
+                <td class="text-[11.5px] leading-snug">
+                  {% if f %}
+                    <a href="{{ path('app_travail', {file: f}) }}"
+                       class="font-semibold text-navy hover:underline"
+                       title="Ouvrir la file de travail qui traite cette population">{{ r.libelle }} →</a>
+                  {% else %}
+                    <a href="{{ path('app_cockpit_detail', {niveau: 'payeur'}) }}"
+                       class="text-navy hover:underline">{{ r.libelle }} →</a>
+                  {% endif %}
+                </td>
+                <td class="text-right font-mono text-[11.5px] font-semibold">
+                  {{ (encours.retraitements[r.code] / 1000000)|number_format(2, ',', ' ') }} M€</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="rounded-xl border-2 border-navy/40 bg-navy/5 p-4">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-navy">Encours à piloter</div>
+        <div class="font-mono text-2xl font-bold text-navy">{{ (encours.retraite / 1000000)|number_format(2, ',', ' ') }} <span class="text-sm text-gold">M€</span></div>
+        <div class="text-[11.5px] text-ink/50">après isolement de ce qui n'est pas à recouvrer</div>
+        <p class="mt-1.5 text-[11.5px] leading-relaxed text-ink/60">
+          Le seul des deux chiffres sur lequel une action de recouvrement a un sens. L'écart n'est
+          pas une erreur du système : c'est la part de l'encours qui n'est pas une créance à
+          relancer.
+        </p>
+        <a href="{{ path('app_cockpit_detail', {niveau: 'societe', nature: 'exposition'}) }}"
+           class="mt-2 inline-block text-[11.5px] font-semibold text-navy hover:underline">
+          Voir les lignes qui composent ce chiffre →</a>
+      </div>
+    </div>
+  </section>
+
+  {# ------------------------------------------------- la passerelle #}
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="mb-3 flex flex-wrap items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">
+        De l'encours comptable à l'exposition financière
+      </h3>
+      <span class="ml-auto text-[11px] text-ink/45">chaque flèche s'ouvre et se descend</span>
+    </div>
+    {% include 'pilotage/_passerelle.html.twig' %}
+  </section>
+
+  {# ------------------------------------------------- DSO et BFR #}
+  <div class="mb-4 grid gap-3 lg:grid-cols-2">
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <div class="mb-2 flex items-baseline gap-2">
+        <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">DSO</h3>
+        <a href="{{ path('app_cockpit_methode') }}" class="ml-auto text-[11.5px] font-semibold text-navy hover:underline">
+          Comment est calculé ce chiffre ? →</a>
+      </div>
+      {# La formule d'abord, les chiffres ensuite. Un DSO dont on ne peut pas
+         produire le denominateur n'est pas un indicateur. #}
+      <div class="mb-3 rounded-lg border border-hairline bg-surface px-3 py-2">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/45">Formule appliquée</div>
+        <p class="mt-0.5 font-mono text-[12px] leading-relaxed text-ink/80">
+          DSO = encours ÷ (chiffre d'affaires de la période ÷ nombre de jours)
+        </p>
+        <p class="mt-1 text-[12px] leading-relaxed text-ink/70">
+          <b>CA TTC des {{ dso.jours }} derniers jours :</b>
+          <b class="font-mono text-navy">{{ (dso.denominateur / 1000000)|number_format(1, ',', ' ') }} M€</b>
+          — du {{ dso.debut|date('d/m/Y') }} au {{ dso.arrete|date('d/m/Y') }}, soit
+          <span class="font-mono">{{ dso.quotidien|number_format(0, ',', ' ') }} €</span> par jour.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3">
+        <div>
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/45">DSO comptable</div>
+          <div class="font-mono text-2xl font-bold text-ink">{{ dso.brut|number_format(1, ',', ' ') }} <span class="text-sm text-gold">j</span></div>
+          <div class="font-mono text-[10.5px] text-ink/45">
+            {{ (dso.numerateur_brut / 1000000)|number_format(2, ',', ' ') }} M€ ÷ {{ (dso.denominateur / 1000000)|number_format(1, ',', ' ') }} M€ × {{ dso.jours }}
+          </div>
+        </div>
+        <div>
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-navy">DSO retraité</div>
+          <div class="font-mono text-2xl font-bold text-navy">{{ dso.retraite|number_format(1, ',', ' ') }} <span class="text-sm text-gold">j</span></div>
+          <div class="font-mono text-[10.5px] text-ink/45">
+            {{ (dso.numerateur_retraite / 1000000)|number_format(2, ',', ' ') }} M€ ÷ même dénominateur
+          </div>
+        </div>
+        <div class="rounded-lg bg-warning/5 px-2 py-1">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-warning">Écart de lecture</div>
+          <div class="font-mono text-2xl font-bold text-warning">{{ dso.ecart_lecture|number_format(1, ',', ' ') }} <span class="text-sm text-gold">j</span></div>
+          <div class="text-[10.5px] text-ink/45">même dénominateur</div>
+        </div>
+      </div>
+
+      <p class="mt-2 rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-[12.5px] font-semibold leading-relaxed text-ink/80">
+        L'écart correspond à une fiabilisation de la lecture de l'encours, pas à une entrée de
+        trésorerie.
+      </p>
+      <div class="mt-1.5 flex flex-wrap gap-3 text-[11.5px] font-semibold">
+        <a href="{{ path('app_cockpit_detail', {niveau: 'societe'}) }}" class="text-navy hover:underline">
+          Voir le numérateur comptable →</a>
+        <a href="{{ path('app_cockpit_detail', {niveau: 'societe', nature: 'exposition'}) }}"
+           class="text-navy hover:underline">Voir le numérateur retraité →</a>
+        <a href="{{ path('app_travail', {file: 'virements_non_affectes'}) }}" class="text-navy hover:underline">
+          Traiter ce qui creuse l'écart →</a>
+      </div>
+
+      <p class="mt-2 text-[11.5px] leading-relaxed text-ink/60">
+        L'écart entre les deux DSO n'est pas un gain de délai : c'est la part de l'encours qui
+        n'aurait jamais dû y figurer.
+      </p>
+    </section>
+
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <div class="mb-2 flex items-baseline gap-2">
+        <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">BFR de créances</h3>
+        <a href="{{ path('app_cockpit_methode') }}" class="ml-auto text-[11.5px] font-semibold text-navy hover:underline">
+          Comment est calculé ce chiffre ? →</a>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-navy">Montant retraité</div>
+          <div class="font-mono text-2xl font-bold text-navy">{{ (bfr.montant / 1000000)|number_format(2, ',', ' ') }} <span class="text-sm text-gold">M€</span></div>
+          <div class="text-[11px] text-ink/45">brut : {{ (bfr.montant_brut / 1000000)|number_format(2, ',', ' ') }} M€</div>
+        </div>
+        <div>
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/45">En jours de chiffre d'affaires</div>
+          <div class="font-mono text-2xl font-bold text-ink">{{ bfr.jours_ca|number_format(1, ',', ' ') }} <span class="text-sm text-gold">j</span></div>
+          <div class="text-[11px] text-ink/45">brut : {{ bfr.jours_ca_brut|number_format(1, ',', ' ') }} j</div>
+        </div>
+      </div>
+      <h4 class="mb-1 mt-3 text-[11px] font-bold uppercase tracking-wider text-ink/50">Contribution des populations</h4>
+      <table class="fc-table-comptable w-full">
+        <tbody>
+          {% for c in bfr.contributions %}
+            <tr>
+              <td class="text-[12px]">{{ libelles_causes[c.cause].libelle|default(c.cause) }}</td>
+              <td class="text-right font-mono text-[12px]">{{ c.factures|number_format(0, ',', ' ') }}</td>
+              <td class="text-right font-mono text-[12px] font-semibold">{{ (c.montant / 1000000)|number_format(2, ',', ' ') }} M€</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  {# ------------------------------------------------- les trois natures #}
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">
+      Cash, fiabilisation, exposition — trois grandeurs distinctes
+    </h3>
+    {% include 'pilotage/_natures.html.twig' %}
+  </section>
+
+  {# ------------------------------------------------- ancienneté et causes #}
+  <div class="grid gap-3 lg:grid-cols-2">
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">Ancienneté de l'encours</h3>
+      <table class="fc-table-comptable w-full">
+        <thead><tr><th>Tranche</th><th class="text-right">Créances</th><th class="text-right">Montant</th><th class="text-right">Part</th></tr></thead>
+        <tbody>
+          {% set totalA = 0 %}
+          {% for t in anciennete %}{% set totalA = totalA + t.montant %}{% endfor %}
+          {% for t in anciennete %}
+            <tr class="{{ t.code in ['j180', 'plus180'] ? 'bg-negative/5' : '' }}">
+              <td class="text-[12.5px]">
+                {% set f = {'j45': 'dues_30', 'j90': 'dues_45', 'j180': 'dues_90',
+                            'plus180': 'dues_90'}[t.code]|default('') %}
+                {% if f %}
+                  <a href="{{ path('app_travail', {file: f}) }}"
+                     class="font-semibold text-navy hover:underline"
+                     title="Ouvrir la file de travail de cette tranche">{{ t.libelle }} →</a>
+                {% else %}
+                  <a href="{{ path('app_cockpit_detail', {niveau: 'facture'}) }}"
+                     class="text-navy hover:underline">{{ t.libelle }} →</a>
+                {% endif %}
+              </td>
+              <td class="text-right font-mono text-[12px]">{{ t.factures|number_format(0, ',', ' ') }}</td>
+              <td class="text-right font-mono text-[12px] font-semibold">{{ (t.montant / 1000000)|number_format(2, ',', ' ') }} M€</td>
+              <td class="text-right font-mono text-[12px] text-ink/55">{{ totalA > 0 ? (t.montant / totalA * 100)|number_format(1, ',', ' ') : '0,0' }} %</td>
+            </tr>
+          {% endfor %}
+          <tr class="border-t-2 border-ink/20">
+            <td class="text-[12.5px] font-bold">Total</td><td></td>
+            <td class="text-right font-mono text-[13px] font-bold">{{ (totalA / 1000000)|number_format(2, ',', ' ') }} M€</td>
+            <td class="text-right text-[11px] text-ink/45">réconcilié</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="mt-2 text-[11px] text-ink/45">
+        La somme des tranches fait exactement l'encours comptable : c'est un contrôle de
+        réconciliation, pas une espérance. Les teintes ne sont posées que sur les tranches
+        au-delà de 90 jours.
+      </p>
+    </section>
+
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <div class="mb-3 flex items-baseline gap-2">
+        <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">Pourquoi ces créances restent-elles ouvertes ?</h3>
+      </div>
+      <table class="fc-table-comptable w-full">
+        <thead><tr><th>Cause</th><th class="text-right">Créances</th><th class="text-right">Montant</th><th>Ce qu'elle appelle</th></tr></thead>
+        <tbody>
+          {% for c in causes %}
+            {% set def = libelles_causes[c.cause]|default(null) %}
+            <tr>
+              <td class="text-[12.5px] font-semibold">
+                {% set f = file_de_cause[c.cause]|default('') %}
+                {% if f %}
+                  <a href="{{ path('app_travail', {file: f}) }}" class="text-navy hover:underline"
+                     title="Ouvrir la file de travail de cette cause">{{ def ? def.libelle : c.cause }} →</a>
+                {% else %}
+                  <a href="{{ path('app_cockpit_detail', {niveau: 'payeur'}) }}"
+                     class="text-navy hover:underline">{{ def ? def.libelle : c.cause }} →</a>
+                {% endif %}
+              </td>
+              <td class="text-right font-mono text-[12px]">{{ c.factures|number_format(0, ',', ' ') }}</td>
+              <td class="text-right font-mono text-[12px] font-semibold">{{ (c.montant / 1000000)|number_format(2, ',', ' ') }} M€</td>
+              <td class="text-[11.5px] leading-snug text-ink/65">
+                {{ def ? def.suite : '' }}
+                <span class="mt-0.5 block font-mono text-[10.5px] text-ink/40">
+                  {{ {'outil-10': 'relance — outil 10', 'outil-7': 'dossier grand compte — outil 7',
+                      'outil-9': 'comité de créances — outil 9', 'outil-4': 'affectation — outil 4',
+                      'comptable': 'traitement comptable'}[c.suite]|default(c.suite) }}
+                </span>
+              </td>
+            </tr>
+
+            {# Le sous-total du pont, sous la seule cause qui a un outil pour la
+               traiter aujourd'hui. Il se lit comme une PART de la ligne du
+               dessus, et il est cliquable : c'est la porte vers l'outil 7. #}
+            {% if c.cause == 'piece_manquante' and pont.creances > 0 %}
+              <tr class="bg-gold/[0.06]">
+                <td class="pl-4 text-[11.5px] leading-snug">
+                  <a href="{{ path('app_gc_pont') }}" class="font-semibold text-navy hover:underline">
+                    dont dossiers grands comptes suivis dans l'outil 7 →</a>
+                  <span class="mt-0.5 block text-[10.5px] leading-snug text-ink/50">
+                    {% for q in pont.par_qualite %}{{ q.n }} {{ qualites_pont[q.qualite].libelle|lower }}{{ not loop.last ? ' · ' }}{% endfor %}
+                  </span>
+                </td>
+                <td class="text-right font-mono text-[12px] font-semibold text-navy">
+                  {{ pont.creances|number_format(0, ',', ' ') }}</td>
+                <td class="text-right font-mono text-[12px] font-semibold text-navy">
+                  {{ (pont.montant / 1000000)|number_format(2, ',', ' ') }} M€</td>
+                <td class="text-[11px] leading-snug text-ink/60">
+                  Le dossier documentaire existe : on peut nommer la pièce absente, la demander,
+                  et suivre sa réception.
+                  {% if pont.resolus > 0 %}
+                    <span class="mt-0.5 block font-semibold text-positive">
+                      {{ pont.resolus }} déjà résolu{{ pont.resolus > 1 ? 's' }} dans la session de
+                      démonstration ({{ (pont.montant_resolu / 1000)|number_format(0, ',', ' ') }} k€) —
+                      le monde arrêté, lui, n'a pas bougé.
+                    </span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="mt-2.5 text-[11.5px] leading-relaxed text-ink/60">
+        Une créance encore ouverte après affectation et lettrage n'est pas forcément due. Cinq
+        situations, cinq suites différentes — et c'est cette table qui alimente les outils 7, 9
+        et 10.
+      </p>
+    </section>
+  </div>
+
+  {# La mention qui evite une contradiction apparente entre les volumes du
+     cockpit et les taux publies par les outils 4 et 5. #}
+  <p class="mt-4 rounded-xl border border-hairline bg-surface px-4 py-3 text-[11.5px] leading-relaxed text-ink/60">
+    <b>Périmètres de mesure.</b> {{ mention_perimetres }}
+  </p>
+
+</div>
+{% endblock %}

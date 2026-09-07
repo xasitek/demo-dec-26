@@ -1,0 +1,101 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ c.facture_id }} — Pourquoi ouverte{% endblock %}
+{% block page_title %}Cockpit BFR et DSO{% endblock %}
+{% block topbar_nav %}{% include 'pilotage/_nav.html.twig' with { active: 'cockpit' } %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1200px]">
+
+  <div class="mb-3 flex flex-wrap items-center gap-3">
+    <a href="{{ path('app_cockpit_detail', {niveau: 'facture', client_id: c.client_id}) }}"
+       class="text-[12px] font-semibold text-ink/50 hover:text-navy">← Créances du compte</a>
+    <h2 class="font-mono text-lg font-bold text-ink">{{ c.numero ?: c.facture_id }}</h2>
+    <span class="ml-auto text-[11px] text-ink/40">calculé en {{ ms|number_format(1, ',', ' ') }} ms</span>
+  </div>
+
+  {% set def = causes[c.cause]|default(null) %}
+  <section class="mb-4 rounded-xl border-2 p-4 shadow-sm
+                  {{ c.soldee_par_suite ? 'border-positive/40 bg-positive/5' : 'border-warning/50 bg-warning/5' }}">
+    <div class="mb-1 text-[10px] font-bold uppercase tracking-wider text-ink/50">
+      Pourquoi cette créance reste-t-elle ouverte ?
+    </div>
+    {% if c.soldee_par_suite %}
+      <div class="text-lg font-bold text-positive">Elle ne l'est plus</div>
+      <p class="mt-1 text-[13px] leading-relaxed text-ink/80">
+        Elle a été soldée par
+        <b>{{ c.soldee_par == 'outil-4' ? "l'affectation du règlement (outil 4)" : 'le lettrage des écritures (outil 5)' }}</b>.
+        L'argent était déjà là : le poste client l'affichait ouverte faute d'imputation.
+      </p>
+    {% else %}
+      <div class="text-lg font-bold text-warning">{{ def ? def.libelle : c.cause }}</div>
+      <p class="mt-1 text-[13px] leading-relaxed text-ink/80">{{ def ? def.suite : '' }}</p>
+      <div class="mt-2 inline-flex items-center gap-2 rounded-lg border border-hairline bg-white px-3 py-1.5">
+        <span class="text-[11px] font-semibold uppercase tracking-wider text-ink/45">Prise en charge par</span>
+        <span class="font-mono text-[12px] font-bold text-navy">
+          {{ {'outil-10': 'outil 10 — relance', 'outil-7': 'outil 7 — dossier grand compte',
+              'outil-9': 'outil 9 — comité de créances', 'outil-4': 'outil 4 — affectation',
+              'comptable': 'traitement comptable'}[c.suite]|default(c.suite) }}
+        </span>
+      </div>
+    {% endif %}
+  </section>
+
+  <div class="grid gap-3 lg:grid-cols-2">
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">La créance</h3>
+      <table class="fc-table-comptable w-full">
+        <tbody>
+          <tr><td class="text-[12.5px]">Compte client</td>
+            <td class="text-right text-[12.5px] font-semibold">{{ c.client_nom ?: c.client_id }}
+              <span class="font-mono text-[11px] font-normal text-ink/45">{{ c.client_id }}</span></td></tr>
+          <tr><td class="text-[12.5px]">Type de compte</td>
+            <td class="text-right text-[12px]">{{ c.client_type }}</td></tr>
+          <tr><td class="text-[12.5px]">Société · établissement</td>
+            <td class="text-right font-mono text-[12px]">{{ c.societe_id }} · {{ c.etablissement_id }}</td></tr>
+          <tr><td class="text-[12.5px]">Cycle</td>
+            <td class="text-right font-mono text-[12px]">{{ c.type ?: '—' }}</td></tr>
+          <tr><td class="text-[12.5px]">Montant</td>
+            <td class="text-right font-mono text-[13px] font-bold">{{ c.montant|number_format(2, ',', ' ') }} €</td></tr>
+          <tr><td class="text-[12.5px]">Émise le</td>
+            <td class="text-right font-mono text-[12px]">{{ c.date_facture|date('d/m/Y') }}</td></tr>
+          <tr><td class="text-[12.5px]">Échéance</td>
+            <td class="text-right font-mono text-[12px]">{{ c.echeance|date('d/m/Y') }}</td></tr>
+          <tr><td class="text-[12.5px]">Retard à l'arrêté</td>
+            <td class="text-right font-mono text-[13px] font-bold
+                       {{ jours_retard > 90 ? 'text-negative' : (jours_retard > 0 ? 'text-warning' : 'text-positive') }}">
+              {{ jours_retard > 0 ? jours_retard ~ ' jours' : 'non échue' }}</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <div class="mb-3 flex items-baseline gap-2">
+        <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">Les écritures</h3>
+        <span class="rounded-full bg-ink/10 px-2 py-0.5 text-xs font-semibold text-ink/60">{{ ecritures|length }}</span>
+      </div>
+      <table class="fc-table-comptable w-full">
+        <thead><tr><th>Écriture</th><th>Date</th><th>Compte</th><th>Sens</th>
+          <th class="text-right">Montant</th><th>Lettrage</th></tr></thead>
+        <tbody>
+          {% for e in ecritures %}
+            <tr>
+              <td class="font-mono text-[11.5px]">{{ e.id }}</td>
+              <td class="font-mono text-[11.5px]">{{ e.date_ecriture|date('d/m/Y') }}</td>
+              <td class="font-mono text-[11.5px]">{{ e.compte }}</td>
+              <td class="text-[11.5px] font-semibold {{ e.sens == 'D' ? 'text-navy' : 'text-positive' }}">{{ e.sens }}</td>
+              <td class="text-right font-mono text-[12px]">{{ e.montant|number_format(2, ',', ' ') }} €</td>
+              <td class="font-mono text-[11px] {{ e.lettrage ? 'text-positive' : 'text-warning' }}">
+                {{ e.lettrage ?: 'non lettrée' }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="6" class="py-6 text-center text-[12px] text-ink/40">
+              Aucune écriture rattachée dans la couche de démonstration.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+</div>
+{% endblock %}

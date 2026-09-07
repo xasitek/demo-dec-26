@@ -1,0 +1,129 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Retours clients - Recouvrement{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl">
+
+    {% include 'creances/_module_nav.html.twig' with { actif: 'reponses' } %}
+    {% include 'creances/_flashes.html.twig' %}
+
+    <div class="mb-4 flex items-baseline justify-between">
+        <h2 class="text-lg font-semibold text-navy">Reponses recues</h2>
+        <p class="text-[0.7rem] text-ink/45">
+            Journalisation des reponses client a une relance (manuel pour l'instant ; le webhook viendra avec la config infra).
+        </p>
+    </div>
+
+    {# Formulaire saisie manuelle #}
+    <details class="mb-4 rounded-md border border-hairline bg-white p-4 shadow-sm">
+        <summary class="cursor-pointer text-sm font-medium text-navy list-none">+ Saisir une reponse client</summary>
+        <form method="post" action="{{ path('app_creances_reponse_saisir') }}" class="mt-3 space-y-2">
+            <input type="hidden" name="_token" value="{{ csrf_token('creances_reponse_saisir') }}">
+            <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
+                <div>
+                    <label class="block text-[0.7rem] text-ink/55">Compte (code tiers)</label>
+                    <input type="text" name="compte_code" required maxlength="50" placeholder="Ex: 394074" pattern="[A-Za-z0-9_-]+"
+                           class="w-full rounded-md border border-hairline px-2 py-1.5 font-mono text-sm">
+                </div>
+                <div>
+                    <label class="block text-[0.7rem] text-ink/55">Ecriture (optionnel)</label>
+                    <input type="text" name="ecriture_numero" maxlength="50" placeholder="Numero piece"
+                           class="w-full rounded-md border border-hairline px-2 py-1.5 font-mono text-sm">
+                </div>
+                <div>
+                    <label class="block text-[0.7rem] text-ink/55">Categorie</label>
+                    <select name="categorie" class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                        <option value="">— Indeterminee —</option>
+                        <option value="promesse">Promesse de paiement</option>
+                        <option value="refus">Refus / litige declare</option>
+                        <option value="contestation">Contestation de la creance</option>
+                        <option value="demande_info">Demande d'information</option>
+                        <option value="autre">Autre</option>
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-[0.7rem] text-ink/55">Expediteur (e-mail ou nom)</label>
+                    <input type="text" name="expediteur" maxlength="255" placeholder="Ex: jean.dupont@example.com"
+                           class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-[0.7rem] text-ink/55">Recu le</label>
+                    <input type="datetime-local" name="recu_le" value="{{ "now"|date('Y-m-d\\TH:i') }}"
+                           class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                </div>
+                <div class="md:col-span-3">
+                    <label class="block text-[0.7rem] text-ink/55">Sujet (optionnel)</label>
+                    <input type="text" name="sujet" maxlength="255" placeholder="Ex: Re: Relance n1 sur facture XYZ"
+                           class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm">
+                </div>
+                <div class="md:col-span-3">
+                    <label class="block text-[0.7rem] text-ink/55">Corps de la reponse</label>
+                    <textarea name="corps" rows="6" required placeholder="Copie-colle le contenu de l'email/SMS/courrier client..."
+                              class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm font-mono"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end">
+                <button type="submit" class="rounded-md border border-navy bg-navy px-3 py-1.5 text-sm font-medium text-white hover:bg-navy-light">Enregistrer la reponse</button>
+            </div>
+        </form>
+    </details>
+
+    {# Statistique #}
+    <div class="mb-4 rounded-md border border-hairline bg-white p-4 shadow-sm">
+        <p class="text-2xl font-bold {{ nb_non_traites > 0 ? 'text-amber-600' : 'text-emerald-600' }}">{{ nb_non_traites }}</p>
+        <p class="text-xs uppercase tracking-wider text-ink/50">Reponse(s) non traitee(s)</p>
+    </div>
+
+    {# Liste non traitees #}
+    <div class="rounded-md border border-hairline bg-white shadow-sm">
+        <div class="border-b border-hairline px-4 py-3">
+            <h3 class="text-sm font-semibold uppercase tracking-wider text-ink/55">Non traitees</h3>
+        </div>
+        {% if non_traites is empty %}
+            <div class="p-8 text-center text-sm text-ink/45">
+                <svg viewBox="0 0 24 24" class="mx-auto h-10 w-10 text-emerald-500" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                <p class="mt-2">Aucune reponse en attente. Tout est sous controle.</p>
+            </div>
+        {% else %}
+            <ul class="divide-y divide-hairline">
+                {% for r in non_traites %}
+                    {% set categorie_couleur = {
+                        'promesse': 'bg-amber-50 text-amber-700',
+                        'refus': 'bg-rose-50 text-rose-700',
+                        'contestation': 'bg-orange-50 text-orange-700',
+                        'demande_info': 'bg-sky-50 text-sky-700'
+                    }[r.categorie]|default('bg-surface text-ink/65') %}
+
+                    <li class="px-4 py-3 hover:bg-surface/30 transition-colors">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center gap-2">
+                                    {% if r.categorie %}
+                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[0.65rem] font-semibold {{ categorie_couleur }}">{{ r.categorie }}</span>
+                                    {% endif %}
+                                    <a href="{{ path('app_creances_fiche', { code: r.compteCode }) }}" class="font-mono text-[0.78rem] text-navy hover:text-navy-light">{{ r.compteCode }}</a>
+                                    {% if r.expediteur %}<span class="text-[0.7rem] text-ink/55">· {{ r.expediteur }}</span>{% endif %}
+                                </div>
+                                {% if r.sujet %}<p class="mt-1 text-sm font-medium text-navy">{{ r.sujet }}</p>{% endif %}
+                                <p class="mt-1 text-[0.78rem] text-ink/70 whitespace-pre-line">{{ r.corpsTexte|default('—')|slice(0, 280) }}{% if r.corpsTexte|length > 280 %}…{% endif %}</p>
+                                <p class="mt-2 text-[0.65rem] text-ink/45">
+                                    Recue le {{ r.recuLe|date('d/m/Y H:i') }} via {{ r.source }}
+                                    {% if r.relanceEnvoi %} · suite a l'envoi #{{ r.relanceEnvoi.id }}{% endif %}
+                                </p>
+                            </div>
+                            <form method="post" action="{{ path('app_creances_reponse_traiter', { id: r.id }) }}" class="shrink-0">
+                                <input type="hidden" name="_token" value="{{ csrf_token('creances_reponse_traiter_' ~ r.id) }}">
+                                <button type="submit" class="rounded-md border border-emerald-600 bg-emerald-600 px-3 py-1.5 text-[0.7rem] font-medium text-white hover:bg-emerald-700">Marquer traitee</button>
+                            </form>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

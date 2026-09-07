@@ -1,0 +1,233 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ a.lot.id }} — Lettrage{% endblock %}
+{% block page_title %}Lettrage des écritures{% endblock %}
+{% block topbar_nav %}{% include 'lettrage/_nav.html.twig' with { active: 'file' } %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1500px]">
+
+  <div class="mb-3 flex flex-wrap items-center gap-3">
+    <a href="{{ path('app_lettrage_file') }}" class="text-[12px] font-semibold text-ink/50 hover:text-navy">← Propositions</a>
+    <h2 class="font-mono text-lg font-bold text-ink">{{ a.lot.id }}</h2>
+    {% include 'lettrage/_badge.html.twig' with { verdict: a.verdict, methode: a.methode } %}
+    <span class="ml-auto text-[11px] text-ink/40">
+      cascade rejouée en {{ a.chrono.total|number_format(1, ',', ' ') }} ms — mesuré sur votre appareil
+    </span>
+  </div>
+
+  <div class="mb-4 grid gap-3 lg:grid-cols-3">
+
+    {# ----------------------------------------------- A. les écritures du lot #}
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm lg:col-span-2">
+      <div class="mb-3 flex items-center gap-2">
+        <span class="flex h-5 w-5 items-center justify-center rounded bg-navy/10 text-[10px] font-bold text-navy">A</span>
+        <h3 class="text-[11px] font-bold uppercase tracking-wider text-ink/50">Les écritures concernées</h3>
+      </div>
+      <table class="fc-table-comptable w-full">
+        <thead><tr><th>Écriture</th><th>Date</th><th>Compte</th><th>Jl</th><th>Sens</th>
+          <th class="text-right">Montant</th><th>Référence</th><th>N° série</th><th>Immat.</th><th>OR</th></tr></thead>
+        <tbody>
+          {% for e in a.ecritures %}
+            <tr>
+              <td class="font-mono text-[11.5px]">{{ e.id }}</td>
+              <td class="font-mono text-[11.5px]">{{ e.date_ecriture|date('d/m/Y') }}</td>
+              <td class="font-mono text-[11.5px]">{{ e.compte }}</td>
+              <td class="font-mono text-[11px] text-ink/50">{{ e.journal }}</td>
+              <td class="text-[11.5px] font-semibold {{ e.sens == 'D' ? 'text-navy' : 'text-positive' }}">{{ e.sens }}</td>
+              <td class="text-right font-mono text-[12px] font-semibold">{{ e.montant|number_format(2, ',', ' ') }} €</td>
+              <td class="font-mono text-[11px] text-ink/55">{{ e.reference_piece ?: '—' }}</td>
+              <td class="font-mono text-[11px] text-ink/55">{{ e.vin8 ?: '—' }}</td>
+              <td class="font-mono text-[11px] text-ink/55">{{ e.immatriculation ?: '—' }}</td>
+              <td class="font-mono text-[11px] text-ink/55">{{ e.ordre_reparation ?: '—' }}</td>
+            </tr>
+          {% endfor %}
+          <tr class="border-t-2 border-ink/20">
+            <td colspan="5" class="text-[12px] font-bold">Solde du groupe</td>
+            <td class="text-right font-mono text-[13px] font-bold {{ a.solde_avant|abs > 0.01 ? 'text-warning' : 'text-positive' }}">
+              {{ a.solde_avant|number_format(2, ',', ' ') }} €</td>
+            <td colspan="4" class="text-[11px] text-ink/45">
+              {{ a.solde_avant|abs < 0.01 ? 'le groupe solde exactement' : 'écart à justifier par la tolérance' }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    {# ----------------------------------------------- B. les indices #}
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <div class="mb-3 flex items-center gap-2">
+        <span class="flex h-5 w-5 items-center justify-center rounded bg-gold/20 text-[10px] font-bold text-gold-dark">B</span>
+        <h3 class="text-[11px] font-bold uppercase tracking-wider text-ink/50">Les indices, un par un</h3>
+        <span class="ml-auto rounded-full bg-ink/10 px-2 py-0.5 text-[11px] font-semibold text-ink/60">{{ a.indices|length }}</span>
+      </div>
+      {% if a.indices is empty %}
+        <p class="text-[12px] text-ink/50">Aucun indice concordant.</p>
+      {% else %}
+        {% set forts = a.indices|filter(i => i.fort)|length %}
+        {% if forts == 0 and a.indices|length >= convergence %}
+          <p class="mb-2 rounded border border-navy/30 bg-navy/5 px-2 py-1.5 text-[11.5px] leading-relaxed text-ink/75">
+            <b>Aucune preuve suffisante isolément.</b> Aucun de ces indices ne prouve le
+            rapprochement à lui seul. C'est leur <b>convergence</b> qui l'emporte, et l'outil le
+            dit plutôt que de rendre un score opaque.
+          </p>
+        {% endif %}
+        <div class="space-y-2">
+          {% for i in a.indices %}
+            <div class="rounded-lg border px-2.5 py-1.5 {{ i.fort ? 'border-navy/30 bg-navy/5' : 'border-hairline' }}">
+              <div class="flex items-baseline justify-between gap-2">
+                <span class="text-[12px] font-semibold {{ i.fort ? 'text-navy' : 'text-ink/70' }}">{{ i.libelle }}</span>
+                <span class="whitespace-nowrap text-[10px] font-semibold uppercase tracking-wider {{ i.fort ? 'text-navy' : 'text-ink/40' }}">
+                  {{ i.fort ? 'preuve forte' : 'indice' }}</span>
+              </div>
+              <div class="mt-0.5 font-mono text-[11px] text-ink/55">{{ i.constat }}</div>
+            </div>
+          {% endfor %}
+        </div>
+        <p class="mt-2 text-[11px] text-ink/45">
+          {{ forts }} preuve{{ forts > 1 ? 's' }} forte{{ forts > 1 ? 's' }},
+          {{ a.indices|length - forts }} indice{{ (a.indices|length - forts) > 1 ? 's' }} de contexte.
+        </p>
+      {% endif %}
+    </section>
+  </div>
+
+  {# ----------------------------------------------- C. la décision #}
+  <section class="mb-4 rounded-xl border-2 p-4 shadow-sm
+                  {{ a.verdict == 'automatique' ? 'border-positive/40 bg-positive/5'
+                   : a.verdict == 'proposition' ? 'border-sky-300 bg-sky-50'
+                   : a.verdict == 'humain' ? 'border-warning/50 bg-warning/5'
+                   : 'border-negative/40 bg-negative/5' }}">
+    <div class="mb-2 flex flex-wrap items-center gap-2">
+      <span class="flex h-5 w-5 items-center justify-center rounded bg-white text-[10px] font-bold text-ink/70">C</span>
+      <h3 class="text-[11px] font-bold uppercase tracking-wider text-ink/50">La décision</h3>
+      {% if a.arret %}
+        <span class="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-negative">
+          règle d'arrêt : {{ {'contradiction': 'clé contradictoire', 'solde': 'solde résiduel',
+            'composition_multiple': 'plusieurs compositions', 'aucune_methode': 'aucune méthode'}[a.arret]|default(a.arret) }}
+        </span>
+      {% endif %}
+    </div>
+
+    <div class="mb-1 text-lg font-bold
+                {{ a.verdict == 'automatique' ? 'text-positive'
+                 : a.verdict == 'refus' ? 'text-negative' : 'text-navy' }}">
+      {{ {'automatique': 'Lettrage automatique', 'proposition': 'Proposition de lettrage',
+          'humain': 'Intervention humaine requise', 'refus': 'Lettrage refusé'}[a.verdict] }}
+    </div>
+    <p class="mb-3 max-w-4xl text-[12.5px] leading-relaxed text-ink/75">{{ a.motif }}</p>
+
+    <div class="grid gap-3 text-[12.5px] sm:grid-cols-4">
+      <div><span class="text-ink/45">Méthode retenue :</span>
+        <b>{{ a.methode ?: 'aucune' }}</b>
+        {% if catalogue %}<span class="block text-[11px] text-ink/50">{{ catalogue.nom }} — rang {{ catalogue.rang }}/25</span>{% endif %}
+      </div>
+      <div><span class="text-ink/45">Solde avant :</span>
+        <b class="font-mono">{{ a.solde_avant|number_format(2, ',', ' ') }} €</b></div>
+      <div><span class="text-ink/45">Solde après lettrage :</span>
+        <b class="font-mono">{{ a.verdict == 'automatique' ? '0,00' : a.solde_avant|number_format(2, ',', ' ') }} €</b></div>
+      <div><span class="text-ink/45">Compositions possibles :</span>
+        <b class="font-mono {{ a.compositions_possibles > 1 ? 'text-warning' : '' }}">{{ a.compositions_possibles }}</b></div>
+    </div>
+
+    {% if catalogue %}
+      <div class="mt-3 rounded-lg border border-hairline bg-white p-3">
+        <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink/40">
+          Pourquoi ? — la règle appliquée, {{ catalogue.code }}
+        </div>
+        <dl class="grid gap-x-6 gap-y-1 text-[11.5px] leading-relaxed sm:grid-cols-2">
+          <div><dt class="inline font-semibold text-ink/60">Règle :</dt>
+            <dd class="inline text-ink/75">{{ catalogue.regle }}</dd></div>
+          <div><dt class="inline font-semibold text-ink/60">Tolérance :</dt>
+            <dd class="inline text-ink/75">{{ catalogue.tolerance }}</dd></div>
+          <div class="sm:col-span-2"><dt class="inline font-semibold text-ink/60">Garde-fou :</dt>
+            <dd class="inline text-ink/75">{{ catalogue.garde_fou }}</dd></div>
+          <div class="sm:col-span-2"><dt class="inline font-semibold text-ink/60">Elle refuse quand :</dt>
+            <dd class="inline text-ink/75">{{ catalogue.refus }}</dd></div>
+        </dl>
+      </div>
+    {% endif %}
+  </section>
+
+  {# ----------------------------------------------- D. la cascade sur ce compte #}
+  <div class="grid gap-3 lg:grid-cols-2">
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <div class="mb-3 flex items-baseline gap-2">
+        <span class="flex h-5 w-5 items-center justify-center rounded bg-ink/10 text-[10px] font-bold text-ink/60">D</span>
+        <h3 class="text-[11px] font-bold uppercase tracking-wider text-ink/50">La cascade sur ce compte client</h3>
+        <span class="ml-auto text-[11px] text-ink/40">{{ a.pool|length }} écritures ouvertes examinées</span>
+      </div>
+      <table class="fc-table-comptable w-full">
+        <thead><tr><th>Méthode</th><th class="text-right">Groupes formés</th>
+          <th class="text-right">Lignes consommées</th><th class="text-right">Durée</th></tr></thead>
+        <tbody>
+          {% set vues = 0 %}
+          {% for code, ms in a.cascade.chrono %}
+            {% set pris = a.cascade.consommation[code]|default(0) %}
+            {% if pris > 0 or code == a.methode %}
+              {% set vues = vues + 1 %}
+              <tr class="{{ code == a.methode ? 'bg-positive/5 font-semibold' : '' }}">
+                <td class="font-mono text-[12px]">{{ code }}</td>
+                <td class="text-right font-mono text-[12px]">
+                  {{ a.cascade.groupes|filter(g => g.methode == code)|length }}</td>
+                <td class="text-right font-mono text-[12px]">{{ pris }}</td>
+                <td class="text-right font-mono text-[11px] text-ink/50">{{ ms|number_format(2, ',', ' ') }} ms</td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+          <tr class="border-t-2 border-ink/20">
+            <td class="text-[12px] font-bold">Résidu</td>
+            <td></td>
+            <td class="text-right font-mono text-[12px] font-bold">{{ a.cascade.residu|length }}</td>
+            <td class="text-right text-[11px] text-ink/45">non lettrées</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="mt-2.5 text-[11.5px] leading-relaxed text-ink/60">
+        Les méthodes s'exécutent du <b>plus sûr au plus permissif</b>, et
+        <b>une ligne consommée n'est jamais reprise</b> par une méthode suivante. C'est ce qui
+        rend l'ordre décisif : déplacer une méthode change qui récupère quelle ligne, donc change
+        le résultat.
+      </p>
+    </section>
+
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-3 text-[11px] font-bold uppercase tracking-wider text-ink/50">
+        La recherche de combinaison, telle qu'elle a tourné
+      </h3>
+      <dl class="space-y-1.5 text-[12.5px]">
+        <div class="flex justify-between"><dt class="text-ink/55">Itérations explorées</dt>
+          <dd class="font-mono font-semibold">{{ a.cascade.combinaison.iterations|default(0)|number_format(0, ',', ' ') }}</dd></div>
+        <div class="flex justify-between"><dt class="text-ink/55">Solutions trouvées</dt>
+          <dd class="font-mono font-semibold">{{ a.cascade.combinaison.solutions|default(0) }}</dd></div>
+        <div class="flex justify-between"><dt class="text-ink/55">Compositions distinctes sur le groupe retenu</dt>
+          <dd class="font-mono font-semibold {{ a.compositions_possibles > 1 ? 'text-warning' : '' }}">{{ a.compositions_possibles }}</dd></div>
+        <div class="flex justify-between"><dt class="text-ink/55">Recherche tronquée</dt>
+          <dd class="font-semibold">{{ a.cascade.combinaison.tronquee|default(false) ? 'oui, et c\'est dit' : 'non' }}</dd></div>
+        <div class="flex justify-between border-t border-hairline pt-1.5"><dt class="text-ink/55">Temps de recherche</dt>
+          <dd class="font-mono font-semibold">{{ a.cascade.combinaison.ms|default(0)|number_format(2, ',', ' ') }} ms</dd></div>
+      </dl>
+      {% if a.groupe is not empty %}
+        <h4 class="mb-1.5 mt-3 text-[11px] font-bold uppercase tracking-wider text-ink/50">Le groupe retenu</h4>
+        <table class="fc-table-comptable w-full">
+          <tbody>
+            {% for e in a.groupe %}
+              <tr>
+                <td class="font-mono text-[11.5px]">{{ e.id }}</td>
+                <td class="text-[11.5px] {{ e.sens == 'D' ? 'text-navy' : 'text-positive' }}">{{ e.sens }}</td>
+                <td class="font-mono text-[11px] text-ink/50">{{ e.compte }}</td>
+                <td class="text-right font-mono text-[12px]">{{ e.montant|number_format(2, ',', ' ') }} €</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
+      <p class="mt-2.5 text-[11px] leading-relaxed text-ink/50">
+        Aucune de ces durées n'est prédéfinie : la cascade est rejouée à chaque ouverture de
+        cette fiche, et chronométrée.
+      </p>
+    </section>
+  </div>
+
+</div>
+{% endblock %}

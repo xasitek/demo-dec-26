@@ -1,0 +1,129 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ regle ? 'Modifier une règle' : 'Nouvelle règle' }} - Recouvrement - Finance Créances{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+{% block topbar_nav %}{% include 'recouvrement/_topbar_nav.html.twig' with {active: 'strategies'} %}{% endblock %}
+
+{% macro ligne_filtre(champs, operateurs, f) %}
+    <div data-regle-form-target="ligne" class="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-hairline bg-surface/50 p-2">
+        <select name="filtres[__IDX__][champ]" class="fc-input min-w-[12rem] flex-1 text-sm" data-action="change->regle-form#changer">
+            {% for cle, libelle in champs %}
+                <option value="{{ cle }}" {{ (f and f.champ == cle) ? 'selected' : '' }}>{{ libelle }}</option>
+            {% endfor %}
+        </select>
+        <select name="filtres[__IDX__][operateur]" class="fc-input w-40 text-sm" data-action="change->regle-form#changer">
+            {% for cle, libelle in operateurs %}
+                <option value="{{ cle }}" {{ (f and f.operateur == cle) ? 'selected' : '' }}>{{ libelle }}</option>
+            {% endfor %}
+        </select>
+        <input type="text" name="filtres[__IDX__][valeur]" value="{{ f ? (f.valeur is iterable ? f.valeur|join(', ') : f.valeur) : '' }}"
+               placeholder="valeur (liste : séparer par des virgules)" class="fc-input min-w-[10rem] flex-1 text-sm" data-action="input->regle-form#rafraichirDiffere">
+        <button type="button" data-action="regle-form#retirer" class="rounded-md p-1.5 text-ink/40 transition hover:bg-negative/10 hover:text-negative" aria-label="Retirer ce filtre" title="Retirer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+    </div>
+{% endmacro %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-3xl px-3"
+     data-controller="regle-form"
+     data-regle-form-apercu-url-value="{{ path('app_recouvrement_regle_apercu') }}"
+     data-regle-form-options-value="{{ options_valeurs|json_encode|e('html_attr') }}"
+     data-regle-form-categoriels-value="{{ champs_categoriels|json_encode|e('html_attr') }}">
+
+    <div class="mb-4 flex items-center gap-2 text-sm">
+        <a href="{{ path('app_recouvrement_admin_strategies') }}" class="text-ink/55 hover:text-navy">Stratégies</a>
+        <span class="text-ink/30">/</span>
+        <span class="font-medium text-navy">{{ regle ? 'Modifier « ' ~ regle.nom ~ ' »' : 'Nouvelle règle' }}</span>
+    </div>
+
+    <form method="post" action="{{ path('app_recouvrement_regle_enregistrer') }}" data-regle-form-target="form">
+        <input type="hidden" name="_token" value="{{ csrf_token('regle-relance') }}">
+        {% if regle %}<input type="hidden" name="id" value="{{ regle.id }}">{% endif %}
+
+        {# Nom + actif #}
+        <div class="mb-5 rounded-lg border border-hairline bg-white p-4">
+            <label class="mb-1 block text-sm font-medium text-navy">Nom de la règle</label>
+            <input type="text" name="nom" value="{{ regle ? regle.nom : '' }}" maxlength="120" required
+                   placeholder="ex. Standard VN" class="fc-input w-full text-sm">
+            <label class="mt-3 inline-flex items-center gap-2 text-sm text-ink/80">
+                <input type="checkbox" name="actif" value="1" {{ (regle is null or regle.actif) ? 'checked' : '' }} class="rounded border-hairline text-navy focus:ring-navy">
+                Règle active
+            </label>
+        </div>
+
+        {# Filtres #}
+        <div class="mb-5 rounded-lg border border-hairline bg-white p-4">
+            <div class="mb-2 flex items-center justify-between">
+                <h2 class="text-sm font-semibold text-navy">Filtres (combinés en ET)</h2>
+                <button type="button" data-action="regle-form#ajouter" class="inline-flex items-center gap-1 rounded-md border border-navy/20 px-2.5 py-1 text-xs font-medium text-navy transition hover:bg-navy/5">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                    Ajouter un filtre
+                </button>
+            </div>
+            <p class="mb-3 text-xs text-ink/55">Sans filtre, la règle vise tous les impayés. Les champs correspondent aux colonnes disponibles en base.</p>
+
+            <div data-regle-form-target="lignes">
+                {% for f in (regle ? regle.filtres : []) %}
+                    {{ _self.ligne_filtre(champs, operateurs, f) }}
+                {% endfor %}
+            </div>
+
+            {# Gabarit d'une ligne vierge, cloné à l'ajout #}
+            <template data-regle-form-target="gabarit">
+                {{ _self.ligne_filtre(champs, operateurs, null) }}
+            </template>
+        </div>
+
+        {# Cadence #}
+        <div class="mb-5 rounded-lg border border-hairline bg-white p-4">
+            <h2 class="mb-3 text-sm font-semibold text-navy">Cadence</h2>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-ink/70">1re relance à (jours de retard)</label>
+                    <input type="number" name="delai_initial" min="0" value="{{ regle ? regle.delaiInitial : 30 }}" class="fc-input w-full text-sm">
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-ink/70">Puis tous les (jours)</label>
+                    <input type="number" name="intervalle" min="1" value="{{ regle ? regle.intervalle : 15 }}" class="fc-input w-full text-sm">
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-ink/70">Mise en demeure à (jours)</label>
+                    <input type="number" name="seuil_med" min="0" value="{{ regle ? regle.seuilMed : 90 }}" class="fc-input w-full text-sm">
+                </div>
+            </div>
+            <div class="mt-3">
+                <label class="mb-1 block text-xs font-medium text-ink/70">Montant minimum de relance (€)</label>
+                <input type="number" name="montant_min" min="0" step="1" value="{{ regle ? regle.montantMin : 100 }}" class="fc-input w-full text-sm sm:w-1/3">
+                <p class="mt-1 text-xs text-ink/50">En dessous de ce net TTC (factures − avoirs), pas de relance auto. 0 = pas de seuil.</p>
+            </div>
+            <div class="mt-3 flex flex-col gap-2">
+                <label class="inline-flex items-center gap-2 text-sm text-ink/80">
+                    <input type="checkbox" name="continuer_apres_med" value="1" {{ (regle is null or regle.continuerApresMed) ? 'checked' : '' }} class="rounded border-hairline text-navy focus:ring-navy">
+                    Continuer à relancer après la mise en demeure
+                </label>
+                <label class="inline-flex items-center gap-2 text-sm text-ink/80">
+                    <input type="checkbox" name="releve_seul" value="1" {{ (regle and regle.releveSeul) ? 'checked' : '' }} class="rounded border-hairline text-navy focus:ring-navy">
+                    Relevé seul (ne pas joindre les PDF de factures)
+                </label>
+            </div>
+        </div>
+
+        {# Aperçu live #}
+        <div class="mb-5 rounded-lg border border-gold/40 bg-gold-soft/15 p-4">
+            <h2 class="mb-1 text-sm font-semibold text-navy">Aperçu du périmètre</h2>
+            <p class="text-sm text-ink/70">
+                Cette règle concerne
+                <span data-regle-form-target="apercuComptes" class="font-bold text-navy">—</span> comptes,
+                <span data-regle-form-target="apercuFactures" class="font-bold text-navy">—</span> factures échues,
+                pour <span data-regle-form-target="apercuEncours" class="font-bold text-navy">—</span> € d'encours.
+            </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <button type="submit" class="rounded-md bg-navy px-5 py-2 text-sm font-semibold text-white transition hover:bg-navy-light">Enregistrer</button>
+            <a href="{{ path('app_recouvrement_admin_strategies') }}" class="text-sm text-ink/55 hover:text-navy">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,223 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Conventions — Cockpit{% endblock %}
+{% block page_title %}Cockpit BFR et DSO{% endblock %}
+{% block topbar_nav %}{% include 'pilotage/_nav.html.twig' with { active: 'methode' } %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1500px]">
+
+  <section class="mb-3 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <p class="text-[13px] leading-relaxed text-ink/80">
+      Un indicateur de pilotage ne vaut que par sa convention. Deux DSO calculés autrement ne se
+      comparent pas, et un DSO dont on ne peut pas produire le numérateur, le dénominateur, le
+      nombre de jours et les exclusions n'est pas un indicateur :
+      <b>c'est une opinion chiffrée</b>. Cette page porte les conventions appliquées, et les
+      chiffres qui en sortent.
+    </p>
+    <p class="mt-2 text-[11.5px] text-ink/45">calculé en {{ ms|number_format(0, ',', ' ') }} ms</p>
+  </section>
+
+  {# ------------------------------------------------- DSO #}
+  <section class="mb-3 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <h3 class="mb-2 text-sm font-bold uppercase tracking-wide text-ink/70">{{ dso.nom }}</h3>
+    <table class="fc-table-comptable w-full">
+      <tbody>
+        <tr><td class="w-56 text-[12.5px] font-semibold text-ink/60">Formule</td>
+          <td class="text-[12.5px]">{{ dso.formule }}</td></tr>
+        <tr><td class="text-[12.5px] font-semibold text-ink/60">Numérateur</td>
+          <td class="text-[12.5px]">{{ dso.numerateur }}
+            <span class="ml-1 font-mono text-[12px] font-bold text-navy">
+              {{ chiffres_dso.numerateur_brut|number_format(0, ',', ' ') }} €</span> brut,
+            <span class="font-mono text-[12px] font-bold text-navy">
+              {{ chiffres_dso.numerateur_retraite|number_format(0, ',', ' ') }} €</span> retraité</td></tr>
+        <tr><td class="text-[12.5px] font-semibold text-ink/60">Dénominateur</td>
+          <td class="text-[12.5px]">{{ dso.denominateur }}
+            <span class="ml-1 font-mono text-[12px] font-bold text-navy">
+              {{ chiffres_dso.denominateur|number_format(0, ',', ' ') }} €</span></td></tr>
+        <tr><td class="text-[12.5px] font-semibold text-ink/60">Nombre de jours</td>
+          <td class="text-[12.5px]">{{ dso.jours }}
+            Chiffre d'affaires quotidien :
+            <span class="font-mono text-[12px] font-bold">{{ chiffres_dso.quotidien|number_format(0, ',', ' ') }} €</span></td></tr>
+        <tr><td class="text-[12.5px] font-semibold text-ink/60">Exclusions</td>
+          <td class="text-[12.5px] leading-relaxed">{{ dso.exclusions }}</td></tr>
+        <tr><td class="text-[12.5px] font-semibold text-ink/60">Date d'arrêté</td>
+          <td class="font-mono text-[12.5px]">{{ dso.arrete|date('d/m/Y') }}</td></tr>
+        <tr class="bg-gold/5"><td class="text-[12.5px] font-semibold text-ink/60">Résultat</td>
+          <td class="text-[12.5px]">
+            DSO brut <b class="font-mono text-navy">{{ chiffres_dso.brut|number_format(1, ',', ' ') }} jours</b>,
+            DSO retraité <b class="font-mono text-navy">{{ chiffres_dso.retraite|number_format(1, ',', ' ') }} jours</b></td></tr>
+        <tr><td class="text-[12.5px] font-semibold text-negative">Limite</td>
+          <td class="text-[12px] leading-relaxed text-ink/70">{{ dso.limite }}</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  {# ------------------------------------------------- BFR #}
+  <section class="mb-3 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <h3 class="mb-2 text-sm font-bold uppercase tracking-wide text-ink/70">{{ bfr.nom }}</h3>
+    <table class="fc-table-comptable w-full">
+      <tbody>
+        <tr><td class="w-56 text-[12.5px] font-semibold text-ink/60">Définition</td>
+          <td class="text-[12.5px] leading-relaxed">{{ bfr.definition }}</td></tr>
+        <tr><td class="text-[12.5px] font-semibold text-ink/60">Formule</td>
+          <td class="text-[12.5px]">{{ bfr.formule }}</td></tr>
+        <tr><td class="text-[12.5px] font-semibold text-ink/60">En jours</td>
+          <td class="text-[12.5px]">{{ bfr.jours }}</td></tr>
+        <tr><td class="text-[12.5px] font-semibold text-ink/60">Pourquoi retraité</td>
+          <td class="text-[12.5px] leading-relaxed">{{ bfr.pourquoi_retraite }}</td></tr>
+        <tr class="bg-gold/5"><td class="text-[12.5px] font-semibold text-ink/60">Résultat</td>
+          <td class="text-[12.5px]">
+            <b class="font-mono text-navy">{{ (chiffres_bfr.montant / 1000000)|number_format(2, ',', ' ') }} M€</b>,
+            soit <b class="font-mono text-navy">{{ chiffres_bfr.jours_ca|number_format(1, ',', ' ') }} jours</b>
+            de chiffre d'affaires. Calculé sur l'encours brut, il afficherait
+            {{ (chiffres_bfr.montant_brut / 1000000)|number_format(2, ',', ' ') }} M€ et
+            {{ chiffres_bfr.jours_ca_brut|number_format(1, ',', ' ') }} jours —
+            un besoin de financement que le groupe n'a pas.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  {# ------------------------------------------------- les retraitements #}
+  <section class="mb-3 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="mb-2 flex flex-wrap items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">Les quatre retraitements</h3>
+      <span class="ml-auto text-[11px] text-ink/45">leur somme referme exactement l'écart entre les deux lectures</span>
+    </div>
+    <table class="fc-table-comptable w-full">
+      <thead><tr><th>Retraitement</th><th>Pourquoi il est soustrait</th><th class="text-right">Montant</th></tr></thead>
+      <tbody>
+        {% for r in retraitements %}
+          <tr>
+            <td class="text-[12.5px] font-semibold">{{ r.libelle }}</td>
+            <td class="text-[11.5px] leading-relaxed text-ink/65">{{ r.motif }}</td>
+            <td class="text-right font-mono text-[12px] font-semibold">
+              {{ (chiffres_encours.retraitements[r.code] / 1000000)|number_format(2, ',', ' ') }} M€</td>
+          </tr>
+        {% endfor %}
+        <tr class="border-t-2 border-ink/20">
+          <td class="text-[12.5px] font-bold">Encours comptable</td><td></td>
+          <td class="text-right font-mono text-[13px] font-bold">{{ (chiffres_encours.brut / 1000000)|number_format(2, ',', ' ') }} M€</td></tr>
+        <tr><td class="text-[12.5px] font-bold text-warning">Moins les retraitements</td><td></td>
+          <td class="text-right font-mono text-[13px] font-bold text-warning">
+            − {{ (chiffres_encours.ecart / 1000000)|number_format(2, ',', ' ') }} M€</td></tr>
+        <tr class="bg-navy/5"><td class="text-[12.5px] font-bold text-navy">Encours à piloter</td><td></td>
+          <td class="text-right font-mono text-[13px] font-bold text-navy">
+            {{ (chiffres_encours.retraite / 1000000)|number_format(2, ',', ' ') }} M€</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  {# ------------------------------------------------- la passerelle #}
+  <section class="mb-3 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">
+      De l'encours comptable à l'exposition financière
+    </h3>
+    {% include 'pilotage/_passerelle.html.twig' with { encours: chiffres_encours } %}
+  </section>
+
+  {# ------------------------------------------------- les trois natures #}
+  <section class="mb-3 rounded-xl border-2 border-navy/30 bg-navy/5 p-4 shadow-sm">
+    <h3 class="mb-2 text-sm font-bold uppercase tracking-wide text-ink/70">
+      Trois grandeurs, jamais additionnées
+    </h3>
+    <table class="fc-table-comptable w-full">
+      <tbody>
+        {% for cle, n in natures %}
+          <tr>
+            <td class="w-44 text-[12.5px] font-semibold">{{ n.libelle }}
+              <span class="block text-[10.5px] font-normal text-ink/45">{{ cle == 'cash' ? 'flux sur la période' : "stock à l'arrêté" }}</span></td>
+            <td class="text-[11.5px] leading-relaxed text-ink/70">{{ n.definition }}</td>
+            <td class="text-right font-mono text-[12px] font-bold">
+              {{ (chiffres_encours.natures[cle] / 1000000)|number_format(2, ',', ' ') }} M€</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="mt-2.5 text-[12px] leading-relaxed text-ink/75">
+      <b>C'est la signature de la suite.</b> Présenter une baisse de l'encours non lettré comme du
+      cash généré est la faute que l'on voit partout. L'argent d'un règlement déjà encaissé mais
+      mal affecté est <b>déjà en banque</b> : le retrouver ne crée pas un euro, cela rend la
+      lecture juste. Un contrôle de réconciliation vérifie qu'aucun crédit ne figure à la fois
+      dans le cash et dans l'exposition, et il fait échouer la construction si c'est le cas.
+    </p>
+  </section>
+
+  {# ------------------------------------------------- l'effet des outils 4 et 5 #}
+  <section class="mb-3 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <h3 class="mb-2 text-sm font-bold uppercase tracking-wide text-ink/70">
+      Ce que le cockpit doit aux outils 4 et 5
+    </h3>
+    <p class="mb-3 text-[12.5px] leading-relaxed text-ink/70">
+      Le cockpit <b>ne recalcule rien</b> de ce que les deux outils précédents ont décidé : il lit
+      leurs tables de décision et en tire les conséquences. C'est ce qui rend la vue avant / après
+      honnête — elle ne simule pas un effet, elle le constate.
+    </p>
+    <table class="fc-table-comptable w-full">
+      <tbody>
+        <tr><td class="text-[12.5px]">Virements affectés automatiquement par l'outil 4</td>
+          <td class="text-right font-mono text-[12px] font-semibold">{{ effets.affecte_n|number_format(0, ',', ' ') }}</td>
+          <td class="text-right font-mono text-[12px]">{{ (effets.affecte_montant / 1000000)|number_format(2, ',', ' ') }} M€</td></tr>
+        <tr><td class="text-[12.5px]">Lots lettrés automatiquement par l'outil 5</td>
+          <td class="text-right font-mono text-[12px] font-semibold">{{ effets.lettre_lots|number_format(0, ',', ' ') }}</td>
+          <td class="text-right font-mono text-[12px]">{{ (effets.lettre_montant / 1000000)|number_format(2, ',', ' ') }} M€</td></tr>
+        <tr><td class="text-[12.5px]">Créances soldées par la chaîne</td>
+          <td class="text-right font-mono text-[12px] font-semibold">{{ effets.soldees_par_la_chaine|number_format(0, ',', ' ') }}</td>
+          <td></td></tr>
+        <tr class="bg-warning/5"><td class="text-[12.5px] font-semibold">Créances réellement encore dues</td>
+          <td class="text-right font-mono text-[12px] font-bold text-warning">{{ effets.factures_reellement_dues|number_format(0, ',', ' ') }}</td>
+          <td class="text-right font-mono text-[12px] font-bold text-warning">{{ (effets.exposition / 1000000)|number_format(2, ',', ' ') }} M€</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <div class="grid gap-3 lg:grid-cols-2">
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-2 text-sm font-bold uppercase tracking-wide text-ink/70">Périmètre des comptes</h3>
+      <table class="fc-table-comptable w-full">
+        <tbody>
+          <tr><td class="text-[12.5px] font-semibold text-ink/60">Comptes de créance retenus</td>
+            <td class="font-mono text-[12px]">{{ comptes_creance|join(' · ') }}</td></tr>
+          <tr><td class="text-[12.5px] font-semibold text-ink/60">Comptes exclus</td>
+            <td class="font-mono text-[12px] text-ink/55">{{ comptes_hors|join(' · ') }}</td></tr>
+        </tbody>
+      </table>
+      <h4 class="mb-1 mt-3 text-[11px] font-bold uppercase tracking-wider text-ink/50">Tranches d'ancienneté</h4>
+      <table class="fc-table-comptable w-full">
+        <tbody>
+          {% for t in tranches %}
+            <tr><td class="text-[12px]">{{ t.libelle }}</td>
+              <td class="text-right font-mono text-[11.5px] text-ink/55">
+                {{ t.min is null ? 'non échu' : (t.max is null ? 'plus de ' ~ t.min ~ ' j' : t.min ~ ' à ' ~ t.max ~ ' j') }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-2 text-sm font-bold uppercase tracking-wide text-ink/70">Limites assumées</h3>
+      <ul class="space-y-1.5 text-[12.5px] leading-relaxed text-ink/70">
+        <li>— <b>Pas de test en aveugle</b>, et c'est volontaire : un cockpit ne prédit rien, il
+          consolide. On ne mesure pas la justesse d'une somme en la cachant. Ce qui remplace le
+          test aveugle, ce sont <b>huit contrôles de réconciliation</b> qui font échouer la
+          construction en cas d'écart d'un centime.</li>
+        <li>— Le chiffre d'affaires est <b>dérivé du portefeuille de factures</b> du monde
+          synthétique, ramené hors taxes. Numérateur et dénominateur sortent de la même source :
+          le ratio est cohérent, et strictement propre à cette démonstration.</li>
+        <li>— Les résultats d'exploitation historiques de la mission restent <b>séparés</b> : aucun
+          chiffre affiché ici ne cherche à retomber sur eux.</li>
+        <li>— La cause d'ouverture de chaque créance est une <b>donnée du monde synthétique</b>.
+          En production, elle vient du dossier, du comité et du référentiel de financement —
+          c'est précisément ce que les outils 7, 9 et 10 apportent.</li>
+        <li>— Les données sont <b>entièrement synthétiques</b>. Les durées, elles, sont
+          chronométrées à chaque affichage.</li>
+      </ul>
+    </section>
+  </div>
+
+  <p class="mt-4 rounded-xl border border-hairline bg-surface px-4 py-3 text-[11.5px] leading-relaxed text-ink/60">
+    <b>Périmètres de mesure.</b> {{ mention_perimetres }}
+  </p>
+
+</div>
+{% endblock %}

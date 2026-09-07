@@ -1,0 +1,90 @@
+{#- Sections « jour » du Journal des paiements (page initiale + tranches du scroll infini).
+   Attend : jours (groupes), piecesParDossier, etabsNom (code->libelle), etabsSociete (code->societe). -#}
+{% set libelles = {
+    'rib': 'RIB', 'fichier_sepa': 'SEPA', 'fichier_od': 'OD', 'facture_achat_vo': 'Facture',
+    'estimation_salesforce': 'Estimation', 'carte_grise': 'Carte grise', 'certificat_situation': 'Certificat',
+    'releve_icar': 'Relevé ICAR', 'petits_comptes': 'Petits comptes',
+} %}
+{% for cle, grp in jours %}
+    {% if grp.enAttente == 0 %}
+        {% set badgeTxt = 'Payé' %}{% set badgeCls = 'bg-emerald-100 text-emerald-700' %}
+    {% elseif grp.payes > 0 %}
+        {% set badgeTxt = 'Payé partiellement' %}{% set badgeCls = 'bg-orange-100 text-orange-700' %}
+    {% else %}
+        {% set badgeTxt = 'En attente de paiement' %}{% set badgeCls = 'bg-amber-100 text-amber-800' %}
+    {% endif %}
+    <section data-jour="{{ cle }}" class="mb-6 overflow-hidden rounded-xl border border-hairline bg-white shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-hairline bg-surface/60 px-4 py-3">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold text-navy">{{ grp.date ? grp.date|date('d/m/Y') : 'Date inconnue' }}</span>
+                    <span data-role="badge-section" class="rounded-full px-2 py-0.5 text-[10px] font-semibold {{ badgeCls }}">{{ badgeTxt }}</span>
+                </div>
+                <div class="mt-0.5 text-xs text-ink/55">
+                    {{ pluriel(grp.dossiers|length, 'dossier', 'dossiers') }} · {{ grp.total|number_format(2, ',', ' ') }} €{% if grp.par %} · préparé par {{ grp.par }}{% endif %}
+                </div>
+            </div>
+            {% if grp.enAttente > 0 %}
+                <button type="button" data-action="paiement-journal#confirmer" data-jour="{{ cle }}" data-role="btn-confirmer"
+                        class="inline-flex items-center gap-2 rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-light disabled:cursor-not-allowed disabled:opacity-70">
+                    <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                    Confirmer les paiements
+                </button>
+            {% endif %}
+        </div>
+
+        <div>
+            <table class="w-full text-xs">
+                <thead class="border-b border-hairline bg-surface/40 text-left text-[10px] uppercase tracking-wider text-ink/45">
+                    <tr>
+                        <th class="w-8 px-2 py-2 text-center"><input type="checkbox" checked data-action="paiement-journal#toutCocher" data-jour="{{ cle }}" title="Tout cocher / décocher" class="h-4 w-4 rounded border-hairline text-navy focus:ring-2 focus:ring-navy/30"></th>
+                        <th class="px-2 py-2 font-semibold">Motif</th>
+                        <th class="px-2 py-2 font-semibold">Société / Établissement</th>
+                        <th class="px-2 py-2 font-semibold">Réf. / Client</th>
+                        <th class="px-2 py-2 text-right font-semibold">Montant</th>
+                        <th class="px-2 py-2 font-semibold">IBAN</th>
+                        <th class="px-2 py-2 font-semibold">Pièces</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in grp.dossiers %}
+                        {% set enAttente = d.statut.value == 'generation_en_cours' %}
+                        <tr data-dossier-id="{{ d.id }}" data-etat="{{ enAttente ? 'attente' : 'paye' }}" class="border-t border-hairline/70 align-top">
+                            <td data-role="coche" class="whitespace-nowrap px-2 py-2 text-center">
+                                {% if enAttente %}
+                                    <input type="checkbox" name="ids[]" value="{{ d.id }}" checked class="mt-0.5 h-4 w-4 rounded border-hairline text-navy focus:ring-2 focus:ring-navy/30">
+                                {% else %}
+                                    <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700"><svg viewBox="0 0 24 24" class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Payé</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-2 py-2 text-ink/70">{{ d.motif.libelle }}</td>
+                            <td class="px-2 py-2">
+                                <div class="font-medium text-ink">{{ etabsSociete[d.etablissementCode]|default('') ?: '—' }}</div>
+                                <div class="text-ink/55">{{ etabsNom[d.etablissementCode]|default(d.etablissementCode ?: '—') }}</div>
+                            </td>
+                            <td class="px-2 py-2">
+                                <div class="font-mono text-[11px] text-navy">{{ d.reference }}</div>
+                                <div class="mt-0.5 font-medium text-navy">{{ (d.valideNom ?: d.nomClient) ?: '—' }}</div>
+                            </td>
+                            <td class="whitespace-nowrap px-2 py-2 text-right font-semibold text-navy">{{ (d.valideMontant ?: d.montant)|number_format(2, ',', ' ') }} €</td>
+                            <td class="break-all px-2 py-2 font-mono text-ink/70">{{ (d.valideIban ?: d.ibanClient) ?: '—' }}</td>
+                            <td class="px-2 py-2">
+                                <div class="flex flex-wrap gap-1">
+                                    {% for p in piecesParDossier[d.id]|default([]) %}
+                                        <a href="{{ path('app_remboursement_dossier_piece', {id: p.id}) }}" target="_blank" rel="noopener"
+                                           class="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-hairline bg-white px-2 py-1 text-[10px] font-medium text-ink/75 shadow-sm transition hover:border-navy/30 hover:bg-surface hover:text-navy">
+                                            <svg class="h-3 w-3 text-ink/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                                            {{ libelles[p.type]|default(p.type) }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-ink/40">—</span>
+                                    {% endfor %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endfor %}

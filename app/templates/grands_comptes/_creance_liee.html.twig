@@ -1,0 +1,75 @@
+{# La creance que ce dossier debloque, et le chemin de retour vers l'outil 6.
+   Un pont ne vaut que s'il se traverse dans les deux sens : depuis le cockpit
+   pour venir traiter, et depuis ici pour constater l'effet. #}
+{% if creance %}
+  {% set q = qualites_pont[creance.qualite] %}
+  <section class="mb-3 rounded-xl border-2 p-4 shadow-sm
+                  {{ creance.resolu_session ? 'border-positive/45 bg-positive/5' : 'border-gold/50 bg-gold/[0.06]' }}">
+    <div class="mb-1.5 flex flex-wrap items-center gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide {{ creance.resolu_session ? 'text-positive' : 'text-gold' }}">
+        {{ creance.resolu_session
+           ? 'Ce dossier a débloqué une créance du poste client'
+           : 'Ce dossier bloque une créance du poste client' }}
+      </h3>
+      <span title="{{ q.explication }}"
+            class="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider
+                   {{ q.nature != 'association' ? 'bg-positive/15 text-positive' : 'bg-navy/10 text-navy' }}">
+        {{ q.nature }} — {{ q.libelle }}
+      </span>
+      <a href="{{ path('app_gc_pont') }}"
+         class="ml-auto text-[11.5px] font-semibold text-navy hover:underline">Le pont complet →</a>
+    </div>
+
+    <div class="flex flex-wrap items-start gap-5">
+      <div class="min-w-[11rem]">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/45">Créance — outil 6</div>
+        <div class="font-mono text-[13px] font-bold">{{ creance.facture_id }}</div>
+        <div class="text-[11px] text-ink/55">{{ creance.client_nom ?: creance.client_id }}</div>
+      </div>
+      <div class="min-w-[9rem]">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/45">Montant bloqué</div>
+        <div class="font-mono text-lg font-bold text-ink">{{ creance.montant_creance|number_format(2, ',', ' ') }} €</div>
+      </div>
+      <div class="min-w-[9rem]">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/45">Échéance</div>
+        <div class="text-[12.5px] font-semibold">{{ creance.echeance ? creance.echeance|date('d/m/Y') : '—' }}</div>
+      </div>
+      <div class="min-w-[16rem] flex-1">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/45">Ce que le rapprochement affirme</div>
+        <p class="text-[11.5px] leading-snug text-ink/70">{{ creance.preuve }}</p>
+        {% if creance.provenance is defined and creance.provenance %}
+          <p class="mt-1 text-[10.5px] leading-snug text-ink/50">
+            Provenance : <b>{{ creance.provenance }}</b> · nature <span class="font-mono">{{ creance.nature_lien }}</span>
+            · niveau de preuve <span class="font-mono">{{ creance.niveau_preuve }}</span>
+            · univers créé le {{ creance.univers_cree_le|date('d/m/Y') }}.
+            Cette relation est portée par le <b>monde de démonstration</b>, pas par le schéma de
+            vérité : aucun écran n'ouvre la vérité.
+          </p>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if creance.resolu_session %}
+      <p class="mt-2 rounded-lg border border-positive/40 bg-white px-3 py-2 text-[12px] leading-relaxed text-ink/80">
+        <b>Résolue dans la session de démonstration</b>, le
+        {{ creance.resolu_le|date('d/m/Y à H\\hi') }} : le dossier a été validé conforme, la pièce
+        exigée est au dossier, et la créance n'est plus bloquée par une pièce manquante.
+        <span class="mt-1 block text-[11.5px] text-ink/60">
+          Le monde arrêté, lui, n'a pas bougé d'une ligne : les huit réconciliations de l'outil 6
+          portent sur l'arrêté au {{ arrete|default('01/09/2026') }}. La résolution appartient à la
+          session, et l'écran ne la mélange pas avec une position comptable.
+        </span>
+      </p>
+    {% else %}
+      <p class="mt-2 text-[11.5px] leading-relaxed text-ink/65">
+        Tant que la pièce manque, l'outil 6 classe cette créance
+        <b>« bloquée par une pièce manquante »</b> — sans pouvoir dire laquelle. C'est ici que la
+        pièce se nomme, se demande et se reçoit.
+      </p>
+    {% endif %}
+
+    <a href="{{ path('app_travail', {file: 'grands_comptes_bloques'}) }}"
+       class="mt-1.5 inline-block text-[11.5px] font-semibold text-navy hover:underline">
+      ← Revenir à la file de l'outil 6</a>
+  </section>
+{% endif %}

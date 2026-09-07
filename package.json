@@ -1,0 +1,10 @@
+{
+  "name": "demo-dec-26",
+  "private": true,
+  "type": "module",
+  "description": "Plateforme de demonstration du memoire DEC - donnees 100% synthetiques",
+  "scripts": {
+    "fabrique": "node fabrique/construire.js",
+    "demo": "node outils/serveur.js"
+  }
+}

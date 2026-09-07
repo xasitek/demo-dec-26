@@ -1,0 +1,101 @@
+{# Partial des lignes du tableau de recouvrement, partage entre la page complete
+   et le scroll infini (?fragment=1). Aucune dependance au formulaire. #}
+
+{% set tranche_classes = {
+    '<30':  'bg-sky-50 text-sky-700 ring-sky-200',
+    '>30':  'bg-amber-50 text-amber-700 ring-amber-200',
+    '>60':  'bg-orange-50 text-orange-700 ring-orange-200',
+    '>90':  'bg-red-50 text-red-700 ring-red-200',
+    '>120': 'bg-rose-100 text-rose-700 ring-rose-200',
+    '>180': 'bg-rose-200 text-rose-900 ring-rose-300',
+    '>240': 'bg-rose-300 text-rose-950 ring-rose-400'
+} %}
+
+{% set tranche_label = {
+    '<30':  '< 30j',
+    '>30':  '> 30j',
+    '>60':  '> 60j',
+    '>90':  '> 90j',
+    '>120': '> 120j',
+    '>180': '> 180j',
+    '>240': '> 240j'
+} %}
+
+{% for ligne in lignes %}
+    {% set d = ligne.donnees %}
+    {# JSONB de Postgres : DBAL peut le rendre soit decode (array) soit en chaine,
+       suivant les versions. On gere les deux cas. #}
+    {% if d is not iterable %}{% set d = d|json_decode %}{% endif %}
+    {% set tranche = d.retard|default('') %}
+    {% set classe_tranche = tranche_classes[tranche]|default('bg-surface text-ink/60 ring-hairline') %}
+    {% set montant = (d['Montant (valeur absolue)']|default(0)) + 0 %}
+    {% set nom_complet = ((d.prenom|default('')) ~ ' ' ~ (d.nom|default('')))|trim %}
+    {% set vendeur = ((d.prenomvendeur|default('')) ~ ' ' ~ (d.nomvendeur|default('')))|trim %}
+
+    <tr class="cursor-pointer hover:bg-surface/60 transition-colors"
+        data-action="click->detail-panel#open"
+        data-detail-panel-id-param="{{ d.numero|default('') }}"
+        data-compte="{{ d.compte|default('') }}">
+
+        <td>
+            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[0.7rem] font-semibold ring-1 ring-inset {{ classe_tranche }}">
+                {{ tranche_label[tranche]|default(tranche|default('?')) }}
+            </span>
+        </td>
+
+        <td>
+            <a href="{{ path('app_creances_fiche', { code: d.compte|default('') }) }}"
+               class="font-medium text-navy hover:text-navy-light"
+               onclick="event.stopPropagation();">
+                {{ nom_complet ?: '—' }}
+            </a>
+            <div class="text-[0.7rem] text-ink/45">
+                <span class="font-mono">{{ d.compte|default('?') }}</span>
+            </div>
+        </td>
+
+        <td>
+            <div class="font-mono text-[0.78rem] text-ink/80">{{ d.numpiece|default('—') }}</div>
+            <div class="text-[0.7rem] text-ink/45">
+                {% if d.dateecriture is defined and d.dateecriture %}
+                    {{ d.dateecriture|slice(0, 10)|replace({'-': '/'}) }}
+                {% else %}—{% endif %}
+            </div>
+        </td>
+
+        <td>
+            <div class="text-[0.78rem] text-ink/80">{{ d.marque|default('—') }}</div>
+            {% if d.numimmat is defined and d.numimmat %}
+                <div class="font-mono text-[0.7rem] text-ink/45">{{ d.numimmat }}</div>
+            {% endif %}
+        </td>
+
+        <td>
+            <div class="text-[0.78rem] text-ink/80">{{ d.codeetab|default('—') }}</div>
+            {% if d.codesoc is defined and d.codesoc %}
+                <div class="text-[0.65rem] uppercase tracking-wider text-ink/40">{{ d.codesoc }}</div>
+            {% endif %}
+        </td>
+
+        <td class="is-num">
+            <span class="font-mono font-semibold text-navy">
+                {{ montant|number_format(2, ',', ' ') }}
+            </span>
+            <span class="text-[0.7rem] text-ink/40">EUR</span>
+        </td>
+
+        <td>
+            {% if vendeur %}
+                <div class="text-[0.78rem] text-ink/80">{{ vendeur }}</div>
+            {% else %}
+                <span class="text-ink/30">—</span>
+            {% endif %}
+        </td>
+    </tr>
+{% else %}
+    <tr>
+        <td colspan="7" class="px-4 py-10 text-center text-sm text-ink/50">
+            Aucune creance ne correspond aux filtres actuels.
+        </td>
+    </tr>
+{% endfor %}

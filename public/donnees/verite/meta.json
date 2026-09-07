@@ -1,0 +1,14 @@
+{
+  "graine": 20260906,
+  "genere_le": "2026-09-07T12:12:21.592Z",
+  "avertissement": "Verite de reference. Ne doit jamais etre lue par un moteur de decision.",
+  "tables": [
+    "truth_virement",
+    "truth_reglement",
+    "truth_livraison",
+    "truth_remboursement",
+    "truth_relance",
+    "truth_scenario",
+    "truth_facture"
+  ]
+}

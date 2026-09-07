@@ -1,0 +1,89 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Strategies de relance - Recouvrement{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl">
+
+    {% include 'creances/_module_nav.html.twig' with { actif: 'strategies' } %}
+    {% include 'creances/_flashes.html.twig' %}
+
+    <div class="mb-4 flex items-baseline justify-between">
+        <h2 class="text-lg font-semibold text-navy">Strategies de relance</h2>
+        <p class="text-[0.7rem] text-ink/45">Scenarios reutilisables affectes aux comptes (Relance Expert).</p>
+    </div>
+
+    {# Formulaire creation #}
+    <form method="post" action="{{ path('app_creances_strategie_creer') }}"
+          class="mb-4 rounded-md border border-hairline bg-white p-4 shadow-sm">
+        <input type="hidden" name="_token" value="{{ csrf_token('creances_strategie_creer') }}">
+        <p class="mb-2 text-[0.7rem] uppercase tracking-wider text-ink/55">Nouvelle strategie</p>
+        <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
+            <div>
+                <label class="block text-[0.7rem] text-ink/55">Code court</label>
+                <input type="text" name="code" required maxlength="50" placeholder="Ex: STD_B2B"
+                       pattern="[A-Za-z0-9_-]+"
+                       class="w-full rounded-md border border-hairline px-2 py-1.5 font-mono text-sm focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/30">
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-[0.7rem] text-ink/55">Libelle</label>
+                <input type="text" name="libelle" required maxlength="255" placeholder="Ex: Strategie standard B2B"
+                       class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/30">
+            </div>
+            <div class="md:col-span-3">
+                <label class="block text-[0.7rem] text-ink/55">Description (optionnel)</label>
+                <textarea name="description" rows="2" maxlength="2000"
+                          class="w-full rounded-md border border-hairline px-2 py-1.5 text-sm focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/30"></textarea>
+            </div>
+        </div>
+        <div class="mt-2 flex justify-end">
+            <button type="submit" class="inline-flex items-center gap-1.5 rounded-md border border-navy bg-navy px-3 py-1.5 text-sm font-medium text-white transition hover:bg-navy-light">
+                Creer la strategie
+            </button>
+        </div>
+    </form>
+
+    {# Liste #}
+    <div class="rounded-md border border-hairline bg-white shadow-sm">
+        {% if strategies is empty %}
+            <p class="p-6 text-sm text-ink/45">Aucune strategie definie. Cree-en une ci-dessus.</p>
+        {% else %}
+            <table class="fc-table-comptable">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Libelle</th>
+                        <th>Niveaux</th>
+                        <th>Statut</th>
+                        <th>Cree le</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in strategies %}
+                        <tr class="cursor-pointer hover:bg-surface/60"
+                            onclick="window.location='{{ path('app_creances_strategie_voir', { id: s.id }) }}'">
+                            <td class="font-mono text-[0.78rem]">{{ s.code }}</td>
+                            <td>
+                                <a href="{{ path('app_creances_strategie_voir', { id: s.id }) }}" class="font-medium text-navy hover:text-navy-light">{{ s.libelle }}</a>
+                                {% if s.description %}
+                                    <p class="mt-0.5 text-[0.7rem] text-ink/55">{{ s.description|slice(0, 120) }}{% if s.description|length > 120 %}...{% endif %}</p>
+                                {% endif %}
+                            </td>
+                            <td class="text-[0.78rem] text-ink/65">{{ pluriel(s.niveaux|length, 'niveau', 'niveaux') }}</td>
+                            <td>
+                                {% if s.active %}
+                                    <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[0.7rem] font-semibold text-emerald-700">Active</span>
+                                {% else %}
+                                    <span class="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-[0.7rem] font-semibold text-ink/60">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-[0.7rem] text-ink/55">{{ s.creeLe|date('d/m/Y') }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+{# Commentaires d'une ligne d'audit. L'ancrage (DG ou ecriture Progiciel) est porte par
+   `ancre`, calcule cote controleur : ce partiel sert le panneau lateral de la liste
+   comme le panneau de detail, avec une seule voie d'ecriture. #}
+<turbo-frame id="{{ ancre.frame }}">
+    {% if erreur is defined and erreur %}
+        <p class="fc-detail-error">{{ erreur }}</p>
+    {% endif %}
+
+    {% if notes is empty %}
+        <p class="fc-detail-empty">Aucun commentaire pour le moment.</p>
+    {% else %}
+        <ul class="fc-detail-notes-list">
+            {% for n in notes %}
+                <li>
+                    <div class="fc-detail-note-head">
+                        <span class="fc-detail-note-auteur">{{ n.auteur.fullName }}</span>
+                        <span class="fc-detail-note-date">{{ n.creeLe|date('d/m/Y H:i') }}</span>
+                    </div>
+                    <p class="fc-detail-note-texte">{{ n.texte }}</p>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    <form method="post"
+          action="{{ path('app_garanties_commentaire_ajouter') }}"
+          data-turbo-frame="{{ ancre.frame }}"
+          class="fc-detail-note-form">
+        <input type="hidden" name="_token" value="{{ csrf_token(ancre.csrf) }}">
+        {% if ancre.dossier_id %}
+            <input type="hidden" name="dg" value="{{ ancre.dossier_id }}">
+        {% else %}
+            <input type="hidden" name="cle" value="{{ ancre.cle }}">
+            {% if ancre.oidech %}<input type="hidden" name="oidech" value="{{ ancre.oidech }}">{% endif %}
+        {% endif %}
+        <textarea name="texte"
+                  required
+                  rows="3"
+                  maxlength="5000"
+                  placeholder="Ajouter un commentaire (constat d'audit, action à prévoir, contexte...)"
+                  class="fc-detail-note-textarea"></textarea>
+        <div class="fc-detail-note-actions">
+            <button type="submit" class="fc-detail-note-submit">Enregistrer</button>
+        </div>
+    </form>
+</turbo-frame>

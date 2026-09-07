@@ -1,0 +1,4 @@
+{#- Badge d'etat rendu seul (source unique = la macro), pour la publication temps
+   reel du changement de statut d'un dossier. Attend : statut (DossierStatut). -#}
+{%- import 'remboursement/_statut_badge.html.twig' as badges -%}
+{{- badges.badge(statut) -}}

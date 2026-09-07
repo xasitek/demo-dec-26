@@ -1,0 +1,377 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ dossier.reference }} - Remboursement - Finance Créances{% endblock %}
+{% block page_title %}Remboursement client{% endblock %}
+
+{# Ligne de controle : Saisie (secretaire) | IA (correction) | Valeur validee (comptable,
+   editable). L'ecart IA<>saisie est surligne pour attirer l'oeil. Maquette : les inputs
+   ne sont pas encore enregistres (back a venir). #}
+{# comptes = { saisie, ia } : un compteur de doublons sur la valeur SAISIE, un sur la valeur IA.
+
+   Regle unique du compteur : le NOMBRE dit combien de dossiers portent cette valeur en
+   base, la COULEUR dit s'il en reste un vivant. Ambre et cliquable des qu'un jumeau est
+   encore actif (donc encore payable) -- le clic ouvre le panneau lateral qui les liste ;
+   gris et inerte sinon. C'est ce qui remplace les anciens bandeaux pleine largeur : un
+   ecran de verification porte de plus en plus de controles, ils ne peuvent pas occuper
+   chacun trois lignes.
+
+   `rapprochement` : cle de la section a montrer dans le panneau ('cle' | 'iban'), ou null
+   pour un compteur purement informatif (le nom, dont on n'a pas la liste). #}
+{% macro compteur(n, rapprochement = null) %}
+    {%- if n is not null -%}
+        {%- if rapprochement -%}
+            <button type="button" data-action="rapprochements#ouvrir" data-rapprochements-section-param="{{ rapprochement }}"
+                    class="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-px text-[9px] font-bold text-amber-700 transition hover:bg-amber-200 hover:text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-400/40"
+                    title="{{ pluriel(n > 99 ? 100 : n, 'dossier en base avec cette valeur', 'dossiers en base avec cette valeur') }} — dont au moins un encore actif. Cliquez pour voir lesquels.">
+                {{ n > 99 ? '99+' : n }}
+                <svg class="h-2 w-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+        {%- else -%}
+            <span class="inline-flex shrink-0 items-center rounded-full px-1.5 py-px text-[9px] font-bold {{ n > 1 ? 'bg-amber-100 text-amber-700' : 'bg-ink/10 text-ink/45' }}" title="{{ pluriel(n > 99 ? 100 : n, 'dossier en base avec cette valeur', 'dossiers en base avec cette valeur') }}">{{ n > 99 ? '99+' : n }}</span>
+        {%- endif -%}
+    {%- endif -%}
+{% endmacro %}
+{% macro champ(label, saisie, ia, nom, valeur, mono, comptes, lie, modifie, rapprochement = null) %}
+    <div class="grid grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.15fr)] items-start gap-2 px-4 py-2 {{ modifie ? 'bg-amber-50' }}">
+        <span class="pt-1 text-xs font-medium text-ink/60">{{ label }}</span>
+        <span class="pt-0.5 text-xs leading-snug {{ modifie ? 'font-semibold text-amber-700' : 'text-ink/70' }} {{ mono ? 'font-mono break-all' : 'break-words' }}">
+            {{ saisie|default('—') ?: '—' }}
+            {% if modifie %}<span class="whitespace-nowrap rounded bg-amber-200 px-1 text-[8px] font-bold uppercase tracking-wide text-amber-800">maj</span>{% endif %}
+            {{ _self.compteur(comptes.saisie|default(null), rapprochement) }}
+        </span>
+        {#- Seule la PORTION divergente est coloree, pas la valeur entiere : sur un BIC
+           ou un IBAN, l'oeil doit tomber sur le caractere qui change. -#}
+        <span class="pt-0.5 text-xs leading-snug text-ink/70 {{ mono ? 'font-mono break-all' : 'break-words' }}">
+            {{ ia|trim ? remb_diff(ia, saisie, mono) : '—' }}
+            {{ _self.compteur(comptes.ia|default(null), rapprochement) }}
+        </span>
+        {#- La VALEUR RETENUE est celle qui part au virement : elle est comparee elle aussi
+           a ce qui a ete lu (IA, ou la saisie a defaut). Un caractere de travers frappe
+           ici -- AGRIFRPP825 pour 826 -- ne partait jusqu'ici sous aucun signal. Le
+           controle est fait au rendu ET a la frappe (controleur ecart-retenue). -#}
+        {%- set reference = ia|trim ?: saisie -%}
+        {%- set ecartRetenue = remb_ecart(valeur, reference, mono) -%}
+        <div data-controller="ecart-retenue"
+             data-ecart-retenue-reference-value="{{ reference }}"
+             data-ecart-retenue-identifiant-value="{{ mono ? '1' : '0' }}">
+            <input type="text" name="{{ nom }}" value="{{ valeur }}"
+                   data-imputation-libelle-target="requis{% if lie %} cle{% endif %}"
+                   data-ecart-retenue-target="champ"
+                   data-action="input->ecart-retenue#verifier{% if lie %} input->imputation-libelle#maj{% endif %}"
+                   class="w-full rounded-md border px-2 py-1 text-xs {{ mono ? 'font-mono' }} focus:outline-none focus:ring-2 {{ ecartRetenue ? 'border-negative bg-negative/[0.04] font-semibold text-negative focus:border-negative focus:ring-negative/15' : 'border-hairline text-ink focus:border-navy focus:ring-navy/15' }}">
+            <p data-ecart-retenue-target="note" {{ ecartRetenue ? '' : 'hidden' }}
+               class="mt-1 flex items-start gap-1 text-[10px] leading-tight text-negative">
+                <svg class="mt-px h-2.5 w-2.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                <span>Différent de la valeur lue</span>
+            </p>
+        </div>
+    </div>
+{% endmacro %}
+
+{% block content %}
+{% import 'remboursement/_statut_badge.html.twig' as badges %}
+{# Plein-bleed : on annule les marges de <main> (px-5 py-8) pour occuper de dessous la
+   navbar jusqu'au bas de l'ecran. flex-row (desktop) : gauche = entete + formulaire (qui
+   defile en interne), droite = preview PDF pleine hauteur. Aucun scroll de PAGE
+   (hauteur fixe 100vh - topbar + overflow-hidden ; seuls la colonne gauche et le PDF defilent). #}
+<div class="-mx-5 -my-8 flex flex-col overflow-x-hidden lg:-mx-8 lg:h-[calc(100vh_-_4rem)] lg:flex-row lg:overflow-hidden"
+     data-controller="rapprochements">
+
+    {# ============ GAUCHE : entete + controle + actions (defile en interne) ============ #}
+    <div class="flex min-h-0 flex-col lg:w-[56%] lg:shrink-0">
+
+        {# Barre : retour + reference + statut #}
+        <div class="flex shrink-0 flex-wrap items-center justify-between gap-3 px-5 pt-6 pb-3 lg:px-7">
+            <div class="flex items-center gap-3">
+                <a href="{{ path('app_remboursement_accueil') }}"
+                   class="inline-flex items-center gap-1 rounded-lg border border-hairline px-3 py-1.5 text-xs font-medium text-ink/70 transition hover:bg-surface hover:text-navy">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+                    Retour
+                </a>
+                <div>
+                    <h1 class="font-mono text-lg font-bold text-navy">{{ dossier.reference }}</h1>
+                    <p class="text-xs text-ink/60">{{ dossier.nomClient ?: '—' }} · {{ dossier.motif.libelle }}{% if dossier.etablissementCode %} · Ét. {{ dossier.etablissementCode }}{% endif %} · Déposé le {{ (dossier.deposeLe ?: dossier.creeLe)|date('d/m/Y') }}</p>
+                    <p class="mt-0.5 break-all text-[11px] text-ink/45">Secrétaire : <span class="text-ink/70">{{ dossier.creePar ?: '—' }}</span>{% if directeurEmail %} &nbsp;·&nbsp; Directeur : <span class="text-ink/70">{{ directeurEmail }}</span>{% endif %}</p>
+                    {# Adresse saisie au depot : annoncee ICI parce que valider fait partir
+                       l'attestation dessus. Le comptable doit la voir AVANT de trancher. #}
+                    {% if dossier.emailCopie %}
+                        <p class="mt-0.5 break-all text-[11px] text-ink/45">En copie de l'attestation : <span class="font-medium text-ink/70">{{ dossier.emailCopie }}</span></p>
+                    {% endif %}
+                </div>
+            </div>
+            {{ badges.badge(dossier.statut) }}
+        </div>
+
+        {# Corps qui defile (jamais la page). `pt-3` : sans retrait haut, le premier
+           bloc venait mordre la ligne d'entete juste au-dessus. #}
+        <div class="space-y-4 px-5 pb-6 pt-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:px-7">
+
+            {% for m in app.flashes('success') %}<div class="rounded-lg border border-positive/30 bg-positive/10 px-3 py-2 text-sm text-positive">{{ m }}</div>{% endfor %}
+            {% for m in app.flashes('error') %}<div class="rounded-lg border border-negative/30 bg-negative/10 px-3 py-2 text-sm text-negative">{{ m }}</div>{% endfor %}
+
+            {% if dossier.verdictInfo %}
+                {% set invalide = dossier.verdictIa == 'invalide' %}
+                {# Ni anneau ni ombre : un trait DROIT de 1 pixel a gauche, dans la teinte du
+                   verdict, et un fond a peine pose. Le trait est en absolu et retire des
+                   coins — colle au bord il suivrait le `rounded` et se lirait comme une
+                   pastille. `bg-current` reprend la couleur du texte. #}
+                <div class="relative flex items-start gap-1.5 rounded-lg py-1.5 pl-3.5 pr-3 text-[13px] leading-snug {{ invalide ? 'bg-amber-50/70 text-amber-800' : 'bg-emerald-50/70 text-emerald-700' }}">
+                    <span class="absolute bottom-1.5 left-0 top-1.5 w-px bg-current" aria-hidden="true"></span>
+                    <svg class="mt-px h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        {% if invalide %}<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>{% else %}<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/>{% endif %}
+                    </svg>
+                    <span>{{ dossier.verdictInfo }}</span>
+                </div>
+            {% endif %}
+
+            {# UN SEUL formulaire : donnees validees + imputation + actions + modal.
+               Valider = submit (action du form) ; Refuser / Correction = submit via le modal
+               (formaction posee par le controleur). Entree dans un champ ne valide pas par erreur. #}
+            <form method="post" action="{{ path('app_remboursement_valider', {id: dossier.id}) }}"
+                  onkeydown="if(event.key==='Enter'&&event.target.tagName==='INPUT'){event.preventDefault();}"
+                  data-controller="remb-verif-modal imputation-libelle envoi-unique"
+                  data-imputation-libelle-motif-value="{{ dossier.motif.value == 'rachat_sec' ? 'RACHAT SEC' : 'TROP PERCU' }}"
+                  data-imputation-libelle-reference-value="{{ dossier.reference|replace({'REMB-': ''}) }}"
+                  data-remb-verif-modal-corriger-url-value="{{ path('app_remboursement_corriger', {id: dossier.id}) }}"
+                  data-remb-verif-modal-refuser-url-value="{{ path('app_remboursement_refuser', {id: dossier.id}) }}"
+                  data-action="submit->envoi-unique#garder input->imputation-libelle#verifierRequis change->imputation-libelle#verifierRequis"
+                  class="space-y-4">
+                <input type="hidden" name="_token" value="{{ csrf_token('remb_action') }}">
+
+                <div class="overflow-hidden rounded-xl border border-hairline bg-white shadow-sm">
+                    <div class="flex items-center gap-2 border-b border-hairline bg-gradient-to-r from-surface to-white px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-navy">
+                        <svg class="h-4 w-4 text-gold" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                        Données à contrôler
+                    </div>
+
+                    <div class="grid grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.15fr)] gap-2 border-b border-hairline/70 bg-navy/[0.03] px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink/45">
+                        <span>Champ</span><span>Saisie</span><span>Lu sur la pièce</span><span>Valeur validée</span>
+                    </div>
+
+                    {% set champsModifies = dossier.correctionChamps|default([]) %}
+                    <div class="divide-y divide-hairline/60">
+                        {{ _self.champ('Nom', dossier.nomClient, dossier.controleNom, 'nom', dossier.valideNom ?: dossier.controleNom ?: dossier.nomClient, false, comptes.nom, modifie=('nom' in champsModifies)) }}
+                        {{ _self.champ('IBAN', dossier.ibanClient, dossier.controleIban, 'iban', dossier.valideIban ?: dossier.controleIban ?: dossier.ibanClient, true, comptes.iban, modifie=('iban' in champsModifies), rapprochement=(doublonsIban is not empty ? 'iban' : null)) }}
+                        {{ _self.champ('BIC', dossier.bicClient, dossier.controleBic, 'bic', dossier.valideBic ?: dossier.controleBic ?: dossier.bicClient, true, modifie=('bic' in champsModifies)) }}
+                        {{ _self.champ('Montant', dossier.montant ? dossier.montant|number_format(2, ',', ' ') : '', dossier.controleMontant ? dossier.controleMontant|number_format(2, ',', ' ') : '', 'montant', dossier.valideMontant ?: dossier.controleMontant ?: dossier.montant, false, modifie=('montant' in champsModifies)) }}
+                        {% set estRachat = dossier.motif.value == 'rachat_sec' %}
+                        {% if estRachat %}
+                            {{ _self.champ('Immatric.', dossier.immatriculation, dossier.controleImmatriculation, 'immatriculation', dossier.valideImmatriculation ?: dossier.controleImmatriculation ?: dossier.immatriculation, true, comptes.cle, true, modifie=('immatriculation' in champsModifies), rapprochement=(doublons is not empty ? 'cle' : null)) }}
+                        {% endif %}
+                        {# Code client ICAR : exige aux DEUX motifs, donc controle aux deux.
+                           Deux arguments restent reserves au trop-percu, ou l'ICAR EST la cle
+                           d'identite : le COMPTEUR de doublons (au rachat la cle est
+                           l'immatriculation, et un meme client peut avoir plusieurs rachats
+                           sans que ce soit un doublon) et le drapeau `lie`, qui reconstruit le
+                           libelle comptable — celui du rachat porte l'immatriculation. #}
+                        {{ _self.champ('Code ICAR', dossier.codeIcar, dossier.controleIcar, 'code_icar', dossier.valideIcar ?: dossier.controleIcar, true, estRachat ? null : comptes.cle, estRachat ? null : true, modifie=('code_icar' in champsModifies), rapprochement=(not estRachat and doublons is not empty ? 'cle' : null)) }}
+                    </div>
+                    {# D'ou vient la colonne du milieu. On ne l'appelle jamais « IA » :
+                       dans cet environnement, rien n'est reconnu ni infere, et aucun
+                       service exterieur n'est appele. #}
+                    <p class="border-t border-hairline/70 bg-navy/[0.02] px-4 py-2 text-[10.5px] leading-relaxed text-ink/55">
+                        <b>Lu sur la pièce.</b> Lecture locale déterministe du document synthétique —
+                        environnement de démonstration hors réseau.
+                    </p>
+                </div>
+
+                {# Imputation comptable (pre-remplie, editable) #}
+                <div class="overflow-hidden rounded-xl border border-hairline bg-white shadow-sm">
+                    <div class="flex items-center gap-2 border-b border-hairline bg-gradient-to-r from-surface to-white px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-navy">
+                        <svg class="h-4 w-4 text-gold" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                        Imputation comptable
+                    </div>
+                    <div class="grid gap-3 px-4 py-3.5 sm:grid-cols-3">
+                        <label class="block sm:col-span-3">
+                            <span class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-ink/40">Libellé</span>
+                            <input type="text" name="libelle" value="{{ dossier.valideLibelle ?: imputation.libelle }}" data-imputation-libelle-target="libelle" class="w-full rounded-md border border-hairline px-2 py-1.5 text-xs font-mono focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/15">
+                        </label>
+                        <label class="block sm:col-span-2">
+                            <span class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-ink/40">Code comptable</span>
+                            <input type="text" name="code_comptable" value="{{ dossier.valideCodeComptable ?: imputation.codeComptable }}" class="w-full rounded-md border border-hairline px-2 py-1.5 text-xs font-mono focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/15">
+                        </label>
+                        <label class="block">
+                            <span class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-ink/40">Rôle tiers</span>
+                            <input type="text" name="role_tiers" value="{{ dossier.valideRoleTiers ?: imputation.roleTiers }}" class="w-full rounded-md border border-hairline px-2 py-1.5 text-xs focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/15">
+                        </label>
+                    </div>
+                </div>
+
+                {# Actions : Refuser (gauche) | Valider + Demander une correction (droite) #}
+                {% set btn = 'group inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-1 active:scale-[0.97]' %}
+                <div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-hairline bg-white px-3 py-2 shadow-sm">
+                    <button type="button" data-action="remb-verif-modal#open" data-remb-verif-modal-type-param="refus"
+                            class="{{ btn }} border border-red-200 bg-red-50/60 text-red-600 hover:border-red-500 hover:bg-red-500 hover:text-white hover:shadow-sm hover:shadow-red-500/30 focus:ring-red-500/30">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
+                        Refuser
+                    </button>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button type="submit" data-imputation-libelle-target="valider"
+                                class="{{ btn }} bg-gradient-to-b from-emerald-500 to-emerald-600 text-white shadow-sm shadow-emerald-600/25 hover:from-emerald-500 hover:to-emerald-700 hover:shadow-md hover:shadow-emerald-600/35 focus:ring-emerald-500/40 disabled:cursor-not-allowed disabled:from-ink/25 disabled:to-ink/25 disabled:text-white/70 disabled:shadow-none disabled:hover:from-ink/25 disabled:hover:to-ink/25"
+                                title="Toutes les valeurs validées doivent être remplies">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                            Valider
+                        </button>
+                        <button type="button" data-action="remb-verif-modal#open" data-remb-verif-modal-type-param="correction"
+                                class="{{ btn }} border border-amber-300 bg-amber-50 text-amber-800 hover:border-amber-400 hover:bg-amber-100 hover:shadow-sm hover:shadow-amber-500/20 focus:ring-amber-500/30">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            Demander une correction
+                        </button>
+                    </div>
+                </div>
+
+                {# Modal message (refus / correction) — dans le form : le message + pieces partent avec les valeurs validees #}
+                <div data-remb-verif-modal-target="overlay" data-action="click->remb-verif-modal#backdrop"
+                     class="fixed inset-0 z-50 hidden items-center justify-center bg-navy-deep/40 p-4">
+                    <div class="w-full max-w-xl overflow-hidden rounded-xl bg-white shadow-2xl">
+                        <div class="flex items-center justify-between border-b border-hairline px-5 py-3.5">
+                            <h3 data-remb-verif-modal-target="title" class="font-semibold text-navy">Message</h3>
+                            <button type="button" data-action="remb-verif-modal#close" class="rounded-md p-1.5 text-ink/55 transition hover:bg-surface hover:text-navy" aria-label="Fermer">
+                                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+                        <div class="space-y-3 px-5 py-4">
+                            <textarea name="message" data-remb-verif-modal-target="texte" rows="9" placeholder="Message pour la secrétaire…"
+                                      class="w-full resize-y rounded-lg border border-hairline px-3 py-2.5 text-sm leading-relaxed focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/15"></textarea>
+
+                            {# Correction uniquement : les pieces cochees deviennent modifiables par la secretaire #}
+                            <div data-remb-verif-modal-target="pieces" class="hidden">
+                                <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/45">Documents à corriger</div>
+                                <p class="mb-2 mt-0.5 text-[11px] text-ink/45">Cochez les documents que la secrétaire pourra remplacer.</p>
+                                <div class="flex flex-wrap gap-2">
+                                    {% for type, libelle in dossier.motif.piecesRequises %}
+                                        <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-hairline px-2.5 py-1.5 text-xs text-ink/75 transition hover:border-navy/30 hover:bg-surface">
+                                            <input type="checkbox" name="pieces_a_corriger[]" value="{{ type }}" class="h-3.5 w-3.5 rounded border-hairline text-navy focus:ring-2 focus:ring-navy/20">
+                                            {{ libelle }}
+                                        </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <div class="flex justify-end gap-2">
+                                <button type="button" data-action="remb-verif-modal#close" class="rounded-lg border border-hairline px-3.5 py-2 text-sm font-medium text-ink/70 transition hover:bg-surface">Annuler</button>
+                                <button type="submit" data-remb-verif-modal-target="confirmer" class="rounded-lg bg-navy px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-deep disabled:cursor-not-allowed disabled:bg-ink/25 disabled:shadow-none disabled:hover:bg-ink/25">Confirmer</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            {# ---------------------------------------------------------------
+               COMPLEMENT D'INTERFACE (copie de demonstration).
+               Le controleur calcule deja `actions` depuis
+               WorkflowRemboursement::transitionsPossibles(), et la route
+               POST /transition existe ; aucun ecran ne les rendait. Les gestes
+               d'apres-paiement -- « Marquer lettre » notamment -- n'avaient donc
+               pas de bouton. On rend ici les actions restantes, celles que les
+               trois boutons de verification ci-dessus ne servent pas. Le
+               workflow, les gardes de statut et les roles sont inchanges.
+               --------------------------------------------------------------- #}
+            {% set servies = ['envoyer_directeur', 'demander_complement', 'refuser_comptable'] %}
+            {% set restantes = actions|filter((libelle, nom) => nom not in servies) %}
+            {% if restantes is not empty %}
+                <div class="overflow-hidden rounded-xl border border-hairline bg-white shadow-sm">
+                    <div class="flex items-center gap-2 border-b border-hairline bg-gradient-to-r from-surface to-white px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-navy">
+                        <svg class="h-4 w-4 text-gold" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M3 12a9 9 0 1 0 9-9"/></svg>
+                        Actions possibles sur ce dossier
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 px-4 py-3">
+                        {% for nom, libelle in restantes %}
+                            <form method="post" action="{{ path('app_remboursement_dossier_transition', {id: dossier.id}) }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token('remboursement_transition') }}">
+                                <input type="hidden" name="transition" value="{{ nom }}">
+                                <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg border border-hairline bg-white px-3 py-1.5 text-[13px] font-semibold text-navy transition hover:border-navy hover:bg-navy hover:text-white focus:outline-none focus:ring-2 focus:ring-navy/25">
+                                    {{ libelle }}
+                                </button>
+                            </form>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
+            {# Repere : precedente demande de correction (si le dossier a deja fait un aller-retour) #}
+            {% if ancienMessage %}
+                <div class="overflow-hidden rounded-xl border border-hairline bg-white shadow-sm">
+                    <div class="flex items-center gap-2 border-b border-hairline bg-surface/50 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-ink/55">
+                        <svg class="h-4 w-4 text-ink/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l3 2"/></svg>
+                        Précédente demande de correction
+                    </div>
+                    <div class="px-4 py-3">
+                        <p class="whitespace-pre-line text-sm text-ink/80">{{ ancienMessage.texte }}</p>
+                        <p class="mt-1.5 text-[10px] text-ink/45">{{ ancienMessage.par }}{% if ancienMessage.le %} · {{ ancienMessage.le|date('d/m/Y H:i') }}{% endif %}</p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ============ DROITE : preview PDF pleine hauteur (bas navbar -> bas ecran, bord droit) ============ #}
+    <div class="min-h-0 overflow-hidden border-t border-hairline bg-white lg:flex-1 lg:border-l lg:border-t-0">
+        {% include 'remboursement/_pieces_viewer.html.twig' with { pieces: pieces } %}
+    </div>
+
+    {#- ============ PANNEAU DES RAPPROCHEMENTS ============
+        Ce qui tenait dans deux bandeaux pleine largeur vit ici, ouvert a la demande par
+        le compteur ambre de la ligne concernee. Les listes sont deja calculees pour la
+        page : elles sont rendues MASQUEES, le panneau n'appelle donc pas le serveur et
+        s'ouvre instantanement. Un controle de plus = une section de plus, sans un pixel
+        pris a l'ecran de verification. -#}
+    {% if doublons is not empty or doublonsIban is not empty %}
+        {% set lignes = {
+            'cle': {
+                'titre': dossier.motif.value == 'rachat_sec' ? 'Même immatriculation' : 'Même code ICAR',
+                'valeur': (dossier.motif.value == 'rachat_sec' ? dossier.immatriculation : dossier.codeIcar) ?: '—',
+                'dossiers': doublons,
+                'note': "Si c'est bien un doublon, utilisez « Marquer doublon » dans les actions.",
+            },
+            'iban': {
+                'titre': 'Même compte bancaire',
+                'valeur': (dossier.valideIban ?: dossier.controleIban ?: dossier.ibanClient)|split('', 4)|join(' '),
+                'dossiers': doublonsIban,
+                'note': 'Même bénéficiaire pour des dossiers distincts : à vérifier avant de payer.',
+            },
+        } %}
+        <div data-rapprochements-target="backdrop" hidden class="fixed inset-0 z-40 bg-navy/20"
+             data-action="click->rapprochements#fermer"></div>
+        <aside data-rapprochements-target="panel"
+               class="fixed inset-y-0 right-0 z-50 w-full max-w-xl translate-x-full transform overflow-y-auto bg-white shadow-2xl shadow-navy/20 transition-transform duration-200">
+            <div class="sticky top-0 z-10 flex items-center gap-3 border-b border-hairline bg-white px-5 py-3.5">
+                <svg class="h-4 w-4 shrink-0 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                <h2 data-rapprochements-target="titre" class="flex-1 font-semibold text-navy">Rapprochements</h2>
+                <button type="button" data-action="rapprochements#fermer" aria-label="Fermer (Échap)" title="Fermer (Échap)"
+                        class="rounded-md p-1.5 text-ink/55 transition hover:bg-surface hover:text-navy">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            {% for cle, section in lignes %}
+                {% if section.dossiers is not empty %}
+                    <div data-rapprochements-target="section" data-section="{{ cle }}" data-titre="{{ section.titre }}" hidden class="px-5 py-4">
+                        <p class="text-sm text-ink/70">
+                            {{ pluriel(section.dossiers|length, 'autre dossier actif porte', 'autres dossiers actifs portent') }}
+                            la même valeur : <span class="font-mono font-semibold text-navy">{{ section.valeur }}</span>.
+                        </p>
+                        <p class="mt-1 text-xs text-ink/45">Les dossiers refusés et ceux déjà marqués doublon ne sont pas listés.</p>
+
+                        <ul class="mt-4 divide-y divide-hairline/70 overflow-hidden rounded-xl border border-hairline">
+                            {% for j in section.dossiers %}
+                                <li class="flex flex-wrap items-center gap-x-2.5 gap-y-1 px-3.5 py-2.5 text-xs">
+                                    <a href="{{ path('app_remboursement_dossier', {id: j.id}) }}"
+                                       class="font-mono font-semibold text-navy underline decoration-navy/30 hover:decoration-navy">{{ j.reference }}</a>
+                                    {{ badges.badge(j.statut) }}
+                                    <span class="text-ink/60">{{ j.nomClient ?: '—' }}</span>
+                                    <span class="text-ink/45">{{ j.motif.libelle }}</span>
+                                    <span class="ml-auto font-semibold text-ink/75">{{ (j.valideMontant ?: j.montant)|number_format(2, ',', ' ') }} €</span>
+                                    <span class="w-full text-[11px] text-ink/40">déposé le {{ (j.deposeLe ?: j.creeLe)|date('d/m/Y') }}</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+
+                        <p class="mt-3 text-xs text-ink/50">{{ section.note }}</p>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </aside>
+    {% endif %}
+</div>
+{% endblock %}

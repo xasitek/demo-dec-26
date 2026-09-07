@@ -1,0 +1,31 @@
+{#
+    Accusé automatique envoyé à l'expéditeur d'un email SPONTANÉ (non rattaché à
+    une relance). Nudge : répondre directement à la relance pour un rattachement
+    fiable. Aucune variable.
+#}
+{% extends 'recouvrement/email/_layout.html.twig' %}
+
+{% block titre %}Votre message - Service recouvrement Groupe Synthauto{% endblock %}
+
+{% block contenu %}
+    <p style="margin: 0 0 14px; font-size: 14px; line-height: 1.6; color: #4A4A4A;">Bonjour,</p>
+    <p style="margin: 0 0 14px; font-size: 14px; line-height: 1.6; color: #4A4A4A;">
+        Nous avons bien reçu votre message.
+    </p>
+    <p style="margin: 0 0 14px; font-size: 14px; line-height: 1.6; color: #4A4A4A;">
+        Pour que votre demande puisse être traitée, merci de <strong>répondre directement à votre e-mail de relance</strong> (il contient votre référence dossier), ou de nous écrire via le <strong>formulaire ci-dessous</strong> en indiquant cette référence.
+    </p>
+    <p style="margin: 0 0 8px;">
+        <a href="{{ url('app_recouvrement_repondre_public') }}" style="display: inline-block; background: #2D3250; color: #FFFFFF; text-decoration: none; font-weight: 600; font-size: 14px; padding: 12px 22px; border-radius: 6px;">Formulaire</a>
+    </p>
+    <p style="margin: 0 0 14px; font-size: 12px; line-height: 1.5; color: #9ca3af;">
+        Sans votre référence (indiquée dans l'e-mail de relance, entre crochets : [ref. …]), votre message ne pourra pas être rattaché à votre compte ni traité.
+    </p>
+    <p style="margin: 0 0 14px; font-size: 14px; line-height: 1.6; color: #4A4A4A;">
+        Cordialement,<br>
+        Service recouvrement — Groupe Synthauto
+    </p>
+    <p style="margin: 18px 0 0; font-size: 11px; line-height: 1.5; color: #9ca3af;">
+        Ceci est un message automatique.
+    </p>
+{% endblock %}

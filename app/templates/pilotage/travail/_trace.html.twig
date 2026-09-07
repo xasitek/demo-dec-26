@@ -1,0 +1,18 @@
+{# La trace du dernier geste, sous la ligne qu'elle concerne.
+   Elle nomme QUI, QUAND et QUOI. Un historique anonyme ne vaut rien devant
+   un controle, et un dossier traite qui disparaitrait de la file empecherait
+   de verifier ce qui a ete fait. #}
+<tr class="bg-positive/5">
+  <td colspan="{{ colonnes }}" class="border-t-0 pt-0">
+    <div class="flex flex-wrap items-baseline gap-2 pl-2 text-[11px] text-ink/60">
+      <span class="rounded bg-positive/15 px-1.5 py-0.5 font-semibold text-positive">
+        {{ l.geste == 'note' ? 'Note' : 'Consultation' }}
+      </span>
+      <span>par <b>{{ l.geste_par }}</b></span>
+      <span class="text-ink/40">le {{ l.geste_le|date('d/m/Y à H\\hi') }}</span>
+      {% if l.geste_note %}
+        <span class="italic text-ink/70">« {{ l.geste_note }} »</span>
+      {% endif %}
+    </div>
+  </td>
+</tr>

@@ -1,0 +1,16 @@
+{# Barre d'onglets du module, meme composant que Remboursement et Creances. #}
+{% set onglets = {
+  'file': { 'route': 'app_lettrage_file', 'libelle': 'Propositions de lettrage' },
+  'pilotage': { 'route': 'app_lettrage_pilotage', 'libelle': 'Pilotage' },
+  'relecture': { 'route': 'app_lettrage_relecture', 'libelle': 'Lettrages à revoir' },
+  'methode': { 'route': 'app_lettrage_methode', 'libelle': 'Méthode et performance' }
+} %}
+<nav class="flex items-center gap-1">
+  {% for cle, o in onglets %}
+    <a href="{{ path(o.route) }}"
+       class="rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition
+              {{ active == cle ? 'bg-navy text-white' : 'text-ink/60 hover:bg-ink/5 hover:text-ink' }}">
+      {{ o.libelle }}
+    </a>
+  {% endfor %}
+</nav>

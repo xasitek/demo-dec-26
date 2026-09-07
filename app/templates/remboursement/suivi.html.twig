@@ -1,0 +1,123 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{% if nbAVerifier > 0 %}({{ nbAVerifier }}) {% endif %}Remboursement client{% endblock %}
+{% block page_title %}Remboursement client{% endblock %}
+{% block topbar_nav %}{% include 'remboursement/_nav.html.twig' with { active: 'suivi', nbAVerifier: nbAVerifier } %}{% endblock %}
+
+{% import '_ui.html.twig' as ui %}
+{% set champ = 'w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink transition focus:border-navy focus:outline-none focus:ring-4 focus:ring-navy/10' %}
+
+{# Options + couleurs de badge pour les selects stylises #}
+{% set motifOptions = {'': 'Tous'} %}
+{% for m in motifs %}{% set motifOptions = motifOptions|merge({(m.value): m.libelle}) %}{% endfor %}
+{% set hex = {'neutre': '#6b7280', 'ia': '#6366f1', 'comptable': '#d97706', 'correction': '#ea580c', 'directeur': '#0284c7', 'valide': '#059669', 'paiement': '#0d9488', 'paye': '#16a34a', 'refuse': '#dc2626'} %}
+{% set statutOptions = {'': 'Tous'} %}
+{% set statutColors = {} %}
+{% for s in statuts %}
+    {% set statutOptions = statutOptions|merge({(s.value): s.libelle}) %}
+    {% set statutColors = statutColors|merge({(s.value): hex[s.couleur]|default('#6b7280')}) %}
+{% endfor %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1500px]" data-controller="remboursement-statut">
+    <section data-controller="detail-panel" data-detail-panel-url-value="{{ path('app_remboursement_dossier_panneau', {id: '__ID__'}) }}">
+
+        {# ------------------------------------------------------------------
+           LES SIX FILES DE PRODUCTION. Chaque chiffre est un LIEN : il ouvre la
+           file filtree, il ne se contemple pas. Un tableau de bord qui affiche
+           un nombre sans donner acces aux dossiers derriere laisse son lecteur
+           sans geste possible — c'est exactement ce qu'on ne veut pas ici.
+           ------------------------------------------------------------------ #}
+        <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {% for f in files %}
+                <a href="{{ path('app_remboursement_suivi', {statut: f.statut}) }}"
+                   class="group rounded-xl border border-hairline bg-white px-3 py-3 shadow-sm transition hover:border-navy hover:shadow-md"
+                   title="Ouvrir la file « {{ f.libelle }} »">
+                    <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">{{ f.libelle }}</div>
+                    <div class="text-lg font-bold {{ f.cle in ['bloques', 'incidents'] ? 'text-negative' : 'text-navy' }}">{{ f.nombre }}</div>
+                    <div class="text-[10px] text-ink/40 group-hover:text-navy">ouvrir la file →</div>
+                </a>
+            {% endfor %}
+        </div>
+
+        {# Recapitulatif chiffre (tous les dossiers) : payé par motif, refusés, total. #}
+        <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+                <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Trop-perçu payé</div>
+                <div class="text-lg font-bold text-navy">{{ recap.payeParMotif.trop_percu.total|number_format(2, ',', ' ') }} <span class="text-xs text-gold">€</span></div>
+                <div class="text-[11px] text-ink/45">{{ recap.payeParMotif.trop_percu.n }} dossier{{ recap.payeParMotif.trop_percu.n > 1 ? 's' }}</div>
+            </div>
+            <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+                <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Rachat sec payé</div>
+                <div class="text-lg font-bold text-navy">{{ recap.payeParMotif.rachat_sec.total|number_format(2, ',', ' ') }} <span class="text-xs text-gold">€</span></div>
+                <div class="text-[11px] text-ink/45">{{ recap.payeParMotif.rachat_sec.n }} dossier{{ recap.payeParMotif.rachat_sec.n > 1 ? 's' }}</div>
+            </div>
+            <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+                <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Refusés</div>
+                <div class="text-lg font-bold text-negative">{{ recap.nbRefuses }}</div>
+                <div class="text-[11px] text-ink/45">refusé · doublon · fraude</div>
+            </div>
+            <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+                <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Total dossiers</div>
+                <div class="text-lg font-bold text-navy">{{ recap.total }}</div>
+            </div>
+        </div>
+
+        <div class="mb-2 flex items-center gap-2">
+            <h2 class="text-sm font-bold uppercase tracking-wide text-ink/70">Tous les dossiers</h2>
+            <span class="rounded-full bg-ink/10 px-2 py-0.5 text-xs font-semibold text-ink/60">{{ total }}</span>
+        </div>
+
+        {# Recherche + filtres (GET, auto-soumission) #}
+        <form method="get" class="mb-3 flex flex-wrap items-end gap-3">
+            <label class="min-w-[16rem] flex-1">
+                <span class="mb-1 block text-xs font-medium text-ink/55">Recherche</span>
+                <input type="search" name="q" value="{{ q }}" placeholder="Réf, client, immat, ICAR, établissement…" class="{{ champ }}"
+                       data-controller="search-debounce" data-action="input->search-debounce#submit">
+            </label>
+            <label>
+                <span class="mb-1 block text-xs font-medium text-ink/55">Motif</span>
+                {{ ui.fc_select('motif', motifOptions, motif ? motif.value : '') }}
+            </label>
+            <label>
+                <span class="mb-1 block text-xs font-medium text-ink/55">État</span>
+                {{ ui.fc_select('statut', statutOptions, statut ? statut.value : '', true, statutColors) }}
+            </label>
+            <noscript><button type="submit" class="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white">Filtrer</button></noscript>
+        </form>
+
+        {# Table + scroll infini #}
+        <div class="overflow-x-auto rounded-xl border border-hairline bg-white shadow-sm"
+             data-controller="infinite-scroll"
+             data-infinite-scroll-url-value="{{ path('app_remboursement_suivi', {q: q, motif: motif ? motif.value : '', statut: statut ? statut.value : ''}) }}"
+             data-infinite-scroll-page-value="1"
+             data-infinite-scroll-total-pages-value="{{ pages }}">
+            <table class="w-full text-sm">
+                <thead class="bg-surface/60">{% include 'remboursement/_entetes.html.twig' %}</thead>
+                <tbody data-infinite-scroll-target="items">
+                    {% include 'remboursement/_liste_rows.html.twig' with { dossiers: tous, etabs: etabs, directeurs: directeurs, mode: 'panneau' } %}
+                </tbody>
+            </table>
+            {% if tous is empty %}
+                <p class="px-4 py-10 text-center text-sm text-ink/50">Aucun dossier pour ces critères.</p>
+            {% endif %}
+            <div data-infinite-scroll-target="sentinel"></div>
+            <p data-infinite-scroll-target="loading" class="border-t border-hairline py-3 text-center text-sm text-ink/50" style="display:none">Chargement…</p>
+        </div>
+
+        {# Panneau glissant (quick-view) #}
+        <div data-detail-panel-target="backdrop" class="fixed inset-0 z-40 pointer-events-none"></div>
+        <aside data-detail-panel-target="panel" class="fixed inset-y-0 right-0 z-50 w-full max-w-3xl translate-x-full transform overflow-y-auto bg-white shadow-2xl shadow-navy/20 transition-transform duration-200">
+            <div class="flex items-center gap-2 border-b border-hairline px-5 py-3">
+                <h2 class="flex-1 font-semibold text-navy">Détail du dossier</h2>
+                <button type="button" data-action="detail-panel#close" class="rounded-md p-1.5 text-ink/55 transition hover:bg-surface hover:text-navy" aria-label="Fermer (Échap)" title="Fermer (Échap)">
+                    <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div data-detail-panel-target="content">
+                <p class="px-6 py-6 text-sm text-ink/55">Sélectionnez un dossier pour voir le détail.</p>
+            </div>
+        </aside>
+    </section>
+</div>
+{% endblock %}

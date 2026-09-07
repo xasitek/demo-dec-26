@@ -1,0 +1,452 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Fiche tiers {{ compte_code }} - Recouvrement{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+
+{% block content %}
+{% set d = tiers ? (tiers.donnees is iterable ? tiers.donnees : tiers.donnees|json_decode) : {} %}
+{% set score = indicateurs.score|default(0) %}
+{% set score_couleur = score >= 7 ? 'text-emerald-600' : (score >= 5 ? 'text-amber-600' : 'text-rose-600') %}
+
+<div class="mx-auto max-w-7xl"
+     data-controller="detail-panel"
+     data-detail-panel-url-value="{{ path('app_creances_ecriture_detail', { numero: '__ID__' }) }}">
+
+    {# Fil d'Ariane #}
+    <div class="mb-3 text-sm">
+        <a href="{{ path('app_creances_index') }}" class="text-ink/55 hover:text-navy">
+            ← Retour a la liste des creances
+        </a>
+    </div>
+
+    {% include 'creances/_flashes.html.twig' %}
+
+    {% if not tiers %}
+        <div class="rounded-md border border-hairline bg-white p-8 text-center shadow-sm">
+            <h2 class="text-lg font-semibold text-navy">Tiers introuvable</h2>
+            <p class="mt-2 text-sm text-ink/60">Le compte <span class="font-mono">{{ compte_code }}</span> n'existe pas (ou n'est plus present dans Progiciel).</p>
+        </div>
+    {% else %}
+
+        {# ===== CARTE BLANCHE englobant identite + indicateurs ===== #}
+        <section class="mb-6 rounded-lg border border-hairline bg-white px-7 py-6 shadow-sm">
+
+        {# ===== HEADER + KPI =====
+           Layout 100% flex (pas de grid avec media queries qui peuvent
+           ne pas etre detectees par le scanner Tailwind v4). Structure
+           dense : header sur 1 ligne, 4 KPI cote a cote, scores en bande. #}
+        {% set nom_complet = ((d.prenom|default('')) ~ ' ' ~ (d.nom|default('')))|trim %}
+        {% set _verdict_text = {'emerald':'text-emerald-700','amber':'text-amber-700','rose':'text-rose-700','slate':'text-slate-600'} %}
+        {% set _verdict_dot = {'emerald':'bg-emerald-500','amber':'bg-amber-500','rose':'bg-rose-500','slate':'bg-slate-400'} %}
+
+        <header class="mb-6 flex flex-wrap items-end justify-between gap-x-8 gap-y-3 border-b border-hairline pb-5">
+            <div class="min-w-0">
+                <div class="flex items-baseline gap-3">
+                    <h1 class="text-[1.75rem] font-semibold leading-none tracking-tight text-navy">
+                        {{ nom_complet ?: '—' }}
+                    </h1>
+                    <span class="inline-flex items-center rounded-md border border-navy/15 bg-navy/[0.04] px-2 py-0.5 font-mono text-[0.82rem] font-medium tracking-wide text-navy">
+                        {{ compte_code }}
+                    </span>
+                </div>
+                <p class="mt-2 text-[0.82rem] text-ink/55">
+                    {% set _meta = [] %}
+                    {% if d.civilite is defined and d.civilite %}{% set _meta = _meta|merge([d.civilite]) %}{% endif %}
+                    {{ _meta|join(' · ') }}
+                </p>
+            </div>
+            {% if intensite_relance is defined and intensite_relance %}
+                {% set vc = intensite_relance.verdict_couleur %}
+                <div class="flex shrink-0 items-center gap-2">
+                    <span class="inline-block h-2 w-2 rounded-full {{ _verdict_dot[vc]|default('bg-ink/30') }}"></span>
+                    <span class="text-[0.85rem] font-medium {{ _verdict_text[vc]|default('text-ink/55') }}">{{ intensite_relance.verdict_label }}</span>
+                </div>
+            {% endif %}
+        </header>
+
+        {# ===== ACCES RAPIDES — boutons d'action immediats sur le compte ===== #}
+        <section class="mb-6 flex flex-wrap items-center gap-2">
+            <form method="post" action="{{ path('app_creances_tiers_relancer', { code: compte_code }) }}" class="contents">
+                <input type="hidden" name="_token" value="{{ csrf_token('creances_tiers_relancer_' ~ compte_code) }}">
+                <button type="submit"
+                        class="inline-flex items-center gap-1.5 rounded-md border border-navy bg-navy px-3 py-1.5 text-[0.78rem] font-medium text-white transition hover:bg-navy-light">
+                    <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1 0 2 .9 2 2v12c0 1-.9 2-2 2H4c-1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    Relancer le client
+                </button>
+            </form>
+
+            <a href="{{ path('app_creances_modeles') }}"
+               class="inline-flex items-center gap-1.5 rounded-md border border-hairline bg-white px-3 py-1.5 text-[0.78rem] font-medium text-navy transition hover:border-navy/40 hover:bg-navy/[0.03]">
+                <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 8h16"/><path d="M8 4v16"/></svg>
+                Modeles
+            </a>
+
+            {% if compte_strategie and compte_strategie.strategie %}
+                <a href="{{ path('app_creances_strategie_voir', { id: compte_strategie.strategie.id }) }}"
+                   class="inline-flex items-center gap-1.5 rounded-md border border-hairline bg-white px-3 py-1.5 text-[0.78rem] font-medium text-navy transition hover:border-navy/40 hover:bg-navy/[0.03]">
+                    <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    Strategie
+                    <span class="font-mono text-[0.7rem] text-ink/55">{{ compte_strategie.strategie.libelle }}</span>
+                </a>
+            {% else %}
+                <a href="{{ path('app_creances_strategies') }}"
+                   class="inline-flex items-center gap-1.5 rounded-md border border-hairline bg-white px-3 py-1.5 text-[0.78rem] font-medium text-ink/65 transition hover:border-navy/40 hover:bg-navy/[0.03] hover:text-navy">
+                    <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    Affecter une strategie
+                </a>
+            {% endif %}
+
+            {# Relancer la concession : ouvre un mini-formulaire inline (details/summary).
+               Cible RelanceInterneService via la route deja existante. #}
+            <details class="relative inline-block">
+                <summary class="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-md border border-hairline bg-white px-3 py-1.5 text-[0.78rem] font-medium text-navy transition hover:border-navy/40 hover:bg-navy/[0.03]">
+                    <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                    Relancer la concession
+                </summary>
+                <form method="post" action="{{ path('app_creances_alerter_interne', { code: compte_code }) }}"
+                      class="absolute left-0 z-20 mt-2 w-80 space-y-2 rounded-md border border-hairline bg-white p-3 shadow-lg shadow-navy/10">
+                    <input type="hidden" name="_token" value="{{ csrf_token('creances_alerter_interne_' ~ compte_code) }}">
+                    <div>
+                        <label class="block text-[0.65rem] font-medium uppercase tracking-[0.1em] text-ink/55">Destinataires</label>
+                        <input type="text" name="emails" required
+                               value="{% for d in destinataires_internes|default([]) %}{{ d.email }}{{ loop.last ? '' : ', ' }}{% endfor %}"
+                               placeholder="email1@synthauto..., email2@..."
+                               class="mt-1 w-full rounded-md border border-hairline px-2 py-1.5 text-[0.78rem] focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/30">
+                        {% if destinataires_internes is defined and destinataires_internes|length > 0 %}
+                            <p class="mt-1 text-[0.65rem] text-ink/45">Pre-remplis depuis Progiciel : {{ destinataires_internes|length }} contact(s).</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label class="block text-[0.65rem] font-medium uppercase tracking-[0.1em] text-ink/55">Message</label>
+                        <textarea name="commentaire" required rows="3"
+                                  placeholder="Le client {{ nom_complet }} a un encours de {{ indicateurs.encours_total|number_format(0, ',', ' ') }} EUR. Peux-tu le contacter pour relance ?"
+                                  class="mt-1 w-full rounded-md border border-hairline px-2 py-1.5 text-[0.78rem] focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/30"></textarea>
+                    </div>
+                    <button type="submit"
+                            class="w-full rounded-md border border-navy bg-navy px-3 py-1.5 text-[0.78rem] font-medium text-white transition hover:bg-navy-light">
+                        Envoyer l'alerte
+                    </button>
+                </form>
+            </details>
+        </section>
+
+        {# ===== 4 KPI EN LIGNE (flex force, separateurs verticaux fins) ===== #}
+        <section class="mb-6">
+            <div class="flex flex-wrap items-stretch divide-x divide-hairline">
+                <div class="min-w-[180px] flex-1 pr-6">
+                    <p class="text-[0.65rem] font-medium uppercase tracking-[0.1em] text-ink/45">Encours total</p>
+                    <p class="mt-1.5 text-[1.7rem] font-semibold tabular-nums leading-none tracking-tight text-navy">
+                        {{ indicateurs.encours_total|number_format(0, ',', ' ') }}<span class="ml-1 text-sm font-normal text-ink/35">EUR</span>
+                    </p>
+                    <p class="mt-1.5 text-[0.72rem] text-ink/50">{{ pluriel(indicateurs.nb_ecritures, 'creance', 'creances') }}</p>
+                </div>
+                <div class="min-w-[180px] flex-1 px-6">
+                    <p class="text-[0.65rem] font-medium uppercase tracking-[0.1em] text-ink/45">Echu</p>
+                    <p class="mt-1.5 text-[1.7rem] font-semibold tabular-nums leading-none tracking-tight {{ indicateurs.taux_echu > 50 ? 'text-rose-600' : (indicateurs.taux_echu > 20 ? 'text-orange-600' : 'text-navy') }}">
+                        {{ indicateurs.encours_echu|number_format(0, ',', ' ') }}<span class="ml-1 text-sm font-normal text-ink/35">EUR</span>
+                    </p>
+                    <p class="mt-1.5 text-[0.72rem] text-ink/50">{{ indicateurs.taux_echu|number_format(0) }}% du total</p>
+                </div>
+                <div class="min-w-[180px] flex-1 px-6">
+                    <p class="text-[0.65rem] font-medium uppercase tracking-[0.1em] text-ink/45">Retard moyen</p>
+                    <p class="mt-1.5 text-[1.7rem] font-semibold tabular-nums leading-none tracking-tight text-navy">
+                        {{ indicateurs.retard_moyen_jours|number_format(0) }}<span class="ml-1 text-sm font-normal text-ink/35">jours</span>
+                    </p>
+                    <p class="mt-1.5 text-[0.72rem] {{ indicateurs.pire_tranche in ['>240','>180'] ? 'text-rose-600' : 'text-ink/50' }}">
+                        {% if indicateurs.pire_tranche %}Pire tranche {{ indicateurs.pire_tranche }}{% else %}—{% endif %}
+                    </p>
+                </div>
+                <div class="min-w-[180px] flex-1 pl-6">
+                    <p class="text-[0.65rem] font-medium uppercase tracking-[0.1em] text-ink/45">Derniere relance</p>
+                    {% if intensite_relance is defined and intensite_relance and intensite_relance.derniere_relance %}
+                        <p class="mt-1.5 text-[1.7rem] font-semibold tabular-nums leading-none tracking-tight text-navy">
+                            {{ intensite_relance.jours_depuis_derniere_relance }}<span class="ml-1 text-sm font-normal text-ink/35">j</span>
+                        </p>
+                        <p class="mt-1.5 text-[0.72rem] text-ink/50">{{ intensite_relance.derniere_relance|slice(0, 10)|replace({'-': '/'}) }}</p>
+                    {% else %}
+                        <p class="mt-1.5 text-[1.7rem] font-semibold leading-none tracking-tight text-rose-600">Jamais</p>
+                        <p class="mt-1.5 text-[0.72rem] text-rose-600/80">Compte non suivi</p>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        {# ===== LIGNE SCORES & ACTIVITE — micro-stats sur 1 ligne ===== #}
+        <section class="mb-6 flex flex-wrap items-center gap-x-7 gap-y-2 border-t border-hairline pt-4 text-[0.85rem]">
+            <div>
+                <span class="text-[0.62rem] uppercase tracking-[0.1em] text-ink/45">Sante</span>
+                <span class="ml-2 font-semibold tabular-nums {{ score_couleur }}">{{ score|number_format(1, ',', ' ') }}<span class="text-ink/35">/10</span></span>
+            </div>
+            {% if score_ia %}
+                {% set score_ia_val = score_ia.score + 0 %}
+                {% set sc_ia_couleur = score_ia_val >= 7 ? 'text-emerald-600' : (score_ia_val >= 5 ? 'text-amber-600' : 'text-rose-600') %}
+                <div>
+                    <span class="text-[0.62rem] uppercase tracking-[0.1em] text-ink/45">IA</span>
+                    <span class="ml-2 font-semibold tabular-nums {{ sc_ia_couleur }}">{{ score_ia_val|number_format(1, ',', ' ') }}<span class="text-ink/35">/10</span></span>
+                </div>
+            {% endif %}
+            {% if score_criticite %}
+                {% set cc = score_criticite.score_criticite >= 75 ? 'text-rose-600' : (score_criticite.score_criticite >= 50 ? 'text-amber-600' : 'text-emerald-600') %}
+                <div>
+                    <span class="text-[0.62rem] uppercase tracking-[0.1em] text-ink/45">Criticite</span>
+                    <span class="ml-2 font-semibold tabular-nums {{ cc }}">{{ score_criticite.score_criticite|number_format(0) }}<span class="text-ink/35">/100</span></span>
+                </div>
+            {% endif %}
+            {% if intensite_relance is defined and intensite_relance %}
+                <div>
+                    <span class="text-[0.62rem] uppercase tracking-[0.1em] text-ink/45">Relances 30/90j</span>
+                    <span class="ml-2 font-semibold tabular-nums text-navy">{{ intensite_relance.nb_relances_30j }}<span class="text-ink/30">/</span>{{ intensite_relance.nb_relances_90j }}</span>
+                </div>
+                <div>
+                    <span class="text-[0.62rem] uppercase tracking-[0.1em] text-ink/45">Actions 30/90j</span>
+                    <span class="ml-2 font-semibold tabular-nums text-navy">{{ intensite_relance.nb_actions_30j }}<span class="text-ink/30">/</span>{{ intensite_relance.nb_actions_90j }}</span>
+                </div>
+                <div>
+                    <span class="text-[0.62rem] uppercase tracking-[0.1em] text-ink/45">Frequence</span>
+                    <span class="ml-2 font-semibold tabular-nums text-navy">
+                        {% if intensite_relance.frequence_moyenne_jours %}~{{ intensite_relance.frequence_moyenne_jours|number_format(0) }}j{% else %}<span class="text-ink/40">—</span>{% endif %}
+                    </span>
+                </div>
+            {% endif %}
+            <form method="post" action="{{ path('app_creances_scorer_ia', { code: compte_code }) }}" class="ml-auto">
+                <input type="hidden" name="_token" value="{{ csrf_token('creances_scorer_ia_' ~ compte_code) }}">
+                <button type="submit" class="text-[0.78rem] font-medium text-navy underline-offset-4 hover:underline">
+                    {{ score_ia ? 'Recalculer IA →' : 'Calculer IA →' }}
+                </button>
+            </form>
+        </section>
+
+        {# ===== ANALYSE IA si presente — bandeau tres discret ===== #}
+        {% if score_ia and score_ia.commentaire %}
+            <section class="mb-6 border-l-2 border-sky-300 pl-4">
+                <p class="text-[0.62rem] font-medium uppercase tracking-[0.1em] text-sky-700">Analyse IA · {{ score_ia.calculeLe|date('d/m/Y') }}{% if score_ia.modele %} · {{ score_ia.modele }}{% endif %}</p>
+                <p class="mt-1 text-[0.9rem] leading-relaxed text-ink/80">{{ score_ia.commentaire }}</p>
+                {% if score_ia.facteurs|length > 0 %}
+                    <p class="mt-2 text-[0.72rem] text-ink/55">
+                        {% for f in score_ia.facteurs %}<span class="text-ink/70">{{ f|replace({'_': ' '}) }}</span>{% if not loop.last %}<span class="mx-1.5 text-ink/30">·</span>{% endif %}{% endfor %}
+                    </p>
+                {% endif %}
+            </section>
+        {% endif %}
+
+        {# ===== COORDONNEES — ligne fluide, separateurs en bullets ===== #}
+        <section class="mb-6 flex flex-wrap items-baseline gap-x-8 gap-y-1 border-t border-hairline pt-4 text-[0.85rem]">
+            {% set adr1 = d['Adresse 1']|default(d.adresse|default(null)) %}
+            {% if adr1 %}
+                <span>
+                    <span class="text-[0.62rem] uppercase tracking-[0.1em] text-ink/40">Adresse</span>
+                    <span class="ml-2 text-ink/80">{{ adr1 }}{% if d.Ville is defined and d.Ville %} · {{ d['Code postal']|default('') }} {{ d.Ville }}{% endif %}</span>
+                </span>
+            {% endif %}
+            {% if d.email is defined and d.email %}
+                <span>
+                    <span class="text-[0.62rem] uppercase tracking-[0.1em] text-ink/40">E-mail</span>
+                    <a href="mailto:{{ d.email }}" class="ml-2 text-navy underline-offset-4 hover:underline">{{ d.email }}</a>
+                </span>
+            {% endif %}
+            {% set tel = d['Téléphone']|default(d.numtel|default(d.numtel2|default(null))) %}
+            {% if tel %}
+                <span>
+                    <span class="text-[0.62rem] uppercase tracking-[0.1em] text-ink/40">Tel</span>
+                    <a href="tel:{{ tel }}" class="ml-2 font-mono tabular-nums tracking-wide text-navy underline-offset-4 hover:underline">{{ tel|tel_format }}</a>
+                </span>
+            {% endif %}
+        </section>
+
+        {# ===== HISTORIQUE 12 MOIS — CA, encaissements, paiements, delai, impayes ===== #}
+        {% if historique is defined and historique %}
+            <section class="mt-2">
+                <p class="mb-3 text-[0.62rem] font-medium uppercase tracking-[0.12em] text-ink/45">Historique 12 mois</p>
+                <div class="flex flex-wrap items-stretch divide-x divide-hairline">
+                    <div class="min-w-[160px] flex-1 pr-6">
+                        <p class="text-[0.65rem] font-medium uppercase tracking-[0.1em] text-ink/45">CA realise</p>
+                        <p class="mt-1.5 text-[1.45rem] font-semibold tabular-nums leading-none tracking-tight text-navy">
+                            {{ historique.ca_12m|number_format(0, ',', ' ') }}<span class="ml-1 text-sm font-normal text-ink/35">EUR</span>
+                        </p>
+                        <p class="mt-1.5 text-[0.72rem] text-ink/50">{{ pluriel(historique.nb_factures_12m, 'facture', 'factures') }}</p>
+                    </div>
+                    <div class="min-w-[160px] flex-1 px-6">
+                        <p class="text-[0.65rem] font-medium uppercase tracking-[0.1em] text-ink/45">Encaisse</p>
+                        <p class="mt-1.5 text-[1.45rem] font-semibold tabular-nums leading-none tracking-tight text-emerald-600">
+                            {{ historique.encaissements_12m|number_format(0, ',', ' ') }}<span class="ml-1 text-sm font-normal text-ink/35">EUR</span>
+                        </p>
+                        <p class="mt-1.5 text-[0.72rem] text-ink/50">
+                            {% if historique.ca_12m > 0 %}{{ historique.ratio_encaissement|number_format(0) }}% du CA{% else %}—{% endif %}
+                        </p>
+                    </div>
+                    <div class="min-w-[160px] flex-1 px-6">
+                        <p class="text-[0.65rem] font-medium uppercase tracking-[0.1em] text-ink/45">Paiements</p>
+                        <p class="mt-1.5 text-[1.45rem] font-semibold tabular-nums leading-none tracking-tight text-navy">
+                            {{ historique.nb_paiements_12m }}
+                        </p>
+                        <p class="mt-1.5 text-[0.72rem] text-ink/50">
+                            {% if historique.recurrence_paiement_jours > 0 %}~1 tous les {{ historique.recurrence_paiement_jours|number_format(0) }} j{% else %}—{% endif %}
+                        </p>
+                    </div>
+                    <div class="min-w-[160px] flex-1 px-6">
+                        {# Delai moyen de paiement (DSO compte) : combien de jours de CA le
+                           client doit en moyenne. Plus c'est haut, plus il paie en retard. #}
+                        {% set delai = historique.delai_moyen_paiement_jours %}
+                        {% set delai_couleur = delai > 90 ? 'text-rose-600' : (delai > 45 ? 'text-orange-600' : (delai > 0 ? 'text-emerald-600' : 'text-navy')) %}
+                        <p class="text-[0.65rem] font-medium uppercase tracking-[0.1em] text-ink/45">Delai moyen paiement</p>
+                        <p class="mt-1.5 text-[1.45rem] font-semibold tabular-nums leading-none tracking-tight {{ delai_couleur }}">
+                            {% if delai > 0 %}{{ delai|number_format(0) }}<span class="ml-1 text-sm font-normal text-ink/35">jours</span>{% else %}—{% endif %}
+                        </p>
+                        <p class="mt-1.5 text-[0.72rem] text-ink/50">DSO compte</p>
+                    </div>
+                    <div class="min-w-[160px] flex-1 pl-6">
+                        <p class="text-[0.65rem] font-medium uppercase tracking-[0.1em] text-ink/45">Plus gros impaye</p>
+                        <p class="mt-1.5 text-[1.45rem] font-semibold tabular-nums leading-none tracking-tight text-navy">
+                            {% if historique.plus_gros_impaye > 0 %}{{ historique.plus_gros_impaye|number_format(0, ',', ' ') }}<span class="ml-1 text-sm font-normal text-ink/35">EUR</span>{% else %}—{% endif %}
+                        </p>
+                        <p class="mt-1.5 text-[0.72rem] {{ historique.plus_vieil_impaye_libelle in ['>240','>180'] ? 'text-rose-600' : 'text-ink/50' }}">
+                            {% if historique.plus_vieil_impaye_libelle %}Plus ancien : {{ historique.plus_vieil_impaye_libelle }}{% else %}—{% endif %}
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            {# ===== RECHERCHE EXTERNE — liens vers fiches publiques ===== #}
+            {% set siret = d.siret|default(d.SIRET|default(d.numero_siret|default(null))) %}
+            {% set siren = siret ? siret|slice(0, 9) : (d.siren|default(d.SIREN|default(null))) %}
+            {% set nom_recherche = (nom_complet ?: d.nom|default('')) %}
+            {% set ville = d.Ville|default(d.ville|default('')) %}
+            {% set adresse_complete = ((d['Adresse 1']|default(d.adresse|default(''))) ~ ' ' ~ (d['Code postal']|default('')) ~ ' ' ~ ville)|trim %}
+            {% set query_pro = (nom_recherche ~ ' ' ~ ville)|trim %}
+
+            <section class="mt-6 border-t border-hairline pt-4">
+                <p class="mb-3 text-[0.62rem] font-medium uppercase tracking-[0.12em] text-ink/45">Recherche externe</p>
+                <div class="flex flex-wrap gap-2">
+                    {% if siren %}
+                        <a href="https://annuaire-entreprises.data.gouv.fr/entreprise/{{ siren }}" target="_blank" rel="noopener"
+                           class="inline-flex items-center gap-1.5 rounded-md border border-hairline bg-white px-3 py-1.5 text-[0.78rem] font-medium text-navy transition hover:border-navy/40 hover:bg-navy/[0.03]">
+                            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-6 9 6v11H3z"/><path d="M9 21V13h6v8"/></svg>
+                            Annuaire entreprises
+                            <span class="font-mono text-[0.7rem] text-ink/45">{{ siren }}</span>
+                        </a>
+                        <a href="https://www.pappers.fr/recherche?q={{ siren }}" target="_blank" rel="noopener"
+                           class="inline-flex items-center gap-1.5 rounded-md border border-hairline bg-white px-3 py-1.5 text-[0.78rem] font-medium text-navy transition hover:border-navy/40 hover:bg-navy/[0.03]">
+                            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            Pappers
+                        </a>
+                    {% elseif query_pro %}
+                        <a href="https://annuaire-entreprises.data.gouv.fr/rechercher?terme={{ query_pro|url_encode }}" target="_blank" rel="noopener"
+                           class="inline-flex items-center gap-1.5 rounded-md border border-hairline bg-white px-3 py-1.5 text-[0.78rem] font-medium text-navy transition hover:border-navy/40 hover:bg-navy/[0.03]">
+                            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-6 9 6v11H3z"/><path d="M9 21V13h6v8"/></svg>
+                            Annuaire entreprises
+                        </a>
+                    {% endif %}
+                    {% if query_pro %}
+                        <a href="https://www.google.com/search?q={{ query_pro|url_encode }}" target="_blank" rel="noopener"
+                           class="inline-flex items-center gap-1.5 rounded-md border border-hairline bg-white px-3 py-1.5 text-[0.78rem] font-medium text-navy transition hover:border-navy/40 hover:bg-navy/[0.03]">
+                            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                            Google
+                        </a>
+                        <a href="https://www.linkedin.com/search/results/all/?keywords={{ query_pro|url_encode }}" target="_blank" rel="noopener"
+                           class="inline-flex items-center gap-1.5 rounded-md border border-hairline bg-white px-3 py-1.5 text-[0.78rem] font-medium text-navy transition hover:border-navy/40 hover:bg-navy/[0.03]">
+                            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 11v6M8 7v.5M12 17v-4a2 2 0 0 1 4 0v4"/></svg>
+                            LinkedIn
+                        </a>
+                        <a href="https://www.pagesjaunes.fr/recherche/{{ ville|url_encode }}/{{ nom_recherche|url_encode }}" target="_blank" rel="noopener"
+                           class="inline-flex items-center gap-1.5 rounded-md border border-hairline bg-white px-3 py-1.5 text-[0.78rem] font-medium text-navy transition hover:border-navy/40 hover:bg-navy/[0.03]">
+                            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                            Pages Jaunes
+                        </a>
+                    {% endif %}
+                    {% if adresse_complete %}
+                        <a href="https://www.google.com/maps/search/?api=1&query={{ adresse_complete|url_encode }}" target="_blank" rel="noopener"
+                           class="inline-flex items-center gap-1.5 rounded-md border border-hairline bg-white px-3 py-1.5 text-[0.78rem] font-medium text-navy transition hover:border-navy/40 hover:bg-navy/[0.03]">
+                            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+                            Google Maps
+                        </a>
+                    {% endif %}
+                    {% if d.email is defined and d.email %}
+                        <a href="https://www.google.com/search?q=%22{{ d.email|url_encode }}%22" target="_blank" rel="noopener"
+                           class="inline-flex items-center gap-1.5 rounded-md border border-hairline bg-white px-3 py-1.5 text-[0.78rem] font-medium text-navy transition hover:border-navy/40 hover:bg-navy/[0.03]">
+                            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1 0 2 .9 2 2v12c0 1-.9 2-2 2H4c-1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                            Verifier l'email
+                        </a>
+                    {% endif %}
+                </div>
+            </section>
+        {% endif %}
+
+        </section>
+        {# ===== FIN CARTE BLANCHE D'IDENTITE ===== #}
+
+        {# ===== CARTE BLANCHE pour les onglets ===== #}
+        <section class="rounded-lg border border-hairline bg-white px-7 py-5 shadow-sm">
+
+        {# ===== ONGLETS — minimalistes, soulignement gold dark sur l'actif ===== #}
+        <div data-controller="creances-tabs"
+             data-creances-tabs-default-value="creances">
+
+            <nav class="flex flex-wrap items-center gap-x-1 border-b border-hairline -mt-1" role="tablist">
+                {% set tabs = [
+                    { key: 'creances', label: 'Creances ouvertes', count: creances_ouvertes|length },
+                    { key: 'ecritures', label: 'Ecritures', count: ecritures|length },
+                    { key: 'actions', label: 'Actions', count: actions|length },
+                    { key: 'dossiers', label: 'Dossiers', count: dossiers|length },
+                    { key: 'annotations', label: 'Annotations', count: notes|length }
+                ] %}
+                {% for tab in tabs %}
+                    <button type="button"
+                            role="tab"
+                            data-creances-tabs-target="tab"
+                            data-action="click->creances-tabs#select"
+                            data-key="{{ tab.key }}"
+                            aria-selected="false"
+                            class="fc-fiche-tab inline-flex items-center gap-2 px-3 py-2.5 text-[0.82rem] font-medium text-ink/55 hover:text-navy border-b-2 border-transparent -mb-px transition-colors">
+                        {{ tab.label }}
+                        {% if tab.count > 0 %}
+                            <span class="fc-fiche-tab-count inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-ink/[0.06] px-1.5 py-0.5 text-[0.68rem] font-semibold tabular-nums text-ink/70">{{ tab.count }}</span>
+                        {% endif %}
+                    </button>
+                {% endfor %}
+            </nav>
+
+            <style>
+                .fc-fiche-tab.is-active { color: #0e2540; border-bottom-color: #c5a572; }
+                .fc-fiche-tab.is-active .fc-fiche-tab-count {
+                    background-color: rgba(14, 37, 64, 0.08);
+                    color: #0e2540;
+                }
+            </style>
+
+            <div data-creances-tabs-target="panel" data-key="creances" role="tabpanel" hidden>
+                {% include 'creances/_fiche_creances.html.twig' with { creances: creances_ouvertes, compte_code: compte_code } %}
+            </div>
+            <div data-creances-tabs-target="panel" data-key="ecritures" role="tabpanel" hidden>
+                {% include 'creances/_fiche_ecritures.html.twig' with { ecritures: ecritures, compte_code: compte_code } %}
+            </div>
+            <div data-creances-tabs-target="panel" data-key="actions" role="tabpanel" hidden>
+                {% include 'creances/_fiche_actions.html.twig' with { actions: actions, promesses: promesses, compte_code: compte_code, compte_strategie: compte_strategie, strategies_disponibles: strategies_disponibles, destinataires_internes: destinataires_internes|default([]), derniere_activite: derniere_activite|default(null) } %}
+            </div>
+            <div data-creances-tabs-target="panel" data-key="dossiers" role="tabpanel" hidden>
+                {% include 'creances/_fiche_dossiers.html.twig' with { dossiers: dossiers, compte_code: compte_code } %}
+            </div>
+            <div data-creances-tabs-target="panel" data-key="annotations" role="tabpanel" hidden>
+                {% include 'creances/_fiche_annotations.html.twig' with { notes: notes, compte_code: compte_code } %}
+            </div>
+        </div>
+
+        </section>
+        {# ===== FIN CARTE BLANCHE ONGLETS ===== #}
+
+        {# ===== PANNEAU DETAIL ECRITURE (reutilise par tous les onglets) ===== #}
+        <div data-detail-panel-target="backdrop" data-action="click->detail-panel#close" class="fixed inset-0 z-40 bg-navy-deep/40 opacity-0 pointer-events-none transition-opacity duration-200"></div>
+        <aside data-detail-panel-target="panel" class="fixed inset-y-0 right-0 z-50 w-full max-w-2xl translate-x-full transform overflow-y-auto bg-white shadow-2xl shadow-navy/20 transition-transform duration-200">
+            <div class="flex items-center justify-between border-b border-hairline px-5 py-3">
+                <h2 class="font-semibold text-navy">Detail de l'ecriture</h2>
+                <button type="button" data-action="detail-panel#close" class="rounded-md p-1.5 text-ink/55 hover:bg-surface hover:text-navy" aria-label="Fermer">
+                    <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div data-detail-panel-target="content" class="p-5">
+                <p class="text-sm text-ink/60">Selectionnez une ecriture pour voir son detail.</p>
+            </div>
+        </aside>
+
+    {% endif %}
+</div>
+{% endblock %}

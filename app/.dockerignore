@@ -1,0 +1,25 @@
+# Versionnage et dependances reconstruites dans l'image.
+/.git/
+/.github/
+/vendor/
+/node_modules/
+/var/
+
+# Secrets : ne JAMAIS embarquer dans l'image.
+/.env.local
+/.env.*.local
+/config/secrets/
+/config/google_service_account*.json
+
+# Outils de dev / doc (inutiles en prod).
+/tests/
+/docs/
+*.md
+/.php-cs-fixer.cache
+/.php-cs-fixer.dist.php
+/phpstan.neon
+/phpstan.dist.neon
+/phpunit.xml*
+/compose.yaml
+/compose.*.yaml
+/docker-compose.yml

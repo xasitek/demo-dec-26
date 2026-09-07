@@ -1,0 +1,23 @@
+{# Barre du poste comptable. Elle ne propose PAS le consolide du groupe :
+   le comptable n'en a pas besoin pour travailler, et le lui mettre en
+   premier ecran serait recommencer l'erreur que cet outil corrige. #}
+{% set onglets = {
+  'files': { 'route': 'app_travail', 'libelle': 'Mes créances' },
+  'journal': { 'route': 'app_travail_journal', 'libelle': 'Mon activité' }
+} %}
+<nav class="flex items-center gap-1">
+  {% for cle, o in onglets %}
+    <a href="{{ path(o.route) }}"
+       class="rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition
+              {{ active == cle ? 'bg-navy text-white' : 'text-ink/60 hover:bg-ink/5 hover:text-ink' }}">
+      {{ o.libelle }}
+    </a>
+  {% endfor %}
+  {% if is_granted('ROLE_MANAGER') %}
+    <span class="mx-1 h-4 w-px bg-hairline"></span>
+    <a href="{{ path('app_cockpit') }}"
+       class="rounded-lg px-3 py-1.5 text-[12.5px] font-semibold text-ink/45 transition hover:bg-ink/5 hover:text-ink">
+      Cockpit groupe →
+    </a>
+  {% endif %}
+</nav>

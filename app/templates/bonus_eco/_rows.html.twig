@@ -1,0 +1,53 @@
+{% set offset = numerotation_offset|default(0) %}
+{% set tons = {
+    'positive': 'bg-positive/10 text-positive',
+    'info': 'bg-navy/10 text-navy',
+    'warning': 'bg-gold/15 text-gold-dark',
+    'neutral': 'bg-surface text-ink/55',
+    'negative': 'bg-negative/10 text-negative',
+} %}
+
+{# Index inverse : libelle brut -> categorie metier #}
+{% set brut_vers_categorie = {} %}
+{% for cle, meta in categories_asp|default({}) %}
+    {% for brut in meta.bruts %}
+        {% set brut_vers_categorie = brut_vers_categorie|merge({ (brut): meta }) %}
+    {% endfor %}
+{% endfor %}
+
+{% for l in lignes %}
+    {% set asp = l.asp %}
+    {% set asp_cat = asp ? brut_vers_categorie[asp.lib_etat]|default(null) : null %}
+    <tr class="is-clickable"
+        {% if l.numero is defined and l.numero %}data-action="click->detail-panel#open" data-detail-panel-id-param="{{ l.numero }}" tabindex="0"{% endif %}>
+        <td class="is-rownum">{{ offset + loop.index }}</td>
+        <td class="mono text-xs text-ink/70">{{ l.numero ?? '—' }}</td>
+        <td class="text-ink/80 whitespace-nowrap">{{ l.dateecriture ? l.dateecriture|date('d/m/Y') : '—' }}</td>
+        <td class="mono text-xs text-ink/80">{{ l.numpiece ?? '—' }}</td>
+        <td class="text-xs text-ink/80">{{ l.codesoc ?? '—' }}</td>
+        <td class="text-xs text-ink/70">{{ l.codeetab ?? '—' }}</td>
+        <td class="text-xs">{{ (l.marque ?? '')|trim ?: '—' }}</td>
+        <td class="text-xs text-ink/70">{{ l.modele ?? '—' }}</td>
+        <td class="mono text-xs text-navy">{{ l.numvin ?? '—' }}</td>
+        <td class="mono text-xs text-ink/70">{{ l.numimmat ?? '—' }}</td>
+        <td class="text-xs text-ink/70">{{ l.nom ?? '—' }}</td>
+        <td class="num font-medium text-navy">
+            {{ l.montant_signe is not null ? (l.montant_signe|number_format(2, ',', ' ') ~ ' €') : '—' }}
+        </td>
+        <td class="text-xs text-ink/55">{{ l.retard ?? '—' }}</td>
+        <td class="whitespace-nowrap">
+            {% if asp_cat %}
+                <span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium {{ tons[asp_cat.ton] }}" title="{{ asp.lib_etat }}">{{ asp_cat.libelle }}</span>
+                {% if asp.mt_paye %}<span class="ml-1 text-[0.7rem] text-ink/55">{{ asp.mt_paye|number_format(0, ',', ' ') }} €</span>{% endif %}
+            {% elseif asp %}
+                <span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium bg-surface text-ink/55">{{ asp.lib_etat }}</span>
+            {% else %}
+                <span class="text-xs italic text-ink/40">Pas de dossier ASP</span>
+            {% endif %}
+        </td>
+    </tr>
+{% else %}
+    <tr>
+        <td colspan="14" class="px-4 py-10 text-center text-ink/60">Aucune ligne ne correspond à ces critères.</td>
+    </tr>
+{% endfor %}

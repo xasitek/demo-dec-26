@@ -1,0 +1,90 @@
+{#
+    Email de relance interne (vendeur ou secrétaire) pour faire avancer
+    un dossier de bonus écologique. L'expéditeur est copilote@demonstration.invalid.
+#}
+{% set ec = ecriture %}
+{% set destinataire_label = type == 'vendeur' ? 'vendeur' : 'secrétaire' %}
+{% set prenom_dest = destinataire_nom|default('') %}
+{% set montant = ec.montant_signe ?? ec['Montant signe']|default(null) %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Relance dossier bonus écologique</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #2D3250; margin: 0; padding: 12px 8px;">
+
+    <p>Bonjour{% if prenom_dest %} {{ prenom_dest }}{% endif %},</p>
+
+    <p>
+        Le dossier suivant de <strong>bonus écologique</strong> reste en attente côté
+        comptabilité. Pourrais-tu vérifier où il en est côté ASP&nbsp;?
+    </p>
+
+    <table cellpadding="6" cellspacing="0" style="border-collapse: collapse; margin: 16px 0; font-size: 14px;">
+        <tr>
+            <td style="color: #6b6f80; padding-right: 16px;">Concession</td>
+            <td><strong>{{ ec.codesoc ?? '—' }} · {{ ec.codeetab ?? '' }}</strong></td>
+        </tr>
+        <tr>
+            <td style="color: #6b6f80;">Véhicule</td>
+            <td>{{ (ec.marque ?? '')|trim }} {{ ec.modele ?? '' }}</td>
+        </tr>
+        <tr>
+            <td style="color: #6b6f80;">VIN</td>
+            <td style="font-family: monospace;">{{ ec.numvin ?? '—' }}</td>
+        </tr>
+        <tr>
+            <td style="color: #6b6f80;">Immatriculation</td>
+            <td>{{ ec.numimmat ?? '—' }}</td>
+        </tr>
+        <tr>
+            <td style="color: #6b6f80;">Client</td>
+            <td>{{ ec.nom ?? '—' }}</td>
+        </tr>
+        <tr>
+            <td style="color: #6b6f80;">N° pièce Progiciel</td>
+            <td style="font-family: monospace;">{{ ec.numpiece ?? '—' }}</td>
+        </tr>
+        <tr>
+            <td style="color: #6b6f80;">Date écriture</td>
+            <td>{{ ec.dateecriture ? ec.dateecriture|date('d/m/Y') : '—' }}</td>
+        </tr>
+        {% if montant is not null %}
+        <tr>
+            <td style="color: #6b6f80;">Montant dû</td>
+            <td><strong>{{ montant|number_format(2, ',', ' ') }} €</strong></td>
+        </tr>
+        {% endif %}
+        {% if ec.retard %}
+        <tr>
+            <td style="color: #6b6f80;">Retard</td>
+            <td><strong style="color: #c97b1f;">{{ ec.retard }}</strong></td>
+        </tr>
+        {% endif %}
+        {% if asp and asp.lib_etat %}
+        <tr>
+            <td style="color: #6b6f80;">Statut ASP actuel</td>
+            <td>{{ asp.lib_etat }}</td>
+        </tr>
+        {% if asp.num_dossier_mensuel %}
+        <tr>
+            <td style="color: #6b6f80;">N° dossier ASP</td>
+            <td style="font-family: monospace;">{{ asp.num_dossier_mensuel }}</td>
+        </tr>
+        {% endif %}
+        {% endif %}
+    </table>
+
+    <p>
+        Peux-tu vérifier le portail ASP et nous tenir informés des prochaines étapes (transmission,
+        correction, paiement attendu)&nbsp;?
+    </p>
+
+    <p>Merci d'avance,</p>
+    <p style="color: #6b6f80; font-size: 13px;">
+        <strong>Copilote - Finance Créances</strong>
+    </p>
+
+</body>
+</html>

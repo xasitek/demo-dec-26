@@ -1,0 +1,10 @@
+{# Marque neutre de la demonstration. Elle remplace le logo du groupe, qui ne
+   doit pas figurer dans la copie. Trace en SVG : aucune image a charger, donc
+   aucune ressource distante et un rendu net a toute taille. #}
+{% set t = taille|default(40) %}
+{% set clair = clair|default(false) %}
+<svg viewBox="0 0 64 64" width="{{ t }}" height="{{ t }}" role="img" aria-label="Suite Créances Automobile" style="flex:0 0 auto">
+  <rect width="64" height="64" rx="14" fill="{{ clair ? '#FFFFFF' : '#232740' }}"/>
+  <path d="M16 44V20h10.5l5.5 9 5.5-9H48v24" fill="none"
+        stroke="{{ clair ? '#232740' : '#C8AA73' }}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,169 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Risque — Cockpit{% endblock %}
+{% block page_title %}Cockpit BFR et DSO{% endblock %}
+{% block topbar_nav %}{% include 'pilotage/_nav.html.twig' with { active: 'risque' } %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1500px]">
+
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="flex flex-wrap items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">L'exposition, et à qui elle est due</h3>
+      <span class="ml-auto text-[11px] text-ink/45">arrêté au {{ arrete|date('d/m/Y') }} · calculé en {{ ms|number_format(0, ',', ' ') }} ms</span>
+    </div>
+    <p class="mt-1.5 text-[12.5px] leading-relaxed text-ink/70">
+      Cette page ne montre <b>que l'exposition à traiter</b> :
+      <b class="font-mono text-warning">{{ (encours.natures.exposition / 1000000)|number_format(2, ',', ' ') }} M€</b>
+      de créances réellement encore ouvertes après affectation et lettrage. Ni le cash encaissé, ni
+      l'encours fiabilisé n'y figurent — relancer un client qui a déjà payé est la faute que la
+      chaîne sert à éviter.
+    </p>
+  </section>
+
+  <div class="mb-4 grid gap-3 lg:grid-cols-2">
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">Ancienneté de l'exposition</h3>
+      <table class="fc-table-comptable w-full">
+        <thead><tr><th>Tranche</th><th class="text-right">Créances</th><th class="text-right">Montant</th></tr></thead>
+        <tbody>
+          {% for t in anciennete %}
+            <tr class="{{ t.code in ['j180', 'plus180'] ? 'bg-negative/5' : '' }}">
+              <td class="text-[12.5px]">
+                {% set f = {'j45': 'dues_30', 'j90': 'dues_45', 'j180': 'dues_90',
+                            'plus180': 'dues_90'}[t.code]|default('') %}
+                {% if f %}
+                  <a href="{{ path('app_travail', {file: f}) }}"
+                     class="font-semibold text-navy hover:underline"
+                     title="Ouvrir la file de travail de cette tranche">{{ t.libelle }} →</a>
+                {% else %}
+                  <a href="{{ path('app_cockpit_detail', {niveau: 'facture', nature: 'exposition'}) }}"
+                     class="text-navy hover:underline">{{ t.libelle }} →</a>
+                {% endif %}
+              </td>
+              <td class="text-right font-mono text-[12px]">{{ t.factures|number_format(0, ',', ' ') }}</td>
+              <td class="text-right font-mono text-[12px] font-semibold">{{ (t.montant / 1000)|number_format(0, ',', ' ') }} k€</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="mt-2 text-[11px] text-ink/45">
+        La teinte n'est posée qu'au-delà de 90 jours : c'est la borne à partir de laquelle une
+        créance change de nature aux yeux du recouvrement.
+      </p>
+    </section>
+
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">Concentration par type de payeur</h3>
+      <table class="fc-table-comptable w-full">
+        <thead><tr><th>Type</th><th class="text-right">Comptes</th><th class="text-right">Créances</th>
+          <th class="text-right">Montant</th><th class="text-right">Part</th></tr></thead>
+        <tbody>
+          {% set totalC = 0 %}
+          {% for c in concentration %}{% set totalC = totalC + c.montant %}{% endfor %}
+          {% for c in concentration %}
+            <tr>
+              <td class="text-[12.5px] font-semibold">
+                <a href="{{ path('app_cockpit_detail', {niveau: 'payeur', nature: 'exposition'}) }}"
+                   class="text-navy hover:underline">{{ c.type ?: 'non typé' }} →</a>
+              </td>
+              <td class="text-right font-mono text-[12px]">{{ c.comptes|number_format(0, ',', ' ') }}</td>
+              <td class="text-right font-mono text-[12px]">{{ c.factures|number_format(0, ',', ' ') }}</td>
+              <td class="text-right font-mono text-[12px] font-semibold">{{ (c.montant / 1000)|number_format(0, ',', ' ') }} k€</td>
+              <td class="text-right font-mono text-[12px] text-ink/55">
+                {{ totalC > 0 ? (c.montant / totalC * 100)|number_format(1, ',', ' ') : '0,0' }} %</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="mt-2 text-[11.5px] leading-relaxed text-ink/60">
+        Un loueur et un particulier n'appellent pas la même action : le premier se traite par un
+        dossier et un interlocuteur unique, le second par une relance graduée.
+      </p>
+    </section>
+  </div>
+
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="mb-3 flex flex-wrap items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">Priorisation — les plus fortes expositions</h3>
+      <span class="rounded-full bg-ink/10 px-2 py-0.5 text-xs font-semibold text-ink/60">{{ payeurs|length }}</span>
+      <span class="ml-auto text-[11px] text-ink/45">triées par montant restant dû</span>
+    </div>
+    <table class="fc-table-comptable w-full">
+      <thead><tr><th>Payeur</th><th>Type</th><th class="text-right">Créances</th>
+        <th class="text-right">Établissements</th><th class="text-right">Montant</th><th></th></tr></thead>
+      <tbody>
+        {% for p in payeurs %}
+          <tr>
+            <td class="text-[12.5px] font-semibold">{{ p.nom ?: p.client_id }}
+              <span class="ml-1 font-mono text-[11px] font-normal text-ink/40">{{ p.client_id }}</span></td>
+            <td class="text-[11.5px] text-ink/55">{{ p.type ?: '—' }}</td>
+            <td class="text-right font-mono text-[12px]">{{ p.factures|number_format(0, ',', ' ') }}</td>
+            <td class="text-right font-mono text-[12px] {{ p.etablissements > 1 ? 'font-semibold text-navy' : 'text-ink/55' }}">
+              {{ p.etablissements }}</td>
+            <td class="text-right font-mono text-[12px] font-semibold">{{ p.montant|number_format(2, ',', ' ') }} €</td>
+            <td class="text-right">
+              <a href="{{ path('app_cockpit_detail', {niveau: 'facture', client_id: p.client_id, nature: 'exposition'}) }}"
+                 class="whitespace-nowrap text-[12px] font-semibold text-navy hover:underline">Voir les créances →</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="mt-2.5 text-[11.5px] leading-relaxed text-ink/60">
+      Un payeur présent sur <b>plusieurs établissements</b> est signalé : c'est le cas où une
+      relance site par site multiplie les courriers et abîme la relation, alors qu'un seul
+      interlocuteur suffirait. C'est un des liens préparés vers l'outil 10.
+    </p>
+  </section>
+
+  <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">Ce qui attend une décision, et de qui</h3>
+    <table class="fc-table-comptable w-full">
+      <thead><tr><th>Cause</th><th class="text-right">Créances</th><th class="text-right">Montant</th>
+        <th>Action attendue</th><th>Outil</th><th class="text-right">Ma file</th></tr></thead>
+      <tbody>
+        {% for c in causes %}
+          {% set def = libelles_causes[c.cause]|default(null) %}
+          <tr>
+            {% set f = {'reellement_due': 'relancables',
+                        'piece_manquante': 'grands_comptes_bloques',
+                        'decision_concession': 'action_concession',
+                        'exception_comptable': 'credits_non_lettres',
+                        'financeur': ''}[c.cause]|default('') %}
+            <td class="text-[12.5px] font-semibold">
+              {% if f %}
+                <a href="{{ path('app_travail', {file: f}) }}" class="text-navy hover:underline"
+                   title="Ouvrir la file de travail de cette cause">{{ def ? def.libelle : c.cause }} →</a>
+              {% else %}
+                <a href="{{ path('app_cockpit_detail', {niveau: 'payeur', nature: 'exposition'}) }}"
+                   class="text-navy hover:underline">{{ def ? def.libelle : c.cause }} →</a>
+              {% endif %}
+            </td>
+            <td class="text-right font-mono text-[12px]">{{ c.factures|number_format(0, ',', ' ') }}</td>
+            <td class="text-right font-mono text-[12px] font-semibold">{{ (c.montant / 1000)|number_format(0, ',', ' ') }} k€</td>
+            <td class="text-[11.5px] leading-snug text-ink/65">{{ def ? def.suite : '' }}</td>
+            <td class="font-mono text-[11px] text-ink/45">{{ c.suite }}</td>
+            <td class="text-right">
+              {% if f %}
+                <a href="{{ path('app_travail', {file: f}) }}"
+                   class="whitespace-nowrap text-[11.5px] font-semibold text-navy hover:underline">
+                  Traiter →</a>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="mt-2 text-[11px] text-ink/45">
+      Les promesses de paiement et la stratégie de relance graduée relèvent de l'outil 10, qui
+      n'est pas encore construit. Les catégories et les liens sont déjà en place.
+    </p>
+  </section>
+
+  <p class="mt-4 rounded-xl border border-hairline bg-surface px-4 py-3 text-[11.5px] leading-relaxed text-ink/60">
+    <b>Périmètres de mesure.</b> {{ mention_perimetres }}
+  </p>
+
+</div>
+{% endblock %}

@@ -1,0 +1,28 @@
+framework:
+    mailer:
+        # Transports nommes :
+        #  - "main"     : transport par defaut (%env MAILER_DSN%). Un email sans en-tete
+        #                 "X-Transport" part ici.
+        #  - "relances" : Mailjet, module Recouvrement, via "X-Transport: relances".
+        #  - "copilote" : SMTP Gmail copilote@, module Remboursement, via
+        #                 "X-Transport: copilote" (isole du Mailjet de Recouvrement).
+        transports:
+            main: '%env(MAILER_DSN)%'
+            relances: '%env(MAILER_RELANCES_DSN)%'
+            copilote: '%env(MAILER_COPILOTE_DSN)%'
+
+# Garde-fou anti-envoi reel hors production : en dev et en test, TOUT le courrier
+# sortant est force vers une seule adresse interne. Aucun vrai client n'est
+# jamais contacte depuis un poste de developpement. En production, pas d'override
+# (le vrai destinataire recoit le message).
+when@dev:
+    framework:
+        mailer:
+            envelope:
+                recipients: ['credit-manager@demonstration.invalid']
+
+when@test:
+    framework:
+        mailer:
+            envelope:
+                recipients: ['credit-manager@demonstration.invalid']

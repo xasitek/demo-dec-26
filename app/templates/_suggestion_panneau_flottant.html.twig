@@ -1,0 +1,26 @@
+{# Boite a idees : hote du panneau, rendu une fois en pied de layout pour tout
+   utilisateur connecte (cf. layout.html.twig).
+
+   Le declencheur n'est pas ici : c'est la derniere ligne de la barre laterale
+   (_suggestion_nav.html.twig). Le panneau ne peut pas vivre dans la barre, qui
+   est en overflow:hidden et porte un transform sur mobile — un panneau de
+   22rem y serait coupe. Le controleur reconnait son declencheur par delegation
+   sur [data-suggestion-declencheur].
+
+   Ancre en bas a gauche, le long de la barre reduite (4.5rem) : « bottom » est
+   fixe et la hauteur libre, le panneau grandit donc vers le haut. z-50 le garde
+   au-dessus de la barre (z-40) quand celle-ci s'etend au survol.
+
+   Perf : ce partiel ne declenche AUCUNE requete SQL. Le contenu du panneau
+   (formulaire + « mes idees ») est charge au premier clic seulement — un
+   declencheur affiche sur chaque page ne doit rien couter tant qu'on ne
+   l'ouvre pas. #}
+<div class="fixed bottom-4 left-4 z-50 lg:left-[5.25rem] print:hidden"
+     data-controller="suggestion"
+     data-suggestion-url-value="{{ path('app_suggestions_panneau') }}"
+     data-suggestion-route-value="{{ app.request.attributes.get('_route')|default('') }}"
+     data-suggestion-path-value="{{ app.request.pathInfo }}">
+
+    <div data-suggestion-target="panneau" hidden
+         class="w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-hairline bg-white shadow-2xl shadow-navy/20"></div>
+</div>

@@ -1,0 +1,97 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Contrôle des livraisons - Finance Créances{% endblock %}
+{% block page_title %}Livraison{% endblock %}
+
+{% set onglets = {
+    'deposee':  'À contrôler',
+    'anomalie': 'Anomalies',
+    'conforme': 'Conformes'
+} %}
+
+{% block topbar_nav %}
+    <nav class="flex min-w-0 flex-1 items-center">
+        <div class="inline-flex shrink-0 rounded-md border border-hairline bg-white p-1">
+            {% for cle, libelle in onglets %}
+                {% set n = comptes[cle]|default(0) %}
+                {% if cle == statut %}
+                    <span class="inline-flex items-center rounded bg-navy px-3 py-1 text-sm font-medium text-white">
+                        {{ libelle }}<span class="ml-2 rounded-full bg-white/20 px-1.5 text-xs font-bold">{{ n }}</span>
+                    </span>
+                {% else %}
+                    <a href="{{ path('app_livraison_controle', { statut: cle }) }}" class="inline-flex items-center rounded px-3 py-1 text-sm font-medium text-ink/70 transition hover:text-navy">
+                        {{ libelle }}<span class="ml-2 rounded-full bg-surface px-1.5 text-xs font-semibold text-ink/55">{{ n }}</span>
+                    </a>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </nav>
+{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-6xl">
+
+    {% for message in app.flashes('success') %}
+        <div class="mb-4 rounded-lg border border-positive/30 bg-positive/10 px-4 py-2.5 text-sm font-medium text-positive">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div class="mb-4 rounded-lg border border-negative/30 bg-negative/10 px-4 py-2.5 text-sm text-negative">{{ message }}</div>
+    {% endfor %}
+
+    <div class="mb-5">
+        <h1 class="text-xl font-bold text-navy">{{ onglets[statut] }}</h1>
+        <p class="mt-0.5 text-sm text-ink/55">
+            {% if statut == 'deposee' %}Les plus anciennes d'abord : un dossier qui attend retarde le paiement du loueur.
+            {% elseif statut == 'anomalie' %}Dossiers renvoyés en correction, qui ne partiront pas en l'état.
+            {% else %}Dossiers validés, prêts à partir chez le loueur.{% endif %}
+        </p>
+    </div>
+
+    {% if declarations is empty %}
+        <div class="rounded-xl border border-dashed border-hairline bg-white/60 px-5 py-14 text-center">
+            <p class="text-sm font-semibold text-navy">
+                {% if statut == 'deposee' %}Rien à contrôler.{% else %}Aucun dossier dans cet état.{% endif %}
+            </p>
+            {% if statut == 'deposee' %}<p class="mt-1 text-sm text-ink/55">Tous les dossiers déposés ont été arbitrés.</p>{% endif %}
+        </div>
+    {% else %}
+        <div class="overflow-hidden rounded-xl border border-hairline bg-white shadow-sm">
+            <table class="fc-table-comptable w-full">
+                <thead>
+                    <tr>
+                        <th class="text-left">Véhicule</th>
+                        <th class="text-left">Loueur</th>
+                        <th class="text-left">Établissement</th>
+                        <th class="text-left">Déclarée par</th>
+                        <th class="text-left">Le</th>
+                        <th class="text-left">Pièces</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in declarations %}
+                        <tr class="cursor-pointer transition hover:bg-gold/[0.05]" onclick="window.location='{{ path('app_livraison_controle_dossier', { id: d.id }) }}'">
+                            <td class="font-mono font-semibold text-navy">
+                                {{ d.libelleVehicule }}
+                                {% if d.immatriculation is null %}
+                                    <span class="ml-1 rounded bg-gold/15 px-1.5 py-0.5 text-[11px] font-semibold text-ink/60" title="Véhicule facturé avant immatriculation">non immat.</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ d.loueur }}</td>
+                            <td class="text-ink/70">{{ libelles_etab[d.codeEtab]|default(d.codeEtab) }}</td>
+                            <td class="text-ink/70">{{ d.declareePar|split('@')|first }}</td>
+                            <td class="text-ink/70">{{ d.declareeLe|date('d/m/Y H:i') }}</td>
+                            <td class="text-ink/70">{{ d.pieces|length }} / 3</td>
+                            <td class="text-right">
+                                <span class="text-navy" aria-hidden="true">
+                                    <svg class="inline h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                                </span>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

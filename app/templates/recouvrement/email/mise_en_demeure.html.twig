@@ -1,0 +1,38 @@
+{#
+    Niveau 3 : mise en demeure. Ton formel et juridique. Mention explicite du
+    delai et des consequences. Variables : groupe (GroupeARelancer), token.
+#}
+{% extends 'recouvrement/email/_layout.html.twig' %}
+
+{% block titre %}Mise en demeure de payer{% endblock %}
+
+{% block contenu %}
+    <p style="margin: 0 0 16px; color: #B0413E; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; font-size: 12px;">
+        Mise en demeure de payer
+    </p>
+
+    <p style="margin: 0 0 16px;">{{ groupe.formule_appel }},</p>
+
+    <p style="margin: 0 0 16px;">
+        En dépit de nos relances successives, votre compte demeure débiteur.
+        Par la présente, nous vous mettons en demeure de procéder à son règlement intégral
+        sous un délai de <strong>huit (8) jours</strong> à compter de la réception de ce courrier.
+    </p>
+
+    {% include 'recouvrement/email/_acces_factures.html.twig' %}
+
+    <p style="margin: 0 0 16px;">
+        À défaut de paiement dans le délai imparti, nous nous réservons le droit d'engager toute
+        procédure de recouvrement, amiable ou judiciaire, et de faire valoir l'application des
+        intérêts de retard ainsi que de l'indemnité forfaitaire pour frais de recouvrement prévus
+        par les dispositions légales en vigueur.
+    </p>
+
+    <p style="margin: 0 0 16px;">
+        Si vous estimez cette demande infondée ou si votre règlement a été effectué récemment,
+        nous vous remercions de nous contacter sans délai par retour de cet email.
+    </p>
+
+    <p style="margin: 0;">Cordialement,</p>
+    <p style="margin: 4px 0 0; color: #2D3250; font-weight: 600;">Le service recouvrement - Groupe Synthauto</p>
+{% endblock %}

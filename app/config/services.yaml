@@ -1,0 +1,189 @@
+# This file is the entry point to configure your own services.
+# Files in the packages/ subdirectory configure your dependencies.
+
+# Put parameters here that don't need to change on each machine where the app is deployed
+# https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
+parameters:
+    # Module Recouvrement : expediteur / reply-to des relances d'impayes.
+    recouvrement.from_email: '%env(RECOUVREMENT_FROM_EMAIL)%'
+    recouvrement.reply_to: '%env(RECOUVREMENT_REPLY_TO)%'
+    # Interrupteur de securite : adresse vers laquelle rediriger TOUS les emails
+    # (mode pre-prod). Vide = vraie production (vrais destinataires).
+    recouvrement.force_to: '%env(RECOUVREMENT_FORCE_TO)%'
+    # Liste blanche (dev) : adresses internes livrees telles quelles malgre FORCE_TO.
+    recouvrement.mail_passthrough: '%env(MAIL_PASSTHROUGH)%'
+    # Interrupteur PROPRE au module Remboursement (dissocie de Recouvrement) : redirige
+    # les SEULS e-mails Remboursement. Vide = vraie production.
+    remboursement.force_to: '%env(REMBOURSEMENT_FORCE_TO)%'
+
+services:
+    # default configuration for services in *this* file
+    _defaults:
+        autowire: true      # Automatically injects dependencies in your services.
+        autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+
+    # makes classes in src/ available to be used as services
+    # this creates a service per class whose id is the fully-qualified class name
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/Entity/'
+            - '../src/Kernel.php'
+
+    # Module Bonus Ecologique : 2 connexions DBAL (Progiciel compta + base locale).
+    App\BonusEco\Repository\BonusEcoRepository:
+        arguments:
+            $sageConnection: '@doctrine.dbal.sage_connection'
+            $defaultConnection: '@doctrine.dbal.default_connection'
+
+    # Client Google Sheets : chemin du JSON SA injecte depuis l'env.
+    App\Shared\Service\GoogleSheetsClient:
+        arguments:
+            $serviceAccountJsonPath: '%env(resolve:GOOGLE_SERVICE_ACCOUNT_JSON)%'
+
+    # Sync DG Garanties : config marques depuis garanties.yaml.
+    App\Garanties\Service\GarantiesSheetSync:
+        arguments:
+            $sheetId: '%garanties.sheet_id%'
+            $marques: '%garanties.marques%'
+
+    # Stockage des documents constructeur : bytea Postgres (swappable vers un
+    # stockage objet plus tard sans toucher a l'ingestion ni a l'affichage).
+    App\Garanties\Service\DocumentStockageInterface: '@App\Garanties\Service\PostgresDocumentStockage'
+
+    # Commandes BonusEco : injection de l'ID du spreadsheet depuis env.
+    App\BonusEco\Command\TestSheetCommand:
+        arguments:
+            $sheetId: '%env(BONUS_ECO_SHEET_ID)%'
+    App\BonusEco\Command\SyncSheetCommand:
+        arguments:
+            $sheetId: '%env(BONUS_ECO_SHEET_ID)%'
+
+    # Mailer pour les relances bonus eco : from email depuis env, but le nom
+    # d'expediteur affiche est specifique au module ("Bonus Ecologique").
+    App\BonusEco\Service\RelanceMailer:
+        arguments:
+            $fromEmail: '%env(MAILER_FROM_EMAIL)%'
+            $fromName: 'Bonus Ecologique'
+    App\BonusEco\Command\PreviewMailCommand:
+        arguments:
+            $fromEmail: '%env(MAILER_FROM_EMAIL)%'
+            $fromName: 'Bonus Ecologique'
+
+    # Interrupteur de securite d'envoi (redirige tout vers RECOUVREMENT_FORCE_TO
+    # si rempli, tous environnements). Vide = vraie production.
+    App\Recouvrement\EventListener\ForcerDestinataireMailer:
+        arguments:
+            $forceTo: '%recouvrement.force_to%'
+            $passthrough: '%recouvrement.mail_passthrough%'
+
+    # Interrupteur d'envoi PROPRE a Remboursement (dissocie de Recouvrement) : redirige
+    # les seuls e-mails Remboursement vers REMBOURSEMENT_FORCE_TO si rempli.
+    App\Remboursement\EventListener\ForcerDestinataireRemboursement:
+        arguments:
+            $forceTo: '%remboursement.force_to%'
+
+    # Module Recouvrement : fournisseur de PDF de facture. Adaptateur reel qui
+    # telecharge le PDF depuis l'URL Progiciel (chemin_pdf), a executer la ou Progiciel est
+    # joignable (worker interne / poste sur le reseau). Repli sur le stub
+    # (placeholder) en remplacant ce binding par StubPdfFactureProvider.
+    App\Recouvrement\Service\PdfFactureProvider: '@App\Recouvrement\Service\HttpPdfFactureProvider'
+
+    # Envoi postal (vecteur COURRIER, comptes sans e-mail). Par defaut le SIMULATEUR
+    # (garde-fou : aucun envoi reel). A basculer vers MailevaCourrierSender une fois
+    # le compte + les identifiants API configures.
+    App\Recouvrement\Postal\CourrierPostalSender: '@App\Recouvrement\Postal\SimulateurCourrierSender'
+
+    # Module Remboursement : extraction IA des pieces. Par defaut le STUB (aucun
+    # appel externe, cout nul). A basculer vers ExtracteurPieceGemini (appel reel
+    # Gemini 2.5 Pro, cle API en variable d'env) une fois l'implementation prete.
+    App\Remboursement\Service\Ia\ExtracteurPiece: '@App\Remboursement\Service\Ia\ExtracteurPieceStub'
+
+    # Extraction documentaire de la DEMONSTRATION : locale, deterministe, sans
+    # reseau. Elle lit le bloc de donnees que porte chaque document synthetique.
+    # Le fournisseur reel (GeminiOcrProvider) reste dans le code mais n'est plus
+    # cable : de toute facon le client HTTP est hors ligne dans cette copie.
+    App\Remboursement\Service\Ia\ProviderOcr: '@App\Remboursement\Service\Ia\ProviderOcrLocal'
+
+    # Fusion + compression des PDF de facture en un seul (Ghostscript). Chemin du
+    # binaire depuis l'env (vide -> fusion desactivee, repli gracieux).
+    App\Recouvrement\Service\FusionPdfService:
+        arguments:
+            $ghostscriptBin: '%env(RECOUVREMENT_GS_BIN)%'
+
+    # Moteur d'envoi des relances : expediteur, reply-to et quota PDF depuis l'env.
+    App\Recouvrement\Service\EnvoiRelanceService:
+        arguments:
+            $fromEmail: '%recouvrement.from_email%'
+            $replyTo: '%recouvrement.reply_to%'
+            $quotaPdfOctets: '%env(int:RECOUVREMENT_PDF_QUOTA_OCTETS)%'
+
+    # Reponse manuelle du comptable a un retour client : memes adresses.
+    App\Recouvrement\Service\ReponseRetourService:
+        arguments:
+            $fromEmail: '%recouvrement.from_email%'
+            $replyTo: '%recouvrement.reply_to%'
+
+    # Accuse automatique aux emails spontanes (non rattaches a une relance) : memes adresses.
+    App\Recouvrement\Service\AutoReponseSpontaneService:
+        arguments:
+            $fromEmail: '%recouvrement.from_email%'
+            $replyTo: '%recouvrement.reply_to%'
+
+    # Ingestion des retours : l'adresse du service sert a retirer notre propre
+    # boite des "autres destinataires" (To + Cc) affiches.
+    App\Recouvrement\Service\IngestionRetourService:
+        arguments:
+            $adresseService: '%recouvrement.reply_to%'
+
+    # Collecte POP3 des retours clients : config de la boite depuis l'env
+    # (RECOUVREMENT_POP3_*). Vides par defaut -> la commande ne fait rien.
+    App\Recouvrement\Command\PopFetchRetoursCommand:
+        arguments:
+            $host: '%env(RECOUVREMENT_POP3_HOST)%'
+            $port: '%env(RECOUVREMENT_POP3_PORT)%'
+            $user: '%env(RECOUVREMENT_POP3_USER)%'
+            $pass: '%env(RECOUVREMENT_POP3_PASS)%'
+
+    # Module Espace Livraison : le classeur Livraison est partage avec un compte de
+    # service distinct de celui de Bonus Eco, d'ou une seconde instance du client
+    # Sheets plutot qu'un partage de la meme. Lecture seule (scope readonly).
+    livraison.sheets_client:
+        class: App\Shared\Service\GoogleSheetsClient
+        arguments:
+            $httpClient: '@http_client'
+            $serviceAccountJsonPath: '%env(resolve:LIVRAISON_SERVICE_ACCOUNT_JSON)%'
+
+    App\Livraison\Command\ControlePariteCommand:
+        arguments:
+            $sheets: '@livraison.sheets_client'
+            $spreadsheetId: '%env(LIVRAISON_ESPACE_LIVREUR_SHEET_ID)%'
+
+    # add more service definitions when explicit configuration is needed
+    # please note that last definitions always *replace* previous ones
+
+    # La bibliotheque de documents de demonstration s'ecrit dans public/pieces/.
+    App\GrandsComptes\Command\FabriquerDocumentsCommand:
+        arguments:
+            $racineProjet: '%kernel.project_dir%'
+
+    # Le harnais de parcours lance le vrai worker messenger depuis la racine.
+    App\Remboursement\Command\ParcoursVedetteCommand:
+        arguments:
+            $racineProjet: '%kernel.project_dir%'
+
+    # L'epreuve d'anti-rejeu lance elle aussi le vrai worker.
+    App\Remboursement\Command\AntiRejeuCommand:
+        arguments:
+            $racineProjet: '%kernel.project_dir%'
+
+    # Les cas adversariaux jouent dans les vrais ecrans, worker compris.
+    App\Remboursement\Command\CasAdversariauxCommand:
+        arguments:
+            $racineProjet: '%kernel.project_dir%'
+
+    # La mesure finale lance le vrai worker entre chaque generation.
+    App\Remboursement\Command\MesureFinaleCommand:
+        arguments:
+            $racineProjet: '%kernel.project_dir%'

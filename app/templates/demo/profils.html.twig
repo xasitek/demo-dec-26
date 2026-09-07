@@ -1,0 +1,55 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Outil {{ outil.numero }} — avec quel profil ?{% endblock %}
+
+{% block body %}
+{{ parent() }}
+<div class="min-h-screen bg-surface pb-16">
+
+  <header class="border-b border-hairline bg-white">
+    <div class="mx-auto max-w-[1000px] px-6 py-5">
+      <a href="{{ path('demo_portail') }}" class="mb-3 inline-flex items-center gap-1.5 text-xs font-semibold text-ink/50 transition hover:text-navy">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+        Tous les outils
+      </a>
+      <div class="flex items-baseline gap-2">
+        <span class="font-mono text-base font-bold text-gold-dark">{{ outil.numero }}</span>
+        <h1 class="text-xl font-bold tracking-tight text-navy-deep">{{ outil.nom }}</h1>
+      </div>
+      <p class="mt-2 max-w-[75ch] text-sm leading-relaxed text-ink/60">{{ outil.probleme }}</p>
+    </div>
+  </header>
+
+  <div class="mx-auto max-w-[1000px] px-6">
+
+    <h2 class="py-6 text-[15px] font-semibold text-navy-deep">
+      Avec quel profil souhaitez-vous découvrir cet outil ?
+    </h2>
+
+    <div class="space-y-3">
+      {% for p in personas %}
+        <a href="{{ path('demo_outil_entrer', {cle: outil.cle, persona: p.value}) }}"
+           class="flex items-start gap-4 rounded-xl border border-hairline bg-white p-5 shadow-sm transition hover:border-navy/40 hover:shadow">
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                style="background: {{ p.teinte }}">{{ p.initiales }}</span>
+          <span class="min-w-0 flex-1">
+            <span class="block text-[15px] font-bold text-navy-deep">{{ p.libelle }}</span>
+            <span class="mt-0.5 block text-[13px] text-ink/60">{{ p.mission }}</span>
+            <span class="mt-2 block border-t border-hairline pt-2 text-[12px] leading-relaxed text-ink/50">
+              <b class="font-semibold text-ink/65">Ce qu'il voit ici :</b> {{ p.perspective }}
+            </span>
+          </span>
+          <span class="shrink-0 self-center text-sm font-semibold text-navy">Entrer →</span>
+        </a>
+      {% endfor %}
+    </div>
+
+    <p class="mt-8 rounded-lg border-l-2 border-gold bg-white px-4 py-3 text-[12.5px] leading-relaxed text-ink/60">
+      Seuls les profils dont la vue change réellement sur cet outil sont proposés. Deux rôles qui
+      verraient exactement le même écran ne sont pas dédoublés : la sélection de profil n'est pas
+      décorative, elle matérialise la séparation des tâches.
+    </p>
+
+  </div>
+</div>
+{% endblock %}

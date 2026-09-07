@@ -1,0 +1,84 @@
+framework:
+    messenger:
+        failure_transport: failed
+
+        transports:
+            # https://symfony.com/doc/current/messenger.html#transport-configuration
+            async:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                retry_strategy:
+                    max_retries: 3
+                    multiplier: 2
+            # Module Remboursement : file DEDIEE (Doctrine) pour l'analyse IA. Async
+            # en dev ET en prod (independant du transport principal) : les depots
+            # reviennent instantanement, un worker consomme la file SEQUENTIELLEMENT
+            # (5 depots simultanes -> 5 messages traites un par un, quota Gemini tenu).
+            # Worker : php bin/console messenger:consume remboursement
+            remboursement:
+                dsn: 'doctrine://default?queue_name=remboursement'
+                retry_strategy:
+                    max_retries: 3
+                    delay: 5000
+                    multiplier: 2
+            failed: 'doctrine://default?queue_name=failed'
+            # Transport SYNCHRONE, utilise UNIQUEMENT par l'environnement de
+            # mesure de la copie de demonstration. Il ne change le routage
+            # d'aucun message : la mesure le demande explicitement, message par
+            # message, par un TransportNamesStamp. L'interet est qu'il fait
+            # passer la demande par TOUTE la chaine -- les middlewares
+            # anti-rejeu et garde de surpaiement compris -- puis appelle le
+            # handler dans le meme processus, donc dans la meme transaction que
+            # le cas mesure. Un worker externe, lui, ne verrait pas une
+            # transaction non validee.
+            sync: 'sync://'
+
+        default_bus: messenger.bus.default
+
+        buses:
+            messenger.bus.default:
+                # RENFORCEMENT DE LA COPIE DE DEMONSTRATION. Le module
+                # historique n'a pas ce middleware. Il arrete toute demande de
+                # generation de paiement dont l'empreinte existe deja : le
+                # message n'est ni mis en file, ni transmis au handler, et la
+                # tentative est tracee. Voir App\Remboursement\Demo\GardeAntiRejeu.
+                middleware:
+                    # Le surpaiement rebarre avant la caisse : le controle
+                    # herite ne vivait qu'a la porte du depot.
+                    - App\Remboursement\Demo\MiddlewareGardeSurpaiement
+                    # R04 : la cle de controle de l'IBAN, jamais verifiee par le
+                    # module herite. Avant l'anti-rejeu, pour qu'un paiement
+                    # refuse ne laisse aucune empreinte derriere lui.
+                    - App\Remboursement\Demo\MiddlewareGardeIbanMod97
+                    - App\Remboursement\Demo\MiddlewareAntiRejeu
+
+        routing:
+            # NB : SendEmailMessage n'est PAS route en async, donc les emails sont
+            # envoyes SYNCHRONEMENT. Raison : les relances de recouvrement joignent
+            # les PDF de facture ; les re-mettre en file serialiserait l'email + les
+            # pieces jointes dans la base (lourd, et OOM sur petite memoire). Le
+            # worker (EnvoyerRelance) fait deja l'asynchrone par client et envoie le
+            # mail directement.
+            Symfony\Component\Notifier\Message\ChatMessage: async
+            Symfony\Component\Notifier\Message\SmsMessage: async
+
+            # Module Recouvrement : envoi asynchrone des relances d'impayes
+            # (un message = un client ; l'email est envoye directement par le worker).
+            App\Recouvrement\Message\EnvoyerRelance: async
+
+            # Lancement manuel d'une strategie ("Lancer maintenant") : le worker
+            # prepare + dispatch la regle ciblee et alimente la barre de progression.
+            App\Recouvrement\Message\LancerPreparation: async
+
+            # Envoi postal d'une relance (vecteur COURRIER) : le worker interne depose
+            # le courrier chez le prestataire (Maileva) et met a jour le suivi.
+            App\Recouvrement\Message\EnvoyerCourrierPostal: async
+
+            # Module Remboursement : analyse IA d'un dossier depose (file dediee).
+            App\Remboursement\Message\AnalyserDossier: remboursement
+
+            # Module Remboursement : generation des fichiers comptables (OD + SEPA) apres
+            # validation directeur -> passage en « En cours de paiement » (meme file dediee).
+            App\Remboursement\Message\GenererFichiers: remboursement
+
+            # Route your messages to the transports
+            # 'App\Message\YourMessage': async

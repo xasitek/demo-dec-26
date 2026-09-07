@@ -1,0 +1,42 @@
+{#- Onglets du poste comptable (topbar) : À vérifier / Suivi dossier / Paiements /
+   Journal / Lettrage.
+   Attend : active ('verifier' | 'suivi' | 'virements' | 'journal' | 'lettrage'),
+   nbAVerifier (int). La pastille Lettrage vient de remb_nb_a_lettrer() : elle est donc
+   visible depuis tous les onglets, sans la faire passer par chaque controleur. -#}
+{% set base = 'inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-sm font-semibold transition' %}
+<nav class="ml-6 flex items-center gap-1.5">
+    <a href="{{ path('app_remboursement_accueil') }}"
+       class="{{ base }} {{ active == 'verifier' ? 'bg-navy text-white shadow-sm' : 'text-ink/60 hover:bg-surface hover:text-navy' }}">
+        À vérifier
+        <span data-remb-nav-compteur data-compte="{{ nbAVerifier }}"
+              class="rounded-full px-1.5 text-xs font-bold {{ active == 'verifier' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800' }}{{ nbAVerifier > 0 ? '' : ' hidden' }}">{{ nbAVerifier > 99 ? '99+' : nbAVerifier }}</span>
+    </a>
+    <a href="{{ path('app_remboursement_suivi') }}"
+       class="{{ base }} {{ active == 'suivi' ? 'bg-navy text-white shadow-sm' : 'text-ink/60 hover:bg-surface hover:text-navy' }}">
+        Suivi dossier
+    </a>
+    {% if is_granted('ROLE_MANAGER') %}
+        <a href="{{ path('app_remboursement_virements') }}"
+           class="{{ base }} {{ active == 'virements' ? 'bg-navy text-white shadow-sm' : 'text-ink/60 hover:bg-surface hover:text-navy' }}">
+            Paiements
+        </a>
+    {% endif %}
+    {% if is_granted('ROLE_DIRECTEUR') or (app.user and app.user.userIdentifier == 'credit-manager@demonstration.invalid') %}
+        <a href="{{ path('app_remboursement_paiements_journal') }}"
+           class="{{ base }} {{ active == 'journal' ? 'bg-navy text-white shadow-sm' : 'text-ink/60 hover:bg-surface hover:text-navy' }}">
+            Journal
+        </a>
+    {% endif %}
+    <a href="{{ path('app_remboursement_lettrage') }}"
+       class="{{ base }} {{ active == 'lettrage' ? 'bg-navy text-white shadow-sm' : 'text-ink/60 hover:bg-surface hover:text-navy' }}">
+        Lettrage
+        {% set nbALettrer = remb_nb_a_lettrer() %}
+        {% if nbALettrer > 0 %}
+            <span class="rounded-full px-1.5 text-xs font-bold {{ active == 'lettrage' ? 'bg-white/20 text-white' : 'bg-navy/10 text-navy' }}">{{ nbALettrer > 99 ? '99+' : nbALettrer }}</span>
+        {% endif %}
+    </a>
+    <a href="{{ path('app_remboursement_methode') }}"
+       class="{{ base }} {{ active == 'methode' ? 'bg-navy text-white shadow-sm' : 'text-ink/60 hover:bg-surface hover:text-navy' }}">
+        Méthode
+    </a>
+</nav>

@@ -1,0 +1,2362 @@
+@import "tailwindcss";
+
+/*
+ * Tokens Tailwind v4 aux couleurs SYNTHAUTO (charte, voir docs/BRANDING.md).
+ * Génère les utilities bg-navy, text-gold, border-hairline, etc.
+ */
+@theme {
+    --color-navy: #2D3250;
+    --color-navy-light: #4A5278;
+    --color-navy-deep: #232740;
+    --color-gold: #C8AA73;
+    --color-gold-soft: #E5D4B0;
+    --color-gold-dark: #A88A56;
+    --color-ink: #4A4A4A;
+    --color-surface: #F5F5F5;
+    --color-hairline: #E5E5E5;
+    --color-positive: #2E7D5F;
+    --color-negative: #B0413E;
+    --color-warning: #D4924A;
+
+    --font-sans: 'Montserrat', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/*
+ * Finance Créances - feuille de style globale.
+ * charte de la suite (voir docs/BRANDING.md) : navy domine, gold accentue, Montserrat.
+ */
+
+:root {
+    --fc-navy: #2D3250;
+    --fc-navy-light: #4A5278;
+    --fc-navy-deep: #232740;
+    --fc-gold: #C8AA73;
+    --fc-gold-soft: #E5D4B0;
+    --fc-gold-dark: #A88A56;
+    --fc-ink: #4A4A4A;
+    --fc-surface: #F5F5F5;
+    --fc-hairline: #E5E5E5;
+    --fc-positive: #2E7D5F;
+    --fc-negative: #B0413E;
+    --fc-warning: #D4924A;
+
+    --font-base: 'Montserrat', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* <turbo-frame> est inline par defaut : on le force en block sinon ses enfants
+   en width:100% calculent leur largeur relativement a un parent inline
+   et debordent / ne respectent pas le padding du conteneur. */
+turbo-frame {
+    display: block;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+}
+
+body {
+    font-family: var(--font-base);
+    color: var(--fc-ink);
+    background-color: var(--fc-navy);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+/* Curseur main sur tous les elements interactifs (non couvert par Tailwind v4). */
+button:not(:disabled),
+summary,
+[role="button"] {
+    cursor: pointer;
+}
+
+/* Select stylise aux couleurs SYNTHAUTO (fleche custom, pas d'apparence native) */
+.select-synthauto {
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: #FFFFFF;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232D3250' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.625rem center;
+    background-size: 1rem;
+    border: 1px solid var(--fc-hairline);
+    border-radius: 0.5rem;
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    font-family: var(--font-base);
+    color: var(--fc-navy);
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+}
+
+.select-synthauto:focus {
+    outline: none;
+    border-color: var(--fc-navy);
+}
+
+/* ============================================================
+   Select custom (dropdown entierement stylise SYNTHAUTO)
+   ============================================================ */
+
+.fc-select {
+    position: relative;
+}
+
+.fc-select-native {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.fc-select-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 14rem;
+    padding: 0.5rem 0.75rem;
+    font-family: var(--font-base);
+    font-size: 0.875rem;
+    color: var(--fc-navy);
+    background: #FFFFFF;
+    border: 1px solid var(--fc-hairline);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+}
+
+.fc-select-button > span {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+}
+
+.fc-select-button:hover {
+    border-color: var(--fc-navy-light);
+}
+
+.fc-select-button svg {
+    width: 1rem;
+    height: 1rem;
+    color: var(--fc-navy);
+    flex-shrink: 0;
+}
+
+.fc-select-menu {
+    position: absolute;
+    z-index: 30;
+    top: calc(100% + 0.25rem);
+    left: 0;
+    min-width: 100%;
+    max-height: 20rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin: 0;
+    padding: 0.25rem;
+    list-style: none;
+    background: #FFFFFF;
+    border: 1px solid var(--fc-hairline);
+    border-radius: 0.625rem;
+    box-shadow: 0 12px 30px rgba(45, 50, 80, 0.12);
+}
+
+.fc-select-menu[hidden],
+.fc-ac-menu[hidden] {
+    display: none;
+}
+
+.fc-select-option {
+    padding: 0.5rem 0.625rem;
+    font-size: 0.875rem;
+    color: var(--fc-ink);
+    border-radius: 0.375rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.1s ease, color 0.1s ease;
+}
+
+.fc-select-option:hover {
+    background: var(--fc-surface);
+    color: var(--fc-navy);
+}
+
+.fc-select-option.is-selected {
+    background: var(--fc-navy);
+    color: #FFFFFF;
+    font-weight: 600;
+}
+
+/* Pastille de couleur (badge d'etat) dans un select colore */
+.fc-select-dot {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    margin-right: 0.5rem;
+    border-radius: 9999px;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+/* ============================================================
+   Autocompletion custom
+   ============================================================ */
+
+.fc-ac {
+    position: relative;
+    flex: 1 1 200px;
+}
+
+.fc-ac-menu {
+    position: absolute;
+    z-index: 30;
+    top: calc(100% + 0.25rem);
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 0.25rem;
+    list-style: none;
+    background: #FFFFFF;
+    border: 1px solid var(--fc-hairline);
+    border-radius: 0.625rem;
+    box-shadow: 0 12px 30px rgba(45, 50, 80, 0.12);
+    max-height: 16rem;
+    overflow-y: auto;
+}
+
+.fc-ac-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.625rem;
+    font-size: 0.875rem;
+    color: var(--fc-ink);
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: background 0.1s ease, color 0.1s ease;
+}
+
+.fc-ac-option:hover,
+.fc-ac-option.is-active {
+    background: var(--fc-surface);
+    color: var(--fc-navy);
+}
+
+/* Grille de filtres : chaque select (simple ou multi) prend toute la largeur
+   de sa cellule. Scope sur la classe parente pour ne pas alterer les autres
+   ecrans (Utilisateurs, etc.). */
+.fc-filter-grid > .fc-select,
+.fc-filter-grid > .fc-select .fc-select-button,
+.fc-filter-grid > .fc-multi,
+.fc-filter-grid > .fc-multi .fc-multi-button {
+    width: 100%;
+    min-width: 0;
+}
+
+/* ============================================================
+   Multi-select : bouton + dropdown a checkboxes.
+   ============================================================ */
+
+.fc-multi {
+    position: relative;
+}
+
+.fc-multi-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 14rem;
+    padding: 0.5rem 0.75rem;
+    font-family: var(--font-base);
+    font-size: 0.875rem;
+    color: var(--fc-navy);
+    background: #FFFFFF;
+    border: 1px solid var(--fc-hairline);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s ease;
+}
+
+.fc-multi-button:hover {
+    border-color: var(--fc-navy-light);
+}
+
+.fc-multi-button svg {
+    width: 1rem;
+    height: 1rem;
+    color: var(--fc-navy);
+    flex-shrink: 0;
+}
+
+/* Etat actif : selection en cours -> bordure doree pour reperer rapidement */
+.fc-multi.is-active .fc-multi-button {
+    border-color: var(--fc-gold);
+    background: rgba(200, 170, 115, 0.04);
+}
+
+.fc-multi-button-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fc-multi-menu {
+    position: absolute;
+    z-index: 30;
+    top: calc(100% + 0.25rem);
+    left: 0;
+    min-width: 100%;
+    margin: 0;
+    padding: 0;
+    background: #FFFFFF;
+    border: 1px solid var(--fc-hairline);
+    border-radius: 0.625rem;
+    box-shadow: 0 12px 30px rgba(45, 50, 80, 0.12);
+    display: flex;
+    flex-direction: column;
+    max-height: 22rem;
+    overflow: hidden;
+}
+
+.fc-multi-menu[hidden] {
+    display: none;
+}
+
+.fc-multi-search {
+    padding: 0.4rem;
+    border-bottom: 1px solid var(--fc-hairline);
+    background: #FFFFFF;
+    flex-shrink: 0;
+}
+
+.fc-multi-search-input {
+    width: 100%;
+    padding: 0.35rem 0.625rem;
+    font-size: 0.8125rem;
+    color: var(--fc-ink);
+    background: var(--fc-surface);
+    border: 1px solid var(--fc-hairline);
+    border-radius: 0.375rem;
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+
+.fc-multi-search-input:focus {
+    border-color: var(--fc-navy);
+    background: #FFFFFF;
+}
+
+.fc-multi-options {
+    padding: 0.25rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    min-height: 0;
+}
+
+.fc-multi-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.625rem;
+    font-size: 0.875rem;
+    color: var(--fc-ink);
+    border-radius: 0.375rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.1s ease;
+}
+
+.fc-multi-option[hidden] {
+    display: none;
+}
+
+.fc-multi-option:hover {
+    background: var(--fc-surface);
+}
+
+.fc-multi-option input {
+    accent-color: var(--fc-navy);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.fc-multi-empty {
+    padding: 0.6rem 0.625rem;
+    font-size: 0.8125rem;
+    color: #8A8A8A;
+    font-style: italic;
+    text-align: center;
+}
+
+/* ============================================================
+   Sections de filtres : on separe visuellement par source de donnees
+   (Notre calcul / Portail constructeur / Progiciel compta).
+   ============================================================ */
+
+.fc-filter-section {
+    display: grid;
+    grid-template-columns: 11rem 1fr;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.fc-filter-section + .fc-filter-section {
+    margin-top: 0.5rem;
+}
+
+.fc-filter-section-label {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(45, 50, 80, 0.55);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.fc-filter-section-label::before {
+    content: '';
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background: var(--fc-hairline);
+    flex-shrink: 0;
+}
+
+.fc-filter-section.is-source-portail .fc-filter-section-label::before {
+    background: var(--fc-gold);
+}
+
+.fc-filter-section.is-source-sage .fc-filter-section-label::before {
+    background: var(--fc-navy);
+}
+
+.fc-filter-section.is-source-calcul .fc-filter-section-label::before {
+    background: rgba(45, 50, 80, 0.35);
+}
+
+@media (max-width: 768px) {
+    .fc-filter-section {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* ============================================================
+   Toggle card : interrupteur stylise pour les options "vue augmentee"
+   (ex : inclure les creances Progiciel sans DG). Iconographie a gauche,
+   titre + sous-titre au centre, switch a droite.
+   ============================================================ */
+
+.fc-toggle-card {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 0.75rem 1rem;
+    background: var(--fc-surface);
+    border: 1px solid var(--fc-hairline);
+    border-radius: 0.625rem;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.fc-toggle-card:hover {
+    border-color: var(--fc-navy-light);
+}
+
+.fc-toggle-card.is-active {
+    background: rgba(200, 170, 115, 0.08);
+    border-color: var(--fc-gold);
+}
+
+.fc-toggle-card-icon {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 9999px;
+    background: rgba(45, 50, 80, 0.06);
+    color: var(--fc-navy);
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.fc-toggle-card.is-active .fc-toggle-card-icon {
+    background: rgba(200, 170, 115, 0.18);
+    color: var(--fc-gold-dark, #8C7142);
+}
+
+.fc-toggle-card-icon svg {
+    width: 1.125rem;
+    height: 1.125rem;
+}
+
+.fc-toggle-card-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+}
+
+.fc-toggle-card-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--fc-navy);
+    line-height: 1.3;
+}
+
+.fc-toggle-card-subtitle {
+    font-size: 0.75rem;
+    color: rgba(45, 50, 80, 0.6);
+    line-height: 1.35;
+}
+
+/* Checkbox native masquee : c'est elle qui porte le name/value, le switch est decoratif. */
+.fc-toggle-card-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.fc-toggle-switch {
+    flex-shrink: 0;
+    position: relative;
+    width: 2.5rem;
+    height: 1.375rem;
+    background: rgba(45, 50, 80, 0.18);
+    border-radius: 9999px;
+    transition: background 0.18s ease;
+}
+
+.fc-toggle-switch-thumb {
+    position: absolute;
+    top: 0.125rem;
+    left: 0.125rem;
+    width: 1.125rem;
+    height: 1.125rem;
+    background: #FFFFFF;
+    border-radius: 9999px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+    transition: transform 0.18s ease;
+}
+
+.fc-toggle-card.is-active .fc-toggle-switch {
+    background: var(--fc-gold);
+}
+
+.fc-toggle-card.is-active .fc-toggle-switch-thumb {
+    transform: translateX(1.125rem);
+}
+
+.fc-toggle-card:focus-within .fc-toggle-switch {
+    box-shadow: 0 0 0 3px rgba(200, 170, 115, 0.25);
+}
+
+/* ============================================================
+   Pills des filtres actifs : recap cliquable pour retirer un filtre.
+   ============================================================ */
+
+.fc-filter-pills {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.fc-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.5rem 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    color: var(--fc-navy);
+    background: rgba(45, 50, 80, 0.06);
+    border: 1px solid var(--fc-hairline);
+    border-radius: 9999px;
+    transition: background 0.15s ease;
+}
+
+.fc-filter-pill:hover {
+    background: rgba(45, 50, 80, 0.12);
+}
+
+.fc-filter-pill.is-source-portail {
+    background: rgba(200, 170, 115, 0.10);
+    border-color: rgba(200, 170, 115, 0.30);
+}
+
+.fc-filter-pill.is-source-sage {
+    background: rgba(45, 50, 80, 0.05);
+    border-color: rgba(45, 50, 80, 0.20);
+}
+
+/* Toggle d'audit : vue speciale (DG sans Progiciel, Progiciel sans DG). Couleur distinctive. */
+.fc-filter-pill.is-source-audit {
+    background: rgba(168, 138, 86, 0.10);
+    border-color: rgba(168, 138, 86, 0.35);
+    color: var(--fc-gold-dark);
+}
+
+.fc-filter-pill-label {
+    color: rgba(45, 50, 80, 0.55);
+    font-weight: 500;
+}
+
+.fc-filter-pill-close {
+    display: inline-flex;
+    width: 1rem;
+    height: 1rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    color: rgba(45, 50, 80, 0.55);
+    margin-left: 0.125rem;
+}
+
+.fc-filter-pill-close:hover {
+    background: rgba(45, 50, 80, 0.15);
+    color: var(--fc-navy);
+}
+
+/* ============================================================
+   Tableau "comptable" : dense, grille fine sur chaque cellule,
+   zebrage discret, chiffres monospace alignes. Pense pour les ecrans
+   d'audit / reconciliation, pas pour les listes UI generiques.
+   ============================================================ */
+
+.fc-table-comptable {
+    width: 100%;
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.fc-table-comptable thead {
+    background: var(--fc-surface);
+    color: rgba(45, 50, 80, 0.55);
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.fc-table-comptable thead th {
+    padding: 0.5rem 0.75rem;
+    font-weight: 600;
+    text-align: left;
+    border-bottom: 1px solid var(--fc-hairline);
+    border-right: 1px solid var(--fc-hairline);
+    white-space: nowrap;
+}
+
+.fc-table-comptable thead th.is-num {
+    text-align: right;
+}
+
+.fc-table-comptable thead th:last-child,
+.fc-table-comptable tbody td:last-child {
+    border-right: none;
+}
+
+.fc-table-comptable {
+    width: 100%;
+    table-layout: auto;
+    font-size: 0.75rem;
+}
+
+.fc-table-comptable tbody td {
+    padding: 0.3rem 0.45rem;
+    border-bottom: 1px solid var(--fc-hairline);
+    border-right: 1px solid var(--fc-hairline);
+    vertical-align: middle;
+    color: var(--fc-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 0;
+}
+
+.fc-table-comptable thead th {
+    padding: 0.4rem 0.45rem;
+    white-space: nowrap;
+}
+
+.fc-table-comptable tbody tr:nth-child(even) {
+    background: rgba(245, 246, 250, 0.6);
+}
+
+/* Cellule qui s'adapte a son contenu (pas de troncature) : pastilles, dates,
+   actions. Annule le max-width:0 / overflow:hidden par defaut des td. */
+.fc-table-comptable td.fc-cell-fit,
+.fc-table-comptable th.fc-cell-fit {
+    width: 1%;
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+}
+
+/* Cellule extensible qui absorbe l'espace restant (ex. colonne Motif). */
+.fc-table-comptable td.fc-cell-grow,
+.fc-table-comptable th.fc-cell-grow {
+    width: auto;
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+}
+
+/* Colonne numero de ligne (premiere td) : compact, gris discret */
+.fc-table-comptable td.is-rownum,
+.fc-table-comptable th.is-rownum {
+    width: 2.5rem;
+    padding: 0.25rem 0.4rem;
+    text-align: right;
+    color: rgba(45, 50, 80, 0.40);
+    font-size: 0.65rem;
+    font-variant-numeric: tabular-nums;
+    background: rgba(245, 246, 250, 0.4);
+}
+
+/* Champ de recherche stylise (utilise dans la zone filtres) */
+.fc-input {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 0.875rem;
+    font-family: var(--font-base);
+    font-size: 0.875rem;
+    color: var(--fc-ink);
+    background: #FFFFFF;
+    border: 1px solid var(--fc-hairline);
+    border-radius: 0.5rem;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.fc-input:focus {
+    border-color: var(--fc-navy);
+    box-shadow: 0 0 0 3px rgba(45, 50, 80, 0.10);
+}
+
+.fc-input::placeholder {
+    color: rgba(45, 50, 80, 0.40);
+}
+
+.fc-table-comptable tbody tr.is-clickable:hover {
+    background: rgba(200, 170, 115, 0.10);
+    cursor: pointer;
+}
+
+/* Ligne actuellement affichee dans le panneau de detail */
+.fc-table-comptable tbody tr.is-selected {
+    background: rgba(200, 170, 115, 0.18);
+    box-shadow: inset 3px 0 0 var(--fc-gold);
+}
+
+.fc-table-comptable tbody tr.is-selected:hover {
+    background: rgba(200, 170, 115, 0.22);
+}
+
+/* Vue liste Remboursement (Tous les dossiers) : survol net + ligne ouverte dans le panneau */
+tr[data-detail-panel-id-param] {
+    cursor: pointer;
+}
+tr[data-detail-panel-id-param]:hover {
+    background: rgba(200, 170, 115, 0.12);
+}
+tr[data-detail-panel-id-param].is-selected {
+    background: rgba(200, 170, 115, 0.18);
+    box-shadow: inset 3px 0 0 var(--fc-gold);
+}
+tr[data-detail-panel-id-param].is-selected:hover {
+    background: rgba(200, 170, 115, 0.24);
+}
+
+.fc-table-comptable .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+}
+
+.fc-table-comptable .mono {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.fc-table-comptable .muted {
+    color: rgba(45, 50, 80, 0.45);
+    font-size: 0.6875rem;
+}
+
+/* ============================================================
+   Sidebar applicative : mini par defaut, s'etend au survol (desktop) ;
+   masquee + burger sur mobile. Logo toujours visible.
+   ============================================================ */
+
+.app-shell {
+    min-height: 100vh;
+    background: var(--fc-surface);
+}
+
+.app-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    width: 16rem;
+    background: var(--fc-navy);
+    color: #FFFFFF;
+    overflow: hidden;
+}
+
+.app-sidebar .nav-label {
+    white-space: nowrap;
+    transition: opacity 0.15s ease;
+}
+
+.app-sidebar .logo-mini {
+    transition: opacity 0.15s ease;
+}
+
+.app-content {
+    min-width: 0;
+}
+
+/* Desktop : mini barre qui s'etend au survol, le contenu ne bouge pas. */
+@media (min-width: 1024px) {
+    .app-sidebar {
+        width: 4.5rem;
+        transition: width 0.2s ease;
+    }
+    .app-sidebar:hover {
+        width: 16rem;
+        box-shadow: 0 0 40px rgba(0, 0, 0, 0.35);
+    }
+    .app-sidebar .nav-label {
+        opacity: 0;
+    }
+    .app-sidebar:hover .nav-label {
+        opacity: 1;
+    }
+    .app-sidebar:hover .logo-mini {
+        opacity: 0;
+    }
+    .app-content {
+        margin-left: 4.5rem;
+    }
+}
+
+/* Mobile : masquee hors ecran, ouverte via le bouton burger. */
+@media (max-width: 1023px) {
+    .app-sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.2s ease;
+    }
+    .app-sidebar.is-open {
+        transform: translateX(0);
+    }
+    .app-sidebar .logo-mini {
+        opacity: 0;
+    }
+}
+
+/* Item de navigation */
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.7rem 1.1rem;
+    color: rgba(255, 255, 255, 0.72);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border-left: 3px solid transparent;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+
+.nav-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #FFFFFF;
+}
+
+.nav-item.is-active {
+    background: rgba(255, 255, 255, 0.08);
+    color: #FFFFFF;
+    border-left-color: var(--fc-gold);
+}
+
+.nav-item .nav-icon {
+    flex-shrink: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-item .nav-icon svg {
+    width: 1.35rem;
+    height: 1.35rem;
+}
+
+.nav-item.is-soon {
+    cursor: default;
+    color: rgba(255, 255, 255, 0.38);
+}
+
+.nav-item.is-soon:hover {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.38);
+}
+
+/* Boite a idees : derniere ligne de la barre laterale. L'ampoule s'allume par
+   intermittence — un cycle de 8 s dont pres de 6 s de repos — pour inviter a
+   participer sans transformer la nav en enseigne clignotante. Le halo est un
+   box-shadow dont le spread grandit : pas de pseudo-element, donc aucun
+   probleme d'empilement avec le fond de la barre, et rien qui deborde des
+   4.5rem de la barre reduite (overflow:hidden). */
+.nav-idee {
+    text-align: left;
+}
+
+.nav-idee .nav-icon {
+    border-radius: 999px;
+    color: rgba(255, 255, 255, 0.72);
+    animation: idee-filament 8s ease-in-out infinite, idee-halo 8s ease-in-out infinite;
+}
+
+/* Pendant l'usage, l'animation n'a plus rien a dire : survol, panneau ouvert,
+   ou page du mur des idees. */
+.nav-idee:hover .nav-icon,
+.nav-idee[aria-expanded="true"] .nav-icon,
+.nav-idee.is-active .nav-icon {
+    animation: none;
+    color: #FFFFFF;
+    filter: none;
+}
+
+/* Deux respirations : le filament monte, retombe, remonte plus fort, s'eteint. */
+@keyframes idee-filament {
+    0%, 72%, 100% {
+        color: rgba(255, 255, 255, 0.72);
+        filter: none;
+    }
+    76% {
+        color: var(--fc-gold-soft);
+        filter: drop-shadow(0 0 5px rgba(200, 170, 115, 0.7));
+    }
+    80% {
+        color: var(--fc-gold);
+        filter: drop-shadow(0 0 2px rgba(200, 170, 115, 0.35));
+    }
+    84% {
+        color: #FFF6E4;
+        filter: drop-shadow(0 0 7px rgba(200, 170, 115, 0.8));
+    }
+    92% {
+        color: var(--fc-gold);
+        filter: drop-shadow(0 0 3px rgba(200, 170, 115, 0.3));
+    }
+}
+
+@keyframes idee-halo {
+    0%, 72%, 100% {
+        box-shadow: 0 0 0 0 rgba(200, 170, 115, 0);
+    }
+    78% {
+        box-shadow: 0 0 0 0.35rem rgba(200, 170, 115, 0.28);
+    }
+    90% {
+        box-shadow: 0 0 0 0.9rem rgba(200, 170, 115, 0);
+    }
+}
+
+/* Mouvement reduit : l'icone reste doree, en statique. Ne rien animer ne doit
+   pas vouloir dire ne rien signaler. */
+@media (prefers-reduced-motion: reduce) {
+    .nav-idee .nav-icon {
+        animation: none;
+        color: var(--fc-gold);
+    }
+}
+
+/* ============================================================
+   Presence : pile d'avatars (topbar)
+   ============================================================ */
+
+.presence-stack {
+    display: flex;
+    align-items: center;
+}
+
+.presence-avatar {
+    position: relative;
+    width: 2rem;
+    height: 2rem;
+    margin-left: -0.55rem;
+    border-radius: 50%;
+    border: 2px solid #FFFFFF;
+    background: var(--fc-navy);
+    transition: margin-left 0.18s ease, transform 0.18s ease;
+    cursor: pointer;
+}
+
+.presence-avatar:first-child {
+    margin-left: 0;
+}
+
+.presence-avatar img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.presence-initials {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--fc-gold);
+}
+
+/* Au survol de la pile, les avatars s'ecartent et se redressent */
+.presence-stack:hover .presence-avatar {
+    margin-left: 0.15rem;
+}
+
+.presence-stack:hover .presence-avatar:first-child {
+    margin-left: 0;
+}
+
+.presence-avatar:hover {
+    transform: translateY(-2px);
+    z-index: 2;
+}
+
+/* Tooltip custom au survol (nom + statut) */
+.presence-avatar::after {
+    content: attr(data-label);
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.3rem 0.55rem;
+    background: var(--fc-navy-deep);
+    color: #FFFFFF;
+    font-size: 0.72rem;
+    font-weight: 500;
+    white-space: nowrap;
+    border-radius: 0.4rem;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease;
+    z-index: 50;
+}
+
+.presence-avatar:hover::after {
+    opacity: 1;
+}
+
+.presence-dot {
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    border: 2px solid #FFFFFF;
+}
+
+.presence-dot.online {
+    background: var(--fc-positive);
+}
+
+.presence-dot.idle {
+    background: var(--fc-warning);
+}
+
+.presence-dot.offline {
+    background: #b4b4b4;
+}
+
+.topbar-sep {
+    width: 1px;
+    height: 1.75rem;
+    background: var(--fc-hairline);
+}
+
+/* Bordure de statut de mon propre avatar (actif / inactif) */
+.presence-self {
+    border-radius: 9999px;
+    box-shadow: 0 0 0 2px transparent;
+    transition: box-shadow 0.18s ease;
+}
+
+.presence-self.is-online {
+    box-shadow: 0 0 0 2px var(--fc-positive);
+}
+
+.presence-self.is-idle {
+    box-shadow: 0 0 0 2px var(--fc-warning);
+}
+
+/* ============================================================
+   Page d'accueil-connexion : split-screen (vitrine + connexion)
+   ============================================================ */
+
+.auth {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    min-height: 100vh;
+}
+
+/* ---------- Panneau gauche : vitrine futuriste ---------- */
+
+.auth-showcase {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 3.5rem;
+    color: #FFFFFF;
+    background:
+        radial-gradient(900px 600px at 12% 8%, var(--fc-navy-light) 0%, transparent 55%),
+        radial-gradient(800px 600px at 90% 95%, #343a5e 0%, transparent 55%),
+        linear-gradient(155deg, var(--fc-navy-deep) 0%, var(--fc-navy) 55%, var(--fc-navy-deep) 100%);
+}
+
+.auth-showcase::before {
+    content: '';
+    position: absolute;
+    width: 34rem;
+    height: 34rem;
+    top: -12rem;
+    left: -10rem;
+    border-radius: 50%;
+    filter: blur(90px);
+    opacity: 0.45;
+    background: radial-gradient(circle, rgba(200, 170, 115, 0.4) 0%, transparent 70%);
+    animation: auroraDriftA 20s ease-in-out infinite alternate;
+    pointer-events: none;
+}
+
+/* Symbole euro en filigrane (thematique finance, tres subtil) */
+.showcase-euro {
+    position: absolute;
+    right: -3rem;
+    bottom: -6rem;
+    font-size: 32rem;
+    font-weight: 800;
+    line-height: 1;
+    color: rgba(200, 170, 115, 0.05);
+    pointer-events: none;
+    user-select: none;
+    z-index: 1;
+}
+
+.showcase-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(circle at 35% 40%, black 0%, transparent 80%);
+    -webkit-mask-image: radial-gradient(circle at 35% 40%, black 0%, transparent 80%);
+    pointer-events: none;
+}
+
+.auth-showcase .shape {
+    position: absolute;
+    pointer-events: none;
+}
+
+.auth-showcase .shape-triangle {
+    top: 6%;
+    left: 8%;
+    width: 220px;
+    height: 220px;
+    background: linear-gradient(135deg, var(--fc-navy-light), rgba(74, 82, 120, 0));
+    clip-path: polygon(0 0, 100% 0, 0 100%);
+    opacity: 0.5;
+    animation: floatShape 15s ease-in-out infinite;
+}
+
+.auth-showcase .shape-arc {
+    right: 6%;
+    bottom: 12%;
+    width: 240px;
+    height: 240px;
+    border: 2px solid rgba(200, 170, 115, 0.45);
+    border-radius: 50%;
+    clip-path: polygon(100% 0, 100% 100%, 0 100%);
+    opacity: 0.6;
+    animation: floatShape 18s ease-in-out infinite reverse;
+}
+
+.showcase-top,
+.showcase-body,
+.showcase-stats {
+    position: relative;
+    z-index: 2;
+}
+
+.showcase-logo {
+    width: 150px;
+    height: auto;
+    filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.35));
+}
+
+.showcase-body {
+    animation: fadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.eyebrow {
+    margin: 0 0 1.25rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--fc-gold);
+}
+
+.showcase-title {
+    margin: 0 0 1.5rem;
+    font-size: clamp(2.4rem, 4vw, 3.4rem);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    color: #FFFFFF;
+}
+
+.showcase-title .gold {
+    color: var(--fc-gold);
+}
+
+.showcase-lead {
+    margin: 0 0 2.25rem;
+    max-width: 30rem;
+    font-size: 1rem;
+    font-weight: 300;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+/* Carte vitrine (verre depoli) : perimetre / modules */
+.demo-card {
+    max-width: 380px;
+    padding: 1.5rem 1.5rem 1.25rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+
+.demo-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.1rem;
+}
+
+.demo-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.demo-tag {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--fc-navy-deep);
+    background: var(--fc-gold);
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+}
+
+.demo-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.demo-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.demo-list li.on {
+    color: #FFFFFF;
+}
+
+.demo-list .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.25);
+    flex-shrink: 0;
+}
+
+.demo-list li.on .dot {
+    background: var(--fc-positive);
+    box-shadow: 0 0 0 4px rgba(46, 125, 95, 0.2);
+}
+
+/* Chantier en cours : orange de la charte, meme traitement que l'etat en
+   service. Le gris reste pour ce qui n'est pas commence. */
+.demo-list li.en-cours {
+    color: #FFFFFF;
+}
+
+.demo-list li.en-cours .dot {
+    background: var(--fc-warning);
+    box-shadow: 0 0 0 4px rgba(212, 146, 74, 0.2);
+}
+
+.showcase-stats {
+    display: flex;
+    gap: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.showcase-stats div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.showcase-stats strong {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    color: #FFFFFF;
+}
+
+.showcase-stats span {
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fc-gold-soft);
+}
+
+/* ---------- Panneau droit : connexion ---------- */
+
+.auth-panel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    background: #FFFFFF;
+}
+
+.auth-box {
+    width: 100%;
+    max-width: 380px;
+    animation: fadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+
+.auth-title {
+    margin: 0 0 0.5rem;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--fc-navy);
+}
+
+.auth-sub {
+    margin: 0 0 2rem;
+    font-size: 0.95rem;
+    color: var(--fc-ink);
+}
+
+.btn-google {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.85rem;
+    width: 100%;
+    padding: 0.95rem 1.25rem;
+    font-family: var(--font-base);
+    font-size: 0.98rem;
+    font-weight: 600;
+    color: #FFFFFF;
+    text-decoration: none;
+    background: var(--fc-navy);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 10px 26px rgba(45, 50, 80, 0.28);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.btn-google:hover {
+    transform: translateY(-2px);
+    background: var(--fc-navy-light);
+    box-shadow:
+        0 14px 32px rgba(45, 50, 80, 0.32),
+        0 0 0 3px rgba(200, 170, 115, 0.35);
+}
+
+.btn-google:active {
+    transform: translateY(0);
+}
+
+.btn-google .g-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: #FFFFFF;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.btn-google .g-badge svg {
+    width: 16px;
+    height: 16px;
+}
+
+.auth-domain {
+    margin: 1.5rem 0 0;
+    font-size: 0.74rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--fc-gold-dark);
+}
+
+.auth-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 3.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--fc-hairline);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    color: #9a9a9a;
+}
+
+.login-error {
+    margin: 0 0 1.5rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    color: var(--fc-negative);
+    background: rgba(176, 65, 62, 0.08);
+    border: 1px solid rgba(176, 65, 62, 0.3);
+    border-radius: 10px;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 900px) {
+    .auth {
+        grid-template-columns: 1fr;
+    }
+
+    .auth-showcase {
+        display: none;
+    }
+
+    .auth-panel {
+        min-height: 100vh;
+    }
+}
+
+/* ============================================================
+   Ecrans simples (en attente, dashboard placeholder)
+   ============================================================ */
+
+.state-screen {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    padding: 2rem;
+    text-align: center;
+    background:
+        radial-gradient(1000px 700px at 15% 10%, var(--fc-navy-light) 0%, transparent 55%),
+        linear-gradient(160deg, var(--fc-navy-deep) 0%, var(--fc-navy) 60%, var(--fc-navy-deep) 100%);
+    color: #FFFFFF;
+}
+
+.state-screen h1 {
+    margin: 0;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+}
+
+.state-screen p {
+    margin: 0;
+    max-width: 32rem;
+    color: rgba(255, 255, 255, 0.75);
+    font-weight: 300;
+    line-height: 1.6;
+}
+
+.state-screen .logo {
+    width: 140px;
+    height: auto;
+    margin-bottom: 0.5rem;
+    filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.35));
+}
+
+.link-muted {
+    color: var(--fc-gold-soft);
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(200, 170, 115, 0.4);
+    padding-bottom: 2px;
+    transition: color 0.18s ease;
+}
+
+.link-muted:hover {
+    color: var(--fc-gold);
+}
+
+/* ============================================================
+   Animations
+   ============================================================ */
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(18px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes floatShape {
+    0%, 100% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+    50% {
+        transform: translate(0, -20px) rotate(4deg);
+    }
+}
+
+@keyframes auroraDriftA {
+    from {
+        transform: translate(0, 0) scale(1);
+    }
+    to {
+        transform: translate(40px, 30px) scale(1.12);
+    }
+}
+
+/* ============================================================
+   Panneau de detail Garanties : style "Pennylane".
+   Plat, dense, hierarchie nette, separateurs hairline, montant
+   TTC heros. Pas de coins arrondis sur les sections. Tipo
+   uppercase tracking-wider pour les labels, valeurs en navy.
+   ============================================================ */
+
+.fc-detail {
+    --pad-x: 1.5rem;
+    --gap-section: 1.5rem;
+    color: var(--fc-ink);
+    padding: 0;
+    margin: 0;
+}
+
+.fc-detail > * + * {
+    border-top: 1px solid var(--fc-hairline);
+}
+
+/* ---------- Identite ---------- */
+.fc-detail-identity {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.25rem var(--pad-x) 1rem;
+}
+
+.fc-detail-identity-main {
+    min-width: 0;
+}
+
+.fc-detail-vin {
+    margin: 0;
+    font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--fc-navy);
+    line-height: 1.1;
+}
+
+.fc-detail-identity-meta {
+    margin: 0.375rem 0 0;
+    font-size: 0.8125rem;
+    color: var(--fc-ink);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+.fc-detail-identity-meta .sep {
+    color: rgba(45, 50, 80, 0.30);
+}
+
+.fc-detail-vin-complet {
+    margin: 0.375rem 0 0;
+    font-size: 0.7rem;
+    color: rgba(45, 50, 80, 0.50);
+}
+
+.fc-detail-vin-complet .mono {
+    font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    color: rgba(45, 50, 80, 0.65);
+}
+
+.fc-detail-statut-badge {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.1;
+    border-radius: 9999px;
+}
+
+.fc-detail-statut-code {
+    font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+/* ---------- Hero : Montant TTC ---------- */
+.fc-detail-hero {
+    padding: 1.5rem var(--pad-x);
+    background: linear-gradient(180deg, #FAFAF8 0%, #FFFFFF 100%);
+    text-align: left;
+}
+
+.fc-detail-hero-label {
+    margin: 0;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(45, 50, 80, 0.55);
+}
+
+.fc-detail-hero-value {
+    margin: 0.25rem 0 0;
+    font-family: var(--font-base);
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    color: var(--fc-navy);
+    font-variant-numeric: tabular-nums;
+}
+
+.fc-detail-hero-cur {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: rgba(45, 50, 80, 0.55);
+    margin-left: 0.25rem;
+}
+
+.fc-detail-hero-sub {
+    margin: 0.5rem 0 0;
+    font-size: 0.8125rem;
+    color: rgba(45, 50, 80, 0.65);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+.fc-detail-hero-sub .sep {
+    color: rgba(45, 50, 80, 0.30);
+}
+
+/* ---------- Grille de champs cles ---------- */
+.fc-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 1.5rem;
+    row-gap: 0;
+    padding: 0.25rem var(--pad-x) 0.5rem;
+}
+
+.fc-detail-field {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--fc-hairline);
+    min-width: 0;
+}
+
+.fc-detail-field:nth-last-child(-n+2) {
+    border-bottom: 0;
+}
+
+.fc-detail-field-wide {
+    grid-column: 1 / -1;
+}
+
+.fc-detail-field-label {
+    margin: 0 0 0.0625rem;
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(45, 50, 80, 0.50);
+}
+
+.fc-detail-field-value {
+    margin: 0;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--fc-navy);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fc-detail-field-strong .fc-detail-field-value {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.fc-detail-field .mono {
+    font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+
+/* ---------- Sections (titre + corps) ---------- */
+.fc-detail-section {
+    padding: 1.25rem var(--pad-x);
+}
+
+.fc-detail-section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.875rem;
+}
+
+.fc-detail-section-title {
+    margin: 0;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--fc-navy);
+}
+
+.fc-detail-section-meta {
+    font-size: 0.75rem;
+    color: rgba(45, 50, 80, 0.50);
+    font-weight: 500;
+}
+
+.fc-detail-empty {
+    margin: 0;
+    padding: 0.625rem 0;
+    font-size: 0.875rem;
+    color: rgba(45, 50, 80, 0.50);
+    font-style: italic;
+}
+
+/* ---------- Tableau Progiciel : vrai tableau encadre, scroll horizontal ---------- */
+.fc-detail-table-wrap {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    border: 1px solid var(--fc-hairline);
+}
+
+.fc-detail-table {
+    width: 100%;
+    min-width: 44rem;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+}
+
+.fc-detail-table thead th {
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(45, 50, 80, 0.55);
+    background: var(--fc-surface);
+    border-bottom: 1px solid var(--fc-hairline);
+    border-right: 1px solid var(--fc-hairline);
+    white-space: nowrap;
+}
+
+.fc-detail-table thead th:last-child {
+    border-right: 0;
+}
+
+.fc-detail-table thead th.is-num {
+    text-align: right;
+}
+
+.fc-detail-table tbody td {
+    padding: 0.5rem 0.75rem;
+    color: var(--fc-ink);
+    border-bottom: 1px solid var(--fc-hairline);
+    border-right: 1px solid var(--fc-hairline);
+    vertical-align: top;
+    white-space: nowrap;
+}
+
+.fc-detail-table tbody td:last-child {
+    border-right: 0;
+}
+
+/* Cellule vide -> tiret discret automatique (pas besoin de le mettre cote Twig) */
+.fc-detail-table tbody td:empty::before {
+    content: '—';
+    color: rgba(45, 50, 80, 0.25);
+}
+
+.fc-detail-table tbody td.is-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.fc-detail-table tbody td.is-strong {
+    color: var(--fc-navy);
+    font-weight: 600;
+}
+
+.fc-detail-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.fc-detail-table tbody tr:hover td {
+    background: rgba(45, 50, 80, 0.025);
+}
+
+.fc-detail-table-libelle {
+    display: block;
+    color: var(--fc-navy);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 20rem;
+}
+
+.fc-detail-table-sub {
+    margin: 0.125rem 0 0;
+    font-size: 0.65rem;
+    color: rgba(45, 50, 80, 0.50);
+    font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+
+.fc-detail-table tfoot td {
+    padding: 0.5rem 0.75rem;
+    border-top: 2px solid var(--fc-hairline);
+    border-right: 1px solid var(--fc-hairline);
+    background: rgba(45, 50, 80, 0.025);
+    font-weight: 600;
+    color: var(--fc-navy);
+    font-variant-numeric: tabular-nums;
+}
+
+.fc-detail-table tfoot td:last-child {
+    border-right: 0;
+}
+
+.fc-detail-table-total-label {
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    color: rgba(45, 50, 80, 0.55);
+    font-weight: 600;
+    text-align: right;
+}
+
+.fc-detail-table tfoot td.is-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.fc-detail-table tfoot td.is-strong {
+    color: var(--fc-navy);
+    font-weight: 700;
+}
+
+/* Lien « Ouvrir » d'un document constructeur (PDF) dans le detail DG. */
+.fc-detail-doc-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--fc-navy);
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.fc-detail-doc-link:hover {
+    text-decoration: underline;
+}
+
+/* ============================================================
+   Filtres dans les en-tetes de tableau (th.th-filter).
+   Le multi-select reste fonctionnel mais devient compact :
+   bouton ~ 7rem au lieu de 14rem, sans uppercase comme un vrai th.
+   ============================================================ */
+th.th-filter {
+    vertical-align: top;
+}
+
+th.th-filter .th-filter-label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(45, 50, 80, 0.55);
+    font-weight: 600;
+}
+
+th.th-filter .fc-multi {
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+th.th-filter .fc-multi-button {
+    width: 100%;
+    min-width: 6rem;
+    max-width: 11rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--fc-navy);
+}
+
+th.th-filter .fc-multi-button-label {
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+/* ---------- Timeline statuts ---------- */
+.fc-detail-timeline {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.fc-detail-timeline li {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--fc-hairline);
+    font-size: 0.8125rem;
+    color: var(--fc-ink);
+}
+
+.fc-detail-timeline li:last-child {
+    border-bottom: 0;
+}
+
+.fc-detail-timeline-date {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    color: rgba(45, 50, 80, 0.55);
+    font-variant-numeric: tabular-nums;
+    min-width: 9rem;
+}
+
+.fc-detail-timeline-transition {
+    color: rgba(45, 50, 80, 0.65);
+}
+
+.fc-detail-timeline-transition .arrow {
+    margin: 0 0.25rem;
+    color: rgba(45, 50, 80, 0.30);
+}
+
+.fc-detail-timeline-transition strong {
+    color: var(--fc-navy);
+    font-weight: 600;
+}
+
+/* ---------- Meta scrap footer ---------- */
+.fc-detail-footer-meta {
+    margin: 0;
+    padding: 0.75rem var(--pad-x);
+    font-size: 0.7rem;
+    color: rgba(45, 50, 80, 0.42);
+    background: var(--fc-surface);
+}
+
+.fc-detail-footer-meta sup {
+    font-size: 0.6rem;
+}
+
+/* ---------- Notes ---------- */
+.fc-detail-notes .fc-detail-section-title {
+    color: var(--fc-navy);
+}
+
+.fc-detail-notes-list {
+    margin: 0 0 1rem;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+}
+
+.fc-detail-notes-list li {
+    padding: 0.625rem 0;
+    border-bottom: 1px solid var(--fc-hairline);
+}
+
+.fc-detail-notes-list li:last-child {
+    border-bottom: 0;
+}
+
+.fc-detail-note-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.fc-detail-note-auteur {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--fc-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.fc-detail-note-date {
+    font-size: 0.7rem;
+    color: rgba(45, 50, 80, 0.50);
+    font-variant-numeric: tabular-nums;
+}
+
+.fc-detail-note-texte {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--fc-ink);
+    white-space: pre-line;
+    line-height: 1.45;
+}
+
+.fc-detail-note-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.fc-detail-note-textarea {
+    width: 100%;
+    padding: 0.625rem 0.75rem;
+    font-family: var(--font-base);
+    font-size: 0.875rem;
+    color: var(--fc-ink);
+    background: #FFFFFF;
+    border: 1px solid var(--fc-hairline);
+    border-radius: 0.25rem;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+
+.fc-detail-note-textarea:focus {
+    border-color: var(--fc-navy);
+}
+
+.fc-detail-note-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.fc-detail-note-submit {
+    padding: 0.5rem 1.25rem;
+    font-family: var(--font-base);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #FFFFFF;
+    background: var(--fc-navy);
+    border: 0;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.fc-detail-note-submit:hover {
+    background: var(--fc-navy-light);
+}
+
+.fc-detail-error {
+    margin: 0 0 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    color: var(--fc-negative);
+    background: rgba(176, 65, 62, 0.08);
+    border-left: 3px solid var(--fc-negative);
+}
+
+/* ---------- Notes : section collapsable (<details>/<summary>) ---------- */
+/* Pas de border-top : le selecteur `.fc-detail > * + *` s'en charge. */
+.fc-detail-notes-collapsible { background: #FFFFFF; }
+
+.fc-detail-notes-trigger {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.875rem var(--pad-x);
+    background: #FFFFFF;
+    font-family: var(--font-base);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--fc-navy);
+    cursor: pointer;
+    text-align: left;
+    user-select: none;
+    transition: background 0.15s ease;
+    list-style: none;
+}
+
+/* Cache la fleche par defaut du <summary> sur tous browsers. */
+.fc-detail-notes-trigger::-webkit-details-marker { display: none; }
+.fc-detail-notes-trigger::marker { display: none; content: ''; }
+
+.fc-detail-notes-trigger:hover {
+    background: var(--fc-surface);
+}
+
+.fc-detail-notes-trigger-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    background: rgba(200, 170, 115, 0.15);
+    color: var(--fc-gold-dark);
+    border-radius: 9999px;
+    flex-shrink: 0;
+}
+
+.fc-detail-notes-trigger-icon svg {
+    width: 1rem;
+    height: 1rem;
+}
+
+.fc-detail-notes-trigger-label {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+}
+
+.fc-detail-notes-trigger-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.fc-detail-notes-trigger-count {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: rgba(45, 50, 80, 0.55);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.fc-detail-notes-trigger-chevron {
+    color: rgba(45, 50, 80, 0.35);
+    transition: transform 0.18s ease;
+}
+
+.fc-detail-notes-collapsible[open] .fc-detail-notes-trigger-chevron {
+    transform: rotate(90deg);
+}
+
+.fc-detail-notes-content {
+    padding: 0 var(--pad-x) 1.25rem;
+    border-top: 1px solid var(--fc-hairline);
+    padding-top: 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
+}
+
+/* Profondeur SYNTHAUTO : carte surelevee, ombre teintee navy (pas du gris generique). */
+.fc-elev {
+    box-shadow:
+        0 1px 2px rgba(35, 39, 64, 0.04),
+        0 10px 30px -14px rgba(35, 39, 64, 0.18);
+}
+
+.fc-elev-sm {
+    box-shadow: 0 1px 2px rgba(35, 39, 64, 0.06);
+}
+
+/* Ligne de tableau qui reagit au survol (densite comptable, scan rapide). */
+.fc-table-comptable tbody tr {
+    transition: background-color 0.12s ease;
+}
+.fc-table-comptable tbody tr:hover {
+    background-color: rgba(45, 50, 80, 0.025);
+}
+
+/* Ligne ciblee au clavier (navigation fleches dans la pile de courriers). */
+.fc-row-focus {
+    background-color: rgba(200, 170, 115, 0.1) !important;
+    box-shadow: inset 3px 0 0 var(--fc-gold);
+}
+
+/* Champ editable discret : ressemble a du texte, se revele au survol / focus. */
+.fc-inline-edit {
+    width: 100%;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    padding: 3px 7px;
+    font: inherit;
+    color: var(--fc-ink, #3a3a42);
+    transition: border-color 0.12s, background-color 0.12s, box-shadow 0.12s;
+}
+.fc-inline-edit::placeholder {
+    color: rgba(74, 74, 74, 0.35);
+    font-style: italic;
+}
+.fc-inline-edit:hover {
+    border-color: var(--fc-hairline);
+    background: #fff;
+}
+.fc-inline-edit:focus {
+    outline: none;
+    border-color: var(--fc-gold);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(200, 170, 115, 0.2);
+}
+
+/* ---------- Porte d'acces de la demonstration ----------
+   Champs et bouton de l'ecran d'acces. Ils reprennent la boite .auth-box de
+   l'ecran de connexion de l'application : meme largeur, meme rythme vertical,
+   meme palette. Le bouton reprend la geometrie de .btn-google, qu'il remplace. */
+.acces-champ {
+    display: block;
+    margin-bottom: 1.1rem;
+}
+
+.acces-libelle {
+    display: block;
+    margin-bottom: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--fc-navy);
+}
+
+.acces-champ .fc-input {
+    width: 100%;
+    padding: 0.7rem 0.85rem;
+    font-size: 0.95rem;
+}
+
+.acces-bouton {
+    width: 100%;
+    margin-top: 0.4rem;
+    padding: 0.85rem 1rem;
+    border: 0;
+    border-radius: 10px;
+    background: var(--fc-navy);
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.acces-bouton:hover:not(:disabled) {
+    background: var(--fc-navy-deep);
+    transform: translateY(-1px);
+}
+
+.acces-bouton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+    .auth { grid-template-columns: 1fr; }
+    .auth-showcase { display: none; }
+}

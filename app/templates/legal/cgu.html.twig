@@ -1,0 +1,50 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Conditions générales d'utilisation - Finance Créances{% endblock %}
+{% block page_title %}Conditions générales d'utilisation{% endblock %}
+
+{% block content %}
+<article class="mx-auto max-w-3xl space-y-6 text-sm leading-relaxed text-ink/80">
+    <p class="text-xs text-ink/50">Version du {{ version }}.</p>
+
+    <section class="space-y-2">
+        <h2 class="text-base font-bold text-navy">1. Objet</h2>
+        <p>Les présentes conditions générales d'utilisation (CGU) encadrent l'accès et l'usage de l'application interne Finance Créances, éditée par GROUPE SYNTHAUTO SYNTHAUTO CSP, destinée à la gestion des données financières du groupe (garanties constructeur, créances, etc.).</p>
+    </section>
+
+    <section class="space-y-2">
+        <h2 class="text-base font-bold text-navy">2. Accès et compte</h2>
+        <p>L'accès est strictement réservé aux collaborateurs autorisés du groupe Synthauto, via leur compte professionnel Google du domaine <strong>@demonstration.invalid</strong>. Aucun mot de passe local ni inscription libre n'est prévu. L'utilisateur est responsable de la confidentialité de son accès et des actions réalisées sous son compte.</p>
+    </section>
+
+    <section class="space-y-2">
+        <h2 class="text-base font-bold text-navy">3. Usage conforme</h2>
+        <p>L'application est un outil professionnel. L'utilisateur s'engage à l'utiliser dans le cadre de ses fonctions, à ne pas tenter d'accéder à des données ou fonctions au-delà de ses habilitations, à ne pas extraire ou diffuser de données hors du cadre professionnel, et à ne pas compromettre la sécurité ou la disponibilité du service.</p>
+    </section>
+
+    <section class="space-y-2">
+        <h2 class="text-base font-bold text-navy">4. Confidentialité des données</h2>
+        <p>Les données consultées (montants, garanties, créances, données financières) sont confidentielles et internes au groupe. Leur divulgation à des tiers non autorisés est interdite et peut engager la responsabilité de l'utilisateur.</p>
+    </section>
+
+    <section class="space-y-2">
+        <h2 class="text-base font-bold text-navy">5. Suivi d'activité</h2>
+        <p>Dans le cadre du suivi du travail, notamment en télétravail, l'application enregistre les connexions/déconnexions et le temps de présence active. Les modalités, finalités, durées de conservation et vos droits sont détaillés dans la <a href="{{ path('app_legal_confidentialite') }}" class="font-medium text-navy underline">Politique de confidentialité</a>.</p>
+    </section>
+
+    <section class="space-y-2">
+        <h2 class="text-base font-bold text-navy">6. Disponibilité</h2>
+        <p>Groupe Synthauto s'efforce d'assurer la disponibilité du service mais ne garantit pas une absence totale d'interruption (maintenance, incident, évolution). Le service peut évoluer ou être suspendu sans préavis pour des raisons techniques ou de sécurité.</p>
+    </section>
+
+    <section class="space-y-2">
+        <h2 class="text-base font-bold text-navy">7. Évolution des CGU</h2>
+        <p>Les présentes CGU peuvent être modifiées. En cas de mise à jour substantielle, une nouvelle acceptation sera demandée à la connexion.</p>
+    </section>
+
+    <section class="space-y-2">
+        <h2 class="text-base font-bold text-navy">8. Contact</h2>
+        <p>Pour toute question relative aux présentes CGU : service-informatique@demonstration.invalid.</p>
+    </section>
+</article>
+{% endblock %}

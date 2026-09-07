@@ -1,0 +1,70 @@
+{% extends 'layout.html.twig' %}
+
+{% macro duree(s) %}
+{%- set h = (s // 3600) -%}
+{%- set m = ((s % 3600) // 60) -%}
+{%- if s <= 0 -%}—
+{%- elseif h > 0 -%}{{ h }} h{% if m > 0 %} {{ '%02d'|format(m) }}{% endif %}
+{%- else -%}{{ m }} min
+{%- endif -%}
+{% endmacro %}
+
+{% import _self as fmt %}
+
+{% block title %}Mon activité - Finance Créances{% endblock %}
+{% block page_title %}Mon activité{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl">
+    <div class="mb-6 grid grid-cols-2 gap-4">
+        <div class="rounded-lg border border-ink/10 bg-white p-4">
+            <p class="text-xs uppercase tracking-wide text-ink/50">Aujourd'hui</p>
+            <p class="mt-1 text-2xl font-bold text-navy">{{ fmt.duree(aujourdhui) }}</p>
+        </div>
+        <div class="rounded-lg border border-ink/10 bg-white p-4">
+            <p class="text-xs uppercase tracking-wide text-ink/50">7 derniers jours</p>
+            <p class="mt-1 text-2xl font-bold text-navy">{{ fmt.duree(semaine) }}</p>
+        </div>
+    </div>
+
+    <section class="mb-8">
+        <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-ink/60">Temps actif par jour (30 derniers jours)</h2>
+        <div class="overflow-hidden rounded-lg border border-ink/10 bg-white">
+            <table class="w-full text-sm">
+                <tbody>
+                    {% for d in detail %}
+                        <tr class="border-b border-ink/5 last:border-0">
+                            <td class="px-4 py-2 text-ink/70">{{ d.jour|date('d/m/Y') }}</td>
+                            <td class="px-4 py-2 text-right font-medium {{ d.secondes > 0 ? 'text-navy' : 'text-ink/30' }}">{{ fmt.duree(d.secondes) }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="2" class="px-4 py-6 text-center text-ink/50">Aucune activité enregistrée.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section>
+        <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-ink/60">Mes dernières connexions</h2>
+        <div data-controller="infinite-scroll"
+             data-infinite-scroll-url-value="{{ path('app_mon_activite') }}"
+             data-infinite-scroll-page-value="{{ page }}"
+             data-infinite-scroll-total-pages-value="{{ total_pages }}"
+             data-infinite-scroll-manual-value="true">
+            <div data-infinite-scroll-target="items" class="space-y-2">
+                {% include 'admin/activite/_rows.html.twig' %}
+            </div>
+            <p data-infinite-scroll-target="loading" class="mt-4 text-center text-sm text-ink/50" style="display:none">Chargement...</p>
+            {% if total_pages > 1 %}
+                <div class="mt-4 text-center">
+                    <button type="button" data-action="infinite-scroll#loadMore" data-infinite-scroll-target="trigger"
+                            class="rounded-lg border border-ink/15 bg-white px-5 py-2 text-sm font-medium text-navy transition hover:bg-surface">Voir plus</button>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <p class="mt-6 text-center text-xs text-ink/40">Ces données sont conservées 6 mois (suivi d'activité en télétravail), puis supprimées automatiquement.</p>
+</div>
+{% endblock %}

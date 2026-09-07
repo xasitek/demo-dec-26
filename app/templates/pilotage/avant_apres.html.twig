@@ -1,0 +1,192 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Avant / après — Cockpit{% endblock %}
+{% block page_title %}Cockpit BFR et DSO{% endblock %}
+{% block topbar_nav %}{% include 'pilotage/_nav.html.twig' with { active: 'avant' } %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1500px]">
+
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="flex flex-wrap items-center gap-3">
+      <div>
+        <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">
+          {{ applique ? 'Après affectation et lettrage' : 'Avant fiabilisation' }}
+        </h3>
+        <p class="mt-1 max-w-3xl text-[12.5px] leading-relaxed text-ink/70">
+          {% if applique %}
+            Le cockpit affiche les conséquences des décisions <b>réellement prises</b> par les
+            outils 4 et 5 : rien n'est simulé, chaque chiffre est compté dans leurs tables de
+            décision.
+          {% else %}
+            Voici ce que la direction voit tant que les règlements ne sont pas affectés et les
+            écritures pas lettrées. Le bouton applique les décisions des deux outils précédents.
+          {% endif %}
+        </p>
+      </div>
+      <a href="{{ path('app_cockpit_avant_apres', {applique: applique ? 0 : 1}) }}"
+         class="ml-auto rounded-lg px-4 py-2 text-sm font-semibold text-white transition
+                {{ applique ? 'bg-ink/60 hover:bg-ink' : 'bg-navy hover:bg-navy-deep' }}">
+        {{ applique ? '← Revenir avant fiabilisation' : 'Appliquer les décisions fiabilisées →' }}
+      </a>
+      <span class="text-[11px] text-ink/45">recalculé en {{ ms|number_format(0, ',', ' ') }} ms</span>
+    </div>
+  </section>
+
+  {# ------------------------------------------------- l'avertissement, avant les chiffres #}
+  {% if applique %}
+    <section class="mb-4 rounded-xl border-2 border-warning/50 bg-warning/5 p-4 shadow-sm">
+      <h3 class="mb-1 text-sm font-bold uppercase tracking-wide text-warning">
+        Fiabilisation de l'encours — aucun encaissement nouveau
+      </h3>
+      <p class="text-[13px] leading-relaxed text-ink/80">
+        Les baisses ci-dessous sont <b>comptables</b>. L'argent des règlements affectés était
+        <b>déjà en banque</b> : le retrouver et le lettrer ne crée pas un euro de trésorerie, cela
+        rend la lecture des comptes juste. Présenter cette baisse comme du cash généré serait
+        compter deux fois le même argent — c'est la faute que cet écran refuse de commettre.
+      </p>
+    </section>
+  {% endif %}
+
+  {# ------------------------------------------------- les quatre grandeurs #}
+  <div class="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    {% set cartes = [
+      {
+        'file': 'virements_non_affectes',
+        'titre': 'Règlements non affectés',
+        'avant': avant.non_affecte,
+        'apres': apres.non_affecte_restant,
+        'avant_n': avant.virements_non_affectes,
+        'apres_n': apres.non_affecte_restant_n,
+        'unite': 'virements'
+      },
+      {
+        'file': 'credits_non_lettres',
+        'titre': 'Écritures non lettrées',
+        'avant': avant.non_lettre,
+        'apres': apres.non_lettre_restant,
+        'avant_n': avant.lignes_non_lettrees,
+        'apres_n': apres.non_lettre_restant_lots,
+        'unite': 'lignes puis lots'
+      },
+      {
+        'file': '',
+        'titre': 'Encours apparent',
+        'avant': avant.encours_apparent,
+        'apres': encours.retraite,
+        'avant_n': avant.factures_ouvertes,
+        'apres_n': apres.factures_reellement_dues,
+        'unite': 'créances'
+      },
+      {
+        'file': 'relancables',
+        'titre': 'Exposition réelle',
+        'avant': avant.encours_apparent,
+        'apres': apres.exposition,
+        'avant_n': avant.factures_ouvertes,
+        'apres_n': apres.factures_reellement_dues,
+        'unite': 'créances'
+      }
+    ] %}
+    {% for c in cartes %}
+      {% set valeur = applique ? c.apres : c.avant %}
+      {% set nombre = applique ? c.apres_n : c.avant_n %}
+      <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">{{ c.titre }}</div>
+        <div class="font-mono text-xl font-bold {{ applique ? 'text-positive' : 'text-ink' }}">
+          {{ (valeur / 1000000)|number_format(2, ',', ' ') }} <span class="text-xs text-gold">M€</span>
+        </div>
+        <div class="text-[11px] text-ink/45">{{ nombre|number_format(0, ',', ' ') }} {{ c.unite }}</div>
+        {% if applique and c.avant > 0 %}
+          <div class="mt-1 text-[11px] font-semibold text-navy">
+            {{ ((c.avant - c.apres) / c.avant * 100)|number_format(1, ',', ' ') }} % de moins qu'avant
+          </div>
+        {% endif %}
+        {% if c.file %}
+          <a href="{{ path('app_travail', {file: c.file}) }}"
+             class="mt-1.5 inline-block text-[11px] font-semibold text-navy hover:underline">
+            Traiter ce qui reste →</a>
+        {% else %}
+          <a href="{{ path('app_cockpit_detail', {niveau: 'societe'}) }}"
+             class="mt-1.5 inline-block text-[11px] font-semibold text-navy hover:underline">
+            Voir les lignes →</a>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+
+  {# ------------------------------------------------- ce que les deux outils ont fait #}
+  <div class="mb-4 grid gap-3 lg:grid-cols-2">
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">Ce que l'outil 4 a décidé</h3>
+      <table class="fc-table-comptable w-full">
+        <tbody>
+          <tr><td class="text-[12.5px]">Virements affectés sans intervention</td>
+            <td class="text-right font-mono text-[13px] font-bold text-positive">{{ apres.affecte_n|number_format(0, ',', ' ') }}</td></tr>
+          <tr><td class="text-[12.5px]">Montant affecté</td>
+            <td class="text-right font-mono text-[12px]">{{ (apres.affecte_montant / 1000000)|number_format(2, ',', ' ') }} M€</td></tr>
+          <tr><td class="text-[12.5px]">Virements laissés au comptable</td>
+            <td class="text-right font-mono text-[13px] font-bold text-warning">{{ apres.non_affecte_restant_n|number_format(0, ',', ' ') }}</td></tr>
+          <tr><td class="text-[12.5px]">Montant laissé au comptable</td>
+            <td class="text-right font-mono text-[12px]">{{ (apres.non_affecte_restant / 1000000)|number_format(2, ',', ' ') }} M€</td></tr>
+        </tbody>
+      </table>
+      <a href="/affectation" class="mt-2 inline-block text-[11.5px] font-semibold text-navy hover:underline">
+        Ouvrir l'outil 4 →</a>
+    </section>
+
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">Ce que l'outil 5 a décidé</h3>
+      <table class="fc-table-comptable w-full">
+        <tbody>
+          <tr><td class="text-[12.5px]">Lots lettrés sans intervention</td>
+            <td class="text-right font-mono text-[13px] font-bold text-positive">{{ apres.lettre_lots|number_format(0, ',', ' ') }}</td></tr>
+          <tr><td class="text-[12.5px]">Écritures lettrées</td>
+            <td class="text-right font-mono text-[12px]">{{ apres.lettre_ecritures|number_format(0, ',', ' ') }}</td></tr>
+          <tr><td class="text-[12.5px]">Montant lettré</td>
+            <td class="text-right font-mono text-[12px]">{{ (apres.lettre_montant / 1000000)|number_format(2, ',', ' ') }} M€</td></tr>
+          <tr><td class="text-[12.5px]">Lots laissés au comptable</td>
+            <td class="text-right font-mono text-[13px] font-bold text-warning">{{ apres.non_lettre_restant_lots|number_format(0, ',', ' ') }}</td></tr>
+        </tbody>
+      </table>
+      <a href="/lettrage" class="mt-2 inline-block text-[11.5px] font-semibold text-navy hover:underline">
+        Ouvrir l'outil 5 →</a>
+    </section>
+  </div>
+
+  {# ------------------------------------------------- les trois natures #}
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">
+      Où va l'argent : trois grandeurs qu'on ne mélange pas
+    </h3>
+    {% include 'pilotage/_natures.html.twig' %}
+  </section>
+
+  <section class="mb-4 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">
+      De l'encours comptable à l'exposition financière
+    </h3>
+    {% include 'pilotage/_passerelle.html.twig' %}
+  </section>
+
+  <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <h3 class="mb-2 text-sm font-bold uppercase tracking-wide text-ink/70">
+      Ce qui reste réellement ouvert
+    </h3>
+    <p class="text-[12.5px] leading-relaxed text-ink/70">
+      Après la chaîne complète, <b>{{ apres.soldees_par_la_chaine|number_format(0, ',', ' ') }}</b>
+      créances ont été soldées par les décisions des outils 4 et 5, et
+      <b class="text-warning">{{ apres.factures_reellement_dues|number_format(0, ',', ' ') }}</b>
+      restent réellement dues, pour
+      <b class="font-mono">{{ (apres.exposition / 1000000)|number_format(2, ',', ' ') }} M€</b>.
+      C'est le seul montant sur lequel une relance a un sens — et c'est ce que la direction doit
+      piloter.
+    </p>
+  </section>
+
+  <p class="mt-4 rounded-xl border border-hairline bg-surface px-4 py-3 text-[11.5px] leading-relaxed text-ink/60">
+    <b>Périmètres de mesure.</b> {{ mention_perimetres }}
+  </p>
+
+</div>
+{% endblock %}

@@ -1,0 +1,66 @@
+{# Onglet "Creances ouvertes" : tableau dense des ecritures non reglees du tiers. #}
+
+{% set tranche_classes = {
+    '<30':  'bg-sky-50 text-sky-700 ring-sky-200',
+    '>30':  'bg-amber-50 text-amber-700 ring-amber-200',
+    '>60':  'bg-orange-50 text-orange-700 ring-orange-200',
+    '>90':  'bg-red-50 text-red-700 ring-red-200',
+    '>120': 'bg-rose-100 text-rose-700 ring-rose-200',
+    '>180': 'bg-rose-200 text-rose-900 ring-rose-300',
+    '>240': 'bg-rose-300 text-rose-950 ring-rose-400'
+} %}
+
+{% if creances is empty %}
+    <div class="p-8 text-center text-sm text-ink/55">
+        <p>Aucune creance ouverte pour ce tiers.</p>
+    </div>
+{% else %}
+    <div class="overflow-hidden">
+        <table class="fc-table-comptable">
+            <thead>
+                <tr>
+                    <th>Anciennete</th>
+                    <th>Piece</th>
+                    <th>Date</th>
+                    <th>Vehicule</th>
+                    <th>Etablissement</th>
+                    <th class="is-num">Montant</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ligne in creances %}
+                    {% set dd = ligne.donnees is iterable ? ligne.donnees : ligne.donnees|json_decode %}
+                    {% set tranche = dd.retard|default('') %}
+                    {% set classe = tranche_classes[tranche]|default('bg-surface text-ink/60 ring-hairline') %}
+                    {% set montant = (dd['Montant (valeur absolue)']|default(0)) + 0 %}
+                    <tr class="cursor-pointer hover:bg-surface/60 transition-colors"
+                        data-action="click->detail-panel#open"
+                        data-detail-panel-id-param="{{ dd.numero|default('') }}">
+                        <td>
+                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[0.7rem] font-semibold ring-1 ring-inset {{ classe }}">
+                                {{ tranche ?: '—' }}
+                            </span>
+                        </td>
+                        <td class="font-mono text-[0.78rem] text-ink/80">{{ dd.numpiece|default('—') }}</td>
+                        <td class="text-[0.78rem] text-ink/70">
+                            {% if dd.dateecriture is defined and dd.dateecriture %}
+                                {{ dd.dateecriture|slice(0, 10)|replace({'-': '/'}) }}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>
+                            <div class="text-[0.78rem] text-ink/80">{{ dd.marque|default('—') }}</div>
+                            {% if dd.numimmat is defined and dd.numimmat %}
+                                <div class="font-mono text-[0.7rem] text-ink/45">{{ dd.numimmat }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="text-[0.78rem] text-ink/70">{{ dd.codeetab|default('—') }}</td>
+                        <td class="is-num">
+                            <span class="font-mono font-semibold text-navy">{{ montant|number_format(2, ',', ' ') }}</span>
+                            <span class="text-[0.7rem] text-ink/40">EUR</span>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endif %}

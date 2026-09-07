@@ -1,0 +1,31 @@
+{% set offset = numerotation_offset|default(0) %}
+{% for l in lignes %}
+    {% set tranche_ton = (l.retard in ['>240', '>180']) ? 'bg-negative/10 text-negative'
+        : (l.retard in ['>120', '>90']) ? 'bg-gold/15 text-gold-dark'
+        : 'bg-surface text-ink/55' %}
+    <tr>
+        <td class="is-rownum">{{ offset + loop.index }}</td>
+        <td class="text-xs">
+            <span class="font-medium text-navy">{{ l.raison_sociale ?: (l.nom ? (l.nom ~ (l.prenom ? ' ' ~ l.prenom : '')) : l.compte) }}</span>
+            <span class="block text-ink/45">{{ l.compte }}</span>
+        </td>
+        <td class="mono text-xs text-ink/80">{{ l.numpiece ?? '—' }}</td>
+        <td class="whitespace-nowrap text-ink/80">{{ l.date_echeance ? l.date_echeance|date('d/m/Y') : '—' }}</td>
+        <td class="whitespace-nowrap text-xs">
+            <span class="inline-block rounded-full px-2 py-0.5 font-medium {{ tranche_ton }}">{{ l.retard ?: '—' }}</span>
+        </td>
+        <td class="num font-medium text-navy">{{ l.montant_solde|number_format(2, ',', ' ') }} €</td>
+        <td class="text-xs">
+            {% if l.email is not empty %}
+                <span class="inline-block rounded-full bg-positive/10 px-2 py-0.5 font-medium text-positive">oui</span>
+            {% else %}
+                <span class="inline-block rounded-full bg-gold/15 px-2 py-0.5 font-medium text-gold-dark">non</span>
+            {% endif %}
+        </td>
+        <td class="text-xs text-ink/70">{{ l.codeetab ?? '—' }}</td>
+    </tr>
+{% else %}
+    <tr>
+        <td colspan="8" class="px-4 py-10 text-center text-ink/60">Aucune facture client impayée échue.</td>
+    </tr>
+{% endfor %}

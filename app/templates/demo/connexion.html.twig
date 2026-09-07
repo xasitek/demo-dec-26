@@ -1,0 +1,60 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Choisir un poste — Finance Créances, démonstration DEC{% endblock %}
+
+{% block body %}
+<div class="min-h-screen bg-slate-100 py-10">
+  <div class="mx-auto max-w-3xl px-4">
+
+    <div class="mb-8 text-center">
+      <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-navy-deep">
+        <span class="text-2xl font-bold text-gold">FC</span>
+      </div>
+      <h1 class="text-2xl font-semibold text-navy-deep">Finance Créances</h1>
+      <p class="mt-1 text-sm text-slate-600">
+        Suite de pilotage du cycle créances — <b>démonstration pour le jury DEC</b>
+      </p>
+    </div>
+
+    <div class="mb-6 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <b>Environnement de démonstration.</b> Aucun compte à créer, aucun mot de passe,
+      aucune vérification par courriel. Choisissez le poste depuis lequel vous voulez
+      voir l'application : le circuit fait intervenir trois personnes distinctes, et
+      chacune ne voit pas la même chose.
+    </div>
+
+    <div class="space-y-3">
+      {% for p in profils %}
+        <form method="post" action="{{ path('demo_connexion_entrer', {id: p.id}) }}">
+          <input type="hidden" name="_token" value="{{ csrf_token('demo_connexion') }}">
+          <button type="submit"
+                  class="flex w-full items-center gap-4 rounded-lg border border-slate-200 bg-white px-5 py-4 text-left transition hover:border-navy-deep hover:shadow">
+            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-navy-deep/10 text-sm font-semibold text-navy-deep">
+              {{ p.firstName|slice(0,1) }}{{ p.lastName|slice(0,1) }}
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block font-semibold text-slate-900">{{ p.firstName }} {{ p.lastName }}</span>
+              <span class="block text-sm text-slate-500">
+                {% if 'ROLE_MANAGER' in p.roles %}Expert-comptable — vue complète de la suite
+                {% elseif 'ROLE_DIRECTEUR' in p.roles %}Directeur comptable — valide les décaissements de son périmètre
+                {% elseif 'ROLE_COMPTABLE' in p.roles %}Comptable clients — vérifie, corrige et confirme
+                {% else %}Secrétaire de concession — dépose les demandes
+                {% endif %}
+              </span>
+            </span>
+            <span class="shrink-0 text-sm font-medium text-navy-deep">Entrer →</span>
+          </button>
+        </form>
+      {% endfor %}
+    </div>
+
+    <p class="mt-8 text-center text-xs leading-relaxed text-slate-500">
+      Les données présentées sont fictives et ont été construites pour reproduire les
+      mécanismes métier rencontrés dans les groupes automobiles multimarques et
+      multi-concessions, sans exposer aucune donnée client.<br>
+      Les mécanismes de l'application proviennent en revanche de développements réels.
+    </p>
+
+  </div>
+</div>
+{% endblock %}

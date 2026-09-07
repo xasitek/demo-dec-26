@@ -1,0 +1,100 @@
+security:
+    # Aucun mot de passe local : authentification exclusivement via Google OAuth.
+    providers:
+        app_user_provider:
+            entity:
+                class: App\Shared\Entity\User
+                property: email
+
+    firewalls:
+        dev:
+            pattern: ^/(_(profiler|wdt)|css|images|js|assets)/
+            security: false
+        # API stateless pour le RPA Fiat : auth par jeton Bearer (env
+        # GARANTIES_API_TOKEN), pas de session, pas de CSRF. Voir
+        # App\Garanties\Security\ApiTokenAuthenticator et docs/SECURITY.md.
+        api:
+            pattern: ^/api
+            stateless: true
+            custom_authenticators:
+                - App\Garanties\Security\ApiTokenAuthenticator
+        main:
+            lazy: true
+            provider: app_user_provider
+            user_checker: App\Shared\Security\UserChecker
+            entry_point: App\Shared\Security\LoginEntryPoint
+            # Utilisateur connecte mais non rattache au module -> page "acces refuse".
+            access_denied_handler: App\Shared\Security\AccesRefuseHandler
+            custom_authenticators:
+                - App\Shared\Security\GoogleAuthenticator
+            # Session active ~6 mois (voir docs/SECURITY.md).
+            remember_me:
+                secret: '%kernel.secret%'
+                lifetime: 31536000 # 365 jours (1 an) — secretaires depot remboursement
+                always_remember_me: true
+                secure: auto
+                httponly: true
+                samesite: lax
+                # User sans mot de passe (OAuth) : signer le cookie sur l'email
+                # plutot que sur le password (inexistant).
+                signature_properties: ['email']
+            logout:
+                path: app_logout
+                target: app_home
+
+    # Premier acces matchant uniquement. /oauth et la home sont publics.
+    access_control:
+        # Demonstration : la porte d'acces est en amont, et le choix de poste
+        # remplace le fournisseur d'identite.
+        - { path: ^/acces, roles: PUBLIC_ACCESS }
+        - { path: ^/demo, roles: PUBLIC_ACCESS }
+        - { path: ^/affectation, roles: MODULE_AFFECTATION }
+        - { path: ^/lettrage, roles: MODULE_LETTRAGE }
+        - { path: ^/cockpit, roles: MODULE_COCKPIT }
+        # La vue de travail du comptable est un ecran de l'outil 6.
+        - { path: ^/mes-creances, roles: MODULE_COCKPIT }
+        # Outil 7 : les dossiers grands comptes, secretaire et comptable.
+        - { path: ^/dossiers, roles: MODULE_LIVRAISON }
+        - { path: ^/oauth, roles: PUBLIC_ACCESS }
+        - { path: ^/$, roles: PUBLIC_ACCESS }
+        # L'accueil du poste secretaire n'est PLUS public : seuls les deux
+        # formulaires de depot le sont (voir plus bas). Tout le reste passe par la
+        # page de connexion, ou LoginEntryPoint renvoie les anonymes.
+        # Formulaire public de reponse client (orphelins) : sans authentification.
+        # Protege par CSRF + honeypot + rate-limit + validation (cf. ReponsePubliqueController).
+        - { path: ^/recouvrement/repondre, roles: PUBLIC_ACCESS }
+        # Telechargement public du releve complet (relances a pieces trop volumineuses) :
+        # acces par token non devinable (cf. TelechargementController), sans authentification.
+        - { path: ^/recouvrement/telecharger, roles: PUBLIC_ACCESS }
+        # Acces par module (en plus des roles verifies dans les controleurs) : un
+        # utilisateur non rattache tombe sur la page "acces refuse". Les admins
+        # passent (cf. ModuleVoter). L'ordre prime sur le catch-all ^/ ci-dessous.
+        - { path: ^/recouvrement, roles: MODULE_RECOUVREMENT }
+        # Depot remboursement : le FORMULAIRE (GET) est public (secretaires pas encore
+        # connectees) ; le depot reel (POST) et "mes dossiers" restent gardes
+        # (ROLE_SECRETAIRE, cf. DepotController). Regle placee avant le module.
+        - { path: ^/remboursement/deposer$, roles: PUBLIC_ACCESS, methods: [GET] }
+        # Actions directeur depuis l'e-mail : PUBLIC (GET), protegees par URL signee
+        # (UriSigner) dans DirecteurController — le directeur n'a pas de compte a se connecter.
+        - { path: ^/remboursement/directeur, roles: PUBLIC_ACCESS, methods: [GET] }
+        # Espace Livraison, meme principe que le depot Remboursement : le FORMULAIRE
+        # (GET) est public — la secretaire ne se connecte qu'au moment de valider —,
+        # la declaration reelle (POST) et "mes declarations" exigent ROLE_SECRETAIRE
+        # (cf. DeclarationController). Regle placee avant celle du module.
+        - { path: ^/livraison/declarer$, roles: PUBLIC_ACCESS, methods: [GET] }
+        # Ecran comptable du module : reserve aux rattaches. Volontairement pose sur
+        # /livraison/controle et non sur /livraison : les ecrans de la secretaire sont
+        # gardes par ROLE_SECRETAIRE dans le controleur, elle n'a pas a etre rattachee
+        # au module pour declarer une livraison.
+        - { path: ^/livraison/controle, roles: MODULE_LIVRAISON }
+        - { path: ^/remboursement, roles: MODULE_REMBOURSEMENT }
+        - { path: ^/garanties, roles: MODULE_GARANTIES }
+        - { path: ^/creances, roles: MODULE_CREANCES }
+        - { path: ^/bonus-eco, roles: MODULE_BONUS_ECO }
+        - { path: ^/api, roles: ROLE_API }
+        - { path: ^/, roles: ROLE_USER }
+
+    role_hierarchy:
+        ROLE_MANAGER: [ROLE_AUDITEUR]
+        ROLE_ADMIN: [ROLE_MANAGER, ROLE_COMPTABLE, ROLE_SECRETAIRE, ROLE_DIRECTEUR]
+        ROLE_SUPER_ADMIN: [ROLE_ADMIN, ROLE_ALLOWED_TO_SWITCH]

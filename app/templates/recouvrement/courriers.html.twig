@@ -1,0 +1,189 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Courriers - Recouvrement - Finance Créances{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+{% block topbar_nav %}{% include 'recouvrement/_topbar_nav.html.twig' with {active: 'courriers'} %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full px-3">
+
+    {# Messages flash (repli sans JS) #}
+    {% for message in app.flashes('success') %}
+        <div class="mb-4 flex items-center gap-2 rounded-md border border-positive/30 bg-positive/10 px-4 py-3 text-sm text-positive">
+            <svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+            {{ message }}
+        </div>
+    {% endfor %}
+
+    {# En-tete : titre + nav principale (Retours / Courriers) #}
+    <h1 class="mb-3 text-2xl font-bold text-navy">Courriers</h1>
+    <p class="mb-5 max-w-2xl text-sm text-ink/60">Les relances papier des clients sans e&#8209;mail. La liste ne montre que ce qui reste à poster : un courrier traité bascule dans l'historique.</p>
+
+    {% if vue == 'envoyes' %}
+        {# ===================== VUE ENVOYES (historique) ===================== #}
+        {# Sous-onglets (niveau 2) : Envoyés actif #}
+        <div class="mb-4 flex items-end gap-6 border-b border-hairline">
+            <a href="{{ path('app_recouvrement_courriers') }}" class="-mb-px inline-flex items-center gap-2 border-b-2 border-transparent px-1 pb-2 text-sm font-medium text-ink/60 transition hover:text-navy">
+                À envoyer <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-surface px-1.5 text-xs font-semibold text-ink/60">{{ nb_en_attente }}</span>
+            </a>
+            <span class="-mb-px inline-flex items-center gap-2 border-b-2 border-gold px-1 pb-2 text-sm font-semibold text-navy">
+                Envoyés <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-surface px-1.5 text-xs font-semibold text-ink/60">{{ nb_envoyes }}</span>
+            </span>
+        </div>
+
+        {% if courriers_envoyes is empty %}
+            <div class="rounded-md border border-hairline bg-surface/50 px-4 py-8 text-center text-sm italic text-ink/55">Aucun courrier posté pour l'instant.</div>
+        {% else %}
+            <div class="fc-elev overflow-hidden rounded-md border border-hairline bg-white"
+                 data-controller="infinite-scroll"
+                 data-infinite-scroll-url-value="{{ path('app_recouvrement_courriers', {vue: 'envoyes'}) }}"
+                 data-infinite-scroll-page-value="{{ page }}"
+                 data-infinite-scroll-total-pages-value="{{ total_pages }}">
+                <div class="overflow-x-auto">
+                    <table class="fc-table-comptable">
+                        <thead>
+                            <tr>
+                                <th>Client</th>
+                                <th>Niveau</th>
+                                <th>Factures</th>
+                                <th>Montant</th>
+                                <th>Posté</th>
+                                <th class="whitespace-nowrap" style="text-align: center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody data-infinite-scroll-target="items">
+                            {% include 'recouvrement/_courriers_envoyes_rows.html.twig' with {courriers: courriers_envoyes} %}
+                        </tbody>
+                    </table>
+                </div>
+                <div data-infinite-scroll-target="sentinel" class="h-px"></div>
+                <p data-infinite-scroll-target="loading" class="py-4 text-center text-sm text-ink/50" style="display:none">Chargement...</p>
+            </div>
+            <p class="mt-4 text-center text-xs text-ink/40">{{ pluriel(nb_envoyes, 'courrier posté', 'courriers postés') }} · historique conservé</p>
+        {% endif %}
+
+    {% else %}
+        {# ===================== VUE A ENVOYER (pile de travail) ===================== #}
+        <section data-controller="courrier-envoi"
+                 data-action="keydown@window->courrier-envoi#clavier"
+                 data-courrier-envoi-lot-pdf-url-value="{{ path('app_recouvrement_courriers_lot') }}"
+                 data-courrier-envoi-marquer-lot-url-value="{{ path('app_recouvrement_courriers_marquer_lot') }}"
+                 data-courrier-envoi-remettre-lot-url-value="{{ path('app_recouvrement_courriers_remettre_lot') }}"
+                 data-courrier-envoi-lot-csrf-value="{{ csrf_token('courriers-marquer-lot') }}"
+                 data-courrier-envoi-remettre-lot-csrf-value="{{ csrf_token('courriers-remettre-lot') }}">
+
+            {# Sous-onglets (niveau 2 : À envoyer actif) + geste de lot #}
+            <div class="mb-4 flex flex-wrap items-end justify-between gap-3 border-b border-hairline">
+                <div class="flex items-end gap-6">
+                    <span class="-mb-px inline-flex items-center gap-2 border-b-2 border-gold px-1 pb-2 text-sm font-semibold text-navy">
+                        À envoyer <span data-courrier-envoi-target="count" class="inline-flex min-w-5 items-center justify-center rounded-full bg-surface px-1.5 text-xs font-semibold text-ink/60">{{ nb_en_attente }}</span>
+                    </span>
+                    <a href="{{ path('app_recouvrement_courriers', {vue: 'envoyes'}) }}" class="-mb-px inline-flex items-center gap-2 border-b-2 border-transparent px-1 pb-2 text-sm font-medium text-ink/60 transition hover:text-navy">
+                        Envoyés <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-surface px-1.5 text-xs font-semibold text-ink/60">{{ nb_envoyes }}</span>
+                    </a>
+                </div>
+
+                <div class="mb-2 flex items-center gap-2">
+                    <div class="relative">
+                        <svg viewBox="0 0 24 24" class="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        <input type="search" data-courrier-envoi-target="search" data-action="input->courrier-envoi#filtrer"
+                               placeholder="Rechercher un client..." autocomplete="off"
+                               class="w-48 rounded-md border border-hairline bg-white py-1.5 pl-8 pr-3 text-sm text-ink focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30">
+                    </div>
+
+                    <div data-courrier-envoi-target="lotBar"{% if synthese.nb == 0 %} hidden{% endif %}>
+                        <form method="post" action="{{ path('app_recouvrement_courriers_marquer_lot') }}" data-action="courrier-envoi#posterLot">
+                        <input type="hidden" name="_token" value="{{ csrf_token('courriers-marquer-lot') }}">
+                        <button type="submit" data-courrier-envoi-target="lotBtn"
+                                class="inline-flex items-center gap-2 rounded-md bg-navy px-4 py-2 text-sm font-medium text-white transition hover:bg-navy-deep">
+                            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+                            Télécharger le lot (<span data-courrier-envoi-target="count">{{ nb_en_attente }}</span>)
+                        </button>
+                    </form>
+                    </div>
+                </div>
+            </div>
+
+            {# Tableau de la pile a poster #}
+            <div class="fc-elev overflow-hidden rounded-md border border-hairline bg-white">
+                <div class="overflow-x-auto">
+                    <table class="fc-table-comptable">
+                        <thead>
+                            <tr>
+                                <th>Client</th>
+                                <th>Niveau</th>
+                                <th>Factures</th>
+                                <th>Montant</th>
+                                <th>Préparé le</th>
+                                <th class="whitespace-nowrap" style="text-align: center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in courriers %}
+                                <tr data-courrier-envoi-target="row"
+                                    data-nom="{{ c.compteCode }}"
+                                    data-montant="{{ c.montantSolde ?? 0 }}"
+                                    data-med="{{ c.niveau >= 3 ? 1 : 0 }}"
+                                    class="transition duration-300">
+                                    <td class="{{ c.niveau >= 3 ? 'border-l-2 border-negative' : '' }}">
+                                        <div class="font-medium text-navy">{{ c.compteCode }}</div>
+                                    </td>
+                                    <td>
+                                        {% if c.niveau >= 3 %}
+                                            <span class="inline-flex items-center gap-1 rounded-full bg-negative/10 px-2.5 py-0.5 text-xs font-medium text-negative">
+                                                <svg viewBox="0 0 24 24" class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+                                                Mise en demeure
+                                            </span>
+                                        {% else %}
+                                            <span class="inline-flex rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium text-ink/65">Niveau {{ c.niveau }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ c.nbFactures }}</td>
+                                    <td>{{ c.montantSolde is not null ? (c.montantSolde|number_format(2, ',', ' ') ~ ' €') : '—' }}</td>
+                                    <td class="text-sm text-ink/70">{{ c.prepareLe ? c.prepareLe|date('d/m/Y à H\\hi') : '—' }}</td>
+                                    <td>
+                                        <div class="flex items-center justify-center gap-2">
+                                            <a href="{{ path('app_recouvrement_courrier_lettre', {id: c.id}) }}" target="_blank" rel="noopener"
+                                               title="Aperçu de la lettre (sans marquer)" aria-label="Aperçu de la lettre"
+                                               class="inline-flex items-center justify-center rounded-md border border-hairline p-1.5 text-ink/55 transition hover:border-navy-light hover:bg-surface hover:text-navy">
+                                                <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            </a>
+                                            <form method="post" action="{{ path('app_recouvrement_courrier_envoye', {id: c.id}) }}" class="inline">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('courrier-envoye-' ~ c.id) }}">
+                                                <button type="submit" data-action="courrier-envoi#poster"
+                                                        data-envoye-url="{{ path('app_recouvrement_courrier_envoye', {id: c.id}) }}"
+                                                        data-envoye-token="{{ csrf_token('courrier-envoye-' ~ c.id) }}"
+                                                        data-remettre-url="{{ path('app_recouvrement_courrier_remettre', {id: c.id}) }}"
+                                                        data-remettre-token="{{ csrf_token('courrier-remettre-' ~ c.id) }}"
+                                                        data-lettre-url="{{ path('app_recouvrement_courrier_lettre', {id: c.id}) }}"
+                                                        data-nom="{{ c.compteCode }}"
+                                                        title="Imprimer et marquer posté" aria-label="Imprimer et marquer posté"
+                                                        class="inline-flex items-center justify-center rounded-md bg-navy p-1.5 text-white transition hover:bg-navy-deep">
+                                                    <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {# Etat vide (affiche par le controleur quand la pile est ecoulee) #}
+                <div data-courrier-envoi-target="empty"{% if synthese.nb > 0 %} hidden{% endif %}
+                     class="flex flex-col items-center gap-2 px-6 py-14 text-center text-sm text-ink/55">
+                    <svg viewBox="0 0 24 24" class="h-10 w-10 text-gold" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+                    <b class="text-base text-navy">Tout est posté</b>
+                    <span>Aucun courrier en attente. Les prochains apparaîtront ici dès la préparation suivante.</span>
+                </div>
+            </div>
+
+            <p data-courrier-envoi-target="foot" class="mt-4 text-center text-xs text-ink/40">{{ pluriel(nb_en_attente, 'courrier en attente', 'courriers en attente') }}</p>
+
+            {# Zone des toasts (position fixe, hors flux) #}
+            <div data-courrier-envoi-target="toasts" class="pointer-events-none fixed bottom-6 right-6 z-[60] flex flex-col gap-2.5 [&>*]:pointer-events-auto"></div>
+        </section>
+    {% endif %}
+</div>
+{% endblock %}

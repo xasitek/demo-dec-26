@@ -1,0 +1,159 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Bonus écologique - Finance Créances{% endblock %}
+{% block page_title %}Audit Bonus écologique{% endblock %}
+
+{% block content %}
+{% import '_ui.html.twig' as ui %}
+
+{% set codesoc_opts = {} %}{% for v in options.codesoc %}{% set codesoc_opts = codesoc_opts|merge({ (v): v }) %}{% endfor %}
+{% set marque_opts = {} %}{% for v in options.marques %}{% set marque_opts = marque_opts|merge({ (v): v }) %}{% endfor %}
+{% set retard_opts = {} %}{% for v in options.retards %}{% set retard_opts = retard_opts|merge({ (v): v ~ ' jours' }) %}{% endfor %}
+
+{# Categories metier ASP (4 categories qui regroupent les 6 libelles bruts du sheet) #}
+{% set asp_opts = {} %}
+{% for cle, meta in categories_asp %}
+    {% set asp_opts = asp_opts|merge({ (cle): meta.libelle }) %}
+{% endfor %}
+
+<div class="mx-auto w-full px-3"
+     data-controller="detail-panel"
+     data-detail-panel-url-value="{{ path('app_bonus_eco_detail', {numero: '__ID__'}) }}">
+
+    <turbo-frame id="bonus-eco-liste">
+
+        {# KPI synthese #}
+        <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div class="rounded-md border border-hairline bg-white p-4">
+                <p class="text-2xl font-bold text-navy tabular-nums">{{ synthese.total_lignes|number_format(0, ',', ' ') }}</p>
+                <p class="mt-1 text-xs uppercase tracking-wider text-ink/50">Lignes Progiciel</p>
+            </div>
+            <div class="rounded-md border border-hairline bg-white p-4">
+                <p class="text-2xl font-bold text-navy tabular-nums">{{ synthese.total_montant_du|number_format(0, ',', ' ') }} €</p>
+                <p class="mt-1 text-xs uppercase tracking-wider text-ink/50">Montant total dû</p>
+            </div>
+            <div class="rounded-md border border-hairline bg-white p-4">
+                <p class="text-2xl font-bold text-positive tabular-nums">{{ synthese.lignes_soldees_asp|number_format(0, ',', ' ') }}</p>
+                <p class="mt-1 text-xs uppercase tracking-wider text-ink/50">Dossiers ASP soldés</p>
+            </div>
+            <div class="rounded-md border border-hairline bg-white p-4">
+                <p class="text-2xl font-bold text-gold-dark tabular-nums">{{ synthese.lignes_sans_asp|number_format(0, ',', ' ') }}</p>
+                <p class="mt-1 text-xs uppercase tracking-wider text-ink/50">Dossiers ASP en cours</p>
+            </div>
+        </div>
+
+        {# Filtres : tous dans la barre supérieure (comme Garanties). #}
+        <form method="get"
+              data-turbo-frame="bonus-eco-liste"
+              data-turbo-action="advance"
+              class="mb-4 rounded-md border border-hairline bg-white p-4">
+            <input type="hidden" name="tri" value="{{ tri }}">
+            <input type="hidden" name="sens" value="{{ sens }}">
+
+            <div class="flex flex-wrap items-center gap-2">
+                {{ ui.fc_multi_select('codesoc', codesoc_opts, filtres.codesoc|default([]), 'Toutes les sociétés', 'sociétés') }}
+                {{ ui.fc_multi_select('marque', marque_opts, filtres.marque|default([]), 'Toutes les marques', 'marques') }}
+                {{ ui.fc_multi_select('retard', retard_opts, filtres.retard|default([]), 'Toute ancienneté', 'tranches') }}
+                {{ ui.fc_multi_select('asp_categories', asp_opts, filtres.asp_categories|default([]), 'Tous les statuts ASP', 'statuts ASP') }}
+            </div>
+
+            <div class="relative mt-3">
+                <svg class="pointer-events-none" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2D3250" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); opacity: 0.55;">
+                    <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input type="text" name="recherche" value="{{ filtres.recherche|default('') }}"
+                       placeholder="Rechercher : VIN · immatriculation · client · n° pièce · référence"
+                       data-controller="search-debounce"
+                       data-action="input->search-debounce#submit"
+                       data-search-debounce-delay-value="400"
+                       class="fc-input w-full"
+                       style="padding-left: 2.75rem; padding-top: 0.625rem; padding-bottom: 0.625rem; font-size: 0.875rem;">
+            </div>
+        </form>
+
+        {# Compteur + actions #}
+        <div class="mb-2 flex items-center justify-between gap-3">
+            <p class="text-xs text-ink/55">{{ pluriel(total, 'ligne Progiciel', 'lignes Progiciel') }}</p>
+            <div class="flex flex-wrap items-center gap-2"
+                 data-controller="bonus-eco-relance-groupee"
+                 data-bonus-eco-relance-groupee-url-value="{{ path('app_bonus_eco_relance_groupee') }}"
+                 data-bonus-eco-relance-groupee-token-value="{{ csrf_token('bonus-eco-relance-groupee') }}">
+                <span data-bonus-eco-relance-groupee-target="message" class="hidden self-center text-xs"></span>
+                <button type="button"
+                        data-action="click->bonus-eco-relance-groupee#envoyer"
+                        data-bonus-eco-relance-groupee-type-param="vendeur"
+                        class="inline-flex items-center gap-1.5 rounded-md border border-navy bg-white px-3 py-1.5 text-sm font-medium text-navy transition hover:bg-navy hover:text-white"
+                        title="Envoie un email à chaque vendeur avec la liste de SES dossiers en correction côté ASP">
+                    <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    Relancer les vendeurs
+                </button>
+                <button type="button"
+                        data-action="click->bonus-eco-relance-groupee#envoyer"
+                        data-bonus-eco-relance-groupee-type-param="secretaire"
+                        class="inline-flex items-center gap-1.5 rounded-md border border-navy bg-white px-3 py-1.5 text-sm font-medium text-navy transition hover:bg-navy hover:text-white"
+                        title="Envoie un email à chaque secrétaire avec la liste de SES dossiers en correction côté ASP">
+                    <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    Relancer les secrétaires
+                </button>
+                <a href="{{ path('app_bonus_eco_export', filtres|merge({tri: tri, sens: sens})) }}"
+                   data-turbo="false"
+                   class="inline-flex items-center gap-1.5 rounded-md border border-navy bg-navy px-3 py-1.5 text-sm font-medium text-white transition hover:bg-navy-light"
+                   title="Télécharger les lignes filtrées au format CSV (compatible Excel)">
+                    <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/>
+                    </svg>
+                    Exporter CSV
+                    {% if filtres is not empty %}<span class="text-[0.65rem] uppercase tracking-wider text-gold-soft">(filtré)</span>{% endif %}
+                </a>
+            </div>
+        </div>
+
+        {# Tableau + scroll infini #}
+        <div class="rounded-md border border-hairline bg-white overflow-hidden"
+             data-controller="infinite-scroll"
+             data-infinite-scroll-url-value="{{ path('app_bonus_eco_index', filtres|merge({tri: tri, sens: sens})) }}"
+             data-infinite-scroll-page-value="{{ page }}"
+             data-infinite-scroll-total-pages-value="{{ total_pages }}">
+            <table class="fc-table-comptable w-full">
+                <thead class="bg-surface text-xs uppercase tracking-wider text-ink/55">
+                    <tr>
+                        <th class="is-rownum">#</th>
+                        <th>N° écriture</th>
+                        <th>Date</th>
+                        <th>Pièce</th>
+                        <th>Société</th>
+                        <th>Concession</th>
+                        <th>Marque</th>
+                        <th>Modèle</th>
+                        <th>Châssis (VIN)</th>
+                        <th>Immat.</th>
+                        <th>Client</th>
+                        <th>Montant dû</th>
+                        <th>Retard</th>
+                        <th>Statut ASP</th>
+                    </tr>
+                </thead>
+                <tbody data-infinite-scroll-target="items">
+                    {% include 'bonus_eco/_rows.html.twig' with { lignes: lignes, numerotation_offset: numerotation_offset, categories_asp: categories_asp } %}
+                </tbody>
+            </table>
+            <div data-infinite-scroll-target="sentinel" class="h-px"></div>
+            <p data-infinite-scroll-target="loading" class="py-4 text-center text-sm text-ink/50" style="display:none">Chargement...</p>
+        </div>
+    </turbo-frame>
+
+    {# Panneau detail (slide-in) #}
+    <div data-detail-panel-target="backdrop" class="fixed inset-0 z-40 pointer-events-none"></div>
+    <aside data-detail-panel-target="panel" class="fixed inset-y-0 right-0 z-50 w-full max-w-3xl translate-x-full transform overflow-y-auto bg-white shadow-2xl shadow-navy/20 transition-transform duration-200">
+        <div class="flex items-center gap-2 border-b border-hairline px-5 py-3">
+            <h2 class="flex-1 font-semibold text-navy">Détail de l'écriture</h2>
+            <button type="button" data-action="detail-panel#close" class="rounded-md p-1.5 text-ink/55 hover:bg-surface hover:text-navy" aria-label="Fermer (Échap)" title="Fermer (Échap)">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div data-detail-panel-target="content">
+            <p class="px-6 py-5 text-sm text-ink/60">Sélectionnez une ligne pour voir le détail.</p>
+        </div>
+    </aside>
+</div>
+{% endblock %}

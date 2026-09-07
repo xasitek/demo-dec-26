@@ -1,0 +1,113 @@
+{% extends 'layout.html.twig' %}
+{% import '_ui.html.twig' as ui %}
+
+{% block title %}Boîte à idées - Administration - Finance Créances{% endblock %}
+{% block page_title %}Boîte à idées{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-4xl">
+
+    {% for message in app.flashes('success') %}
+        <div class="mb-4 rounded-lg border border-positive/30 bg-positive/10 px-4 py-3 text-sm text-positive">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div class="mb-4 rounded-lg border border-negative/30 bg-negative/10 px-4 py-3 text-sm text-negative">{{ message }}</div>
+    {% endfor %}
+
+    <div class="mb-5 flex flex-wrap items-center gap-1.5 border-b border-hairline pb-4">
+        <a href="{{ path('app_admin_suggestions', { type: type ? type.value : null }) }}"
+           class="rounded-full border px-3 py-1 text-xs font-medium transition {{ statut is null ? 'border-gold bg-gold/10 text-gold-dark' : 'border-hairline text-ink/60 hover:border-navy/40 hover:text-navy' }}">Tous statuts</a>
+        {% for valeur, libelle in statuts %}
+            <a href="{{ path('app_admin_suggestions', { statut: valeur, type: type ? type.value : null }) }}"
+               class="rounded-full border px-3 py-1 text-xs font-medium transition {{ statut and statut.value == valeur ? 'border-gold bg-gold/10 text-gold-dark' : 'border-hairline text-ink/60 hover:border-navy/40 hover:text-navy' }}">{{ libelle }}</a>
+        {% endfor %}
+
+        <span class="mx-1 h-4 w-px bg-hairline"></span>
+
+        <a href="{{ path('app_admin_suggestions', { statut: statut ? statut.value : null }) }}"
+           class="rounded-full border px-3 py-1 text-xs font-medium transition {{ type is null ? 'border-navy bg-navy text-white' : 'border-hairline text-ink/60 hover:border-navy/40 hover:text-navy' }}">Tous types</a>
+        {% for valeur, libelle in types %}
+            <a href="{{ path('app_admin_suggestions', { type: valeur, statut: statut ? statut.value : null }) }}"
+               class="rounded-full border px-3 py-1 text-xs font-medium transition {{ type and type.value == valeur ? 'border-navy bg-navy text-white' : 'border-hairline text-ink/60 hover:border-navy/40 hover:text-navy' }}">{{ libelle }}</a>
+        {% endfor %}
+    </div>
+
+    {% if suggestions is empty %}
+        <div class="rounded-xl border border-hairline bg-white p-10 text-center">
+            <p class="text-ink/70">Aucune remontée pour ce filtre.</p>
+        </div>
+    {% else %}
+        <p class="mb-4 text-sm text-ink/60">{{ pluriel(total, 'remontée', 'remontées') }}.</p>
+
+        <div class="space-y-4">
+            {% for s in suggestions %}
+                <article class="rounded-xl border border-hairline bg-white p-5">
+                    <div class="flex flex-wrap items-center gap-2 text-xs text-ink/50">
+                        <span class="rounded-full border border-hairline bg-surface px-2 py-0.5 font-semibold text-ink/70">{{ s.type.libelle }}</span>
+                        <span class="rounded-full border px-2 py-0.5 font-semibold {{ s.statut.classesBadge }}">{{ s.statut.libelle }}</span>
+                        <span class="font-medium text-navy">{{ s.auteurNom }}</span>
+                        <span>·</span>
+                        <span>{{ s.createdAt|date('d/m/Y à H:i') }}</span>
+                        {% if s.module %}<span>·</span><span>{{ s.module.libelle }}</span>{% endif %}
+                        {% if s.estSurLeMur %}<span>·</span><span>{{ pluriel(s.nbVotes, 'soutien', 'soutiens') }}</span>{% endif %}
+                        {# Le contexte de la page d'origine : le plus utile pour comprendre la remontee. #}
+                        {% if s.url and s.url starts with '/' and not (s.url starts with '//') %}
+                            <span>·</span>
+                            <a href="{{ s.url }}" class="text-navy underline decoration-gold underline-offset-2">Voir l'écran</a>
+                        {% endif %}
+                    </div>
+
+                    <p class="mt-3 whitespace-pre-line text-sm leading-relaxed text-ink">{{ s.message }}</p>
+
+                    {% if s.reponse %}
+                        <div class="mt-3 rounded-lg border-l-2 border-gold bg-surface px-3 py-2">
+                            <p class="text-xs leading-snug text-ink/80">{{ s.reponse }}</p>
+                            <p class="mt-1 text-[0.65rem] text-ink/45">{{ s.traitePar }}{% if s.traiteAt %} · {{ s.traiteAt|date('d/m/Y') }}{% endif %}</p>
+                        </div>
+                    {% endif %}
+
+                    <form method="post" action="{{ path('app_admin_suggestions_statut', { id: s.id }) }}" class="mt-4 border-t border-hairline pt-4">
+                        <input type="hidden" name="_token" value="{{ csrf_token('suggestion_statut' ~ s.id) }}">
+                        <input type="hidden" name="filtre_statut" value="{{ statut ? statut.value : '' }}">
+                        <input type="hidden" name="filtre_type" value="{{ type ? type.value : '' }}">
+
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start">
+                            <div class="sm:w-48">
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-ink/50">Statut</label>
+                                {{ ui.fc_select('statut', statuts, s.statut.value, false) }}
+                            </div>
+                            <div class="flex-1">
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-ink/50">Réponse à l'auteur</label>
+                                <textarea name="reponse" rows="2"
+                                          class="w-full resize-none rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink placeholder:text-ink/35 focus:border-navy/40 focus:outline-none focus:ring-1 focus:ring-navy/20"
+                                          placeholder="Ce qui a été décidé, ou pourquoi ce n'est pas retenu.">{{ s.reponse }}</textarea>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 flex items-center justify-end gap-3">
+                            <p class="text-xs text-ink/45">
+                                {% if s.auteur %}L'auteur est prévenu (cloche) sauf pour « Vue ».{% else %}Compte supprimé : aucune notification possible.{% endif %}
+                            </p>
+                            <button type="submit" class="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy-light">Enregistrer</button>
+                        </div>
+                    </form>
+                </article>
+            {% endfor %}
+        </div>
+
+        {% if pages > 1 %}
+            <div class="mt-6 flex items-center justify-center gap-2 text-sm">
+                {% if page > 1 %}
+                    <a href="{{ path('app_admin_suggestions', { page: page - 1, statut: statut ? statut.value : null, type: type ? type.value : null }) }}"
+                       class="rounded-lg border border-hairline px-3 py-1.5 text-navy transition hover:bg-surface">Précédent</a>
+                {% endif %}
+                <span class="text-ink/50">Page {{ page }} / {{ pages }}</span>
+                {% if page < pages %}
+                    <a href="{{ path('app_admin_suggestions', { page: page + 1, statut: statut ? statut.value : null, type: type ? type.value : null }) }}"
+                       class="rounded-lg border border-hairline px-3 py-1.5 text-navy transition hover:bg-surface">Suivant</a>
+                {% endif %}
+            </div>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% for n in notifications %}
+    <a href="{{ path('app_notification_ouvrir', { id: n.id }) }}" class="flex gap-3 border-b border-hairline px-5 py-3.5 transition hover:bg-surface {{ n.lue ? '' : 'bg-navy/5' }}">
+        <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full {{ n.lue ? 'bg-transparent' : 'bg-gold' }}"></span>
+        <span class="min-w-0 flex-1">
+            <span class="block text-sm font-semibold text-navy">{{ n.titre }}</span>
+            {% if n.message %}<span class="mt-0.5 block text-xs leading-snug text-ink line-clamp-2">{{ n.message }}</span>{% endif %}
+            <span class="mt-1 block text-[0.65rem] text-ink/45">{{ n.createdAt|date('d/m/Y H:i') }}</span>
+        </span>
+    </a>
+{% endfor %}

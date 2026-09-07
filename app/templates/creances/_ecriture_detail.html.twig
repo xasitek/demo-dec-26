@@ -1,0 +1,196 @@
+{# Partial rendu dans le slide-in panneau quand on clique une ligne. #}
+
+{% set tranche = donnees.retard|default('') %}
+{% set tranche_classes = {
+    '<30':  'bg-sky-50 text-sky-700 ring-sky-200',
+    '>30':  'bg-amber-50 text-amber-700 ring-amber-200',
+    '>60':  'bg-orange-50 text-orange-700 ring-orange-200',
+    '>90':  'bg-red-50 text-red-700 ring-red-200',
+    '>120': 'bg-rose-100 text-rose-700 ring-rose-200',
+    '>180': 'bg-rose-200 text-rose-900 ring-rose-300',
+    '>240': 'bg-rose-300 text-rose-950 ring-rose-400'
+} %}
+{% set classe_tranche = tranche_classes[tranche]|default('bg-surface text-ink/60 ring-hairline') %}
+
+<div class="space-y-4">
+
+    {# Entete : numero + tranche + montant #}
+    <div>
+        <div class="flex items-center gap-2">
+            {% if tranche %}
+                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[0.7rem] font-semibold ring-1 ring-inset {{ classe_tranche }}">
+                    {{ tranche }}
+                </span>
+            {% endif %}
+            <span class="text-[0.65rem] uppercase tracking-wider text-ink/45">
+                {{ ecriture.source|default('—') }}
+            </span>
+        </div>
+        <p class="mt-2 text-2xl font-bold text-navy">
+            {{ (donnees['Montant (valeur absolue)']|default(0) + 0)|number_format(2, ',', ' ') }}
+            <span class="text-base text-ink/40">EUR</span>
+        </p>
+        <p class="text-[0.7rem] text-ink/45">
+            Ecriture <span class="font-mono">{{ numero }}</span>
+            {% if donnees.numpiece is defined and donnees.numpiece %} · Piece <span class="font-mono">{{ donnees.numpiece }}</span>{% endif %}
+            {% if donnees.dateecriture is defined and donnees.dateecriture %} · {{ donnees.dateecriture|slice(0, 10)|replace({'-': '/'}) }}{% endif %}
+        </p>
+    </div>
+
+    {# Tiers (compte) #}
+    {% if compte_code %}
+        <div class="rounded-md border border-hairline bg-surface/40 p-3">
+            <p class="text-[0.65rem] uppercase tracking-wider text-ink/45">Tiers</p>
+            <p class="mt-1 text-sm font-medium text-navy">
+                {{ ((donnees.prenom|default('')) ~ ' ' ~ (donnees.nom|default('')))|trim ?: '—' }}
+            </p>
+            <p class="text-[0.7rem] text-ink/55">
+                <span class="font-mono">{{ compte_code }}</span>
+                {% if donnees.civilite is defined and donnees.civilite %} · {{ donnees.civilite }}{% endif %}
+            </p>
+            <a href="{{ path('app_creances_fiche', { code: compte_code }) }}"
+               class="mt-2 inline-flex items-center gap-1 text-[0.78rem] text-navy hover:text-navy-light">
+                Ouvrir la fiche tiers
+                <svg viewBox="0 0 24 24" class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
+        </div>
+    {% endif %}
+
+    {# Vehicule #}
+    {% if donnees.marque is defined and donnees.marque %}
+        <div>
+            <p class="text-[0.65rem] uppercase tracking-wider text-ink/45">Vehicule</p>
+            <p class="mt-1 text-sm text-ink/80">
+                {{ donnees.marque }}{% if donnees.modele is defined and donnees.modele %} {{ donnees.modele }}{% endif %}
+            </p>
+            <p class="text-[0.7rem] text-ink/55 font-mono">
+                {% if donnees.numimmat is defined and donnees.numimmat %}{{ donnees.numimmat }}{% endif %}
+                {% if donnees.numvin is defined and donnees.numvin %} · VIN {{ donnees.numvin }}{% endif %}
+            </p>
+        </div>
+    {% endif %}
+
+    {# Equipe Synthauto #}
+    <div class="grid grid-cols-2 gap-3 text-sm">
+        {% if donnees.codeetab is defined and donnees.codeetab %}
+            <div>
+                <p class="text-[0.65rem] uppercase tracking-wider text-ink/45">Etablissement</p>
+                <p class="mt-1 text-[0.85rem] text-ink/80">{{ donnees.codeetab }}</p>
+                {% if donnees.codesoc is defined and donnees.codesoc %}
+                    <p class="text-[0.65rem] uppercase tracking-wider text-ink/40">{{ donnees.codesoc }}</p>
+                {% endif %}
+            </div>
+        {% endif %}
+        {% set vendeur = ((donnees.prenomvendeur|default('')) ~ ' ' ~ (donnees.nomvendeur|default('')))|trim %}
+        {% if vendeur %}
+            <div>
+                <p class="text-[0.65rem] uppercase tracking-wider text-ink/45">Vendeur</p>
+                <p class="mt-1 text-[0.85rem] text-ink/80">{{ vendeur }}</p>
+            </div>
+        {% endif %}
+        {% if donnees.nomsecretaire is defined and donnees.nomsecretaire %}
+            <div>
+                <p class="text-[0.65rem] uppercase tracking-wider text-ink/45">Secretaire</p>
+                <p class="mt-1 text-[0.85rem] text-ink/80">{{ donnees.nomsecretaire }}</p>
+                {% if donnees.emailsecr is defined and donnees.emailsecr %}
+                    <a href="mailto:{{ donnees.emailsecr }}" class="text-[0.7rem] text-navy hover:text-navy-light">{{ donnees.emailsecr }}</a>
+                {% endif %}
+            </div>
+        {% endif %}
+        {% if donnees.codecompte is defined and donnees.codecompte %}
+            <div>
+                <p class="text-[0.65rem] uppercase tracking-wider text-ink/45">Compte comptable</p>
+                <p class="mt-1 text-[0.85rem] text-ink/80 font-mono">{{ donnees.codecompte }}</p>
+            </div>
+        {% endif %}
+    </div>
+
+    {# Promesse active #}
+    {% if promesse_active %}
+        <div class="rounded-md border border-amber-200 bg-amber-50 p-3">
+            <p class="text-[0.65rem] uppercase tracking-wider text-amber-700">Promesse de paiement en cours</p>
+            <p class="mt-1 text-sm font-medium text-amber-900">
+                {{ promesse_active.datePromesse|date('d/m/Y') }}
+                {% if promesse_active.montant %} · {{ promesse_active.montant|number_format(2, ',', ' ') }} EUR{% endif %}
+                {% if promesse_active.echue %}<span class="ml-2 rounded bg-rose-200 px-1.5 py-0.5 text-[0.65rem] font-semibold text-rose-900">ECHUE</span>{% endif %}
+            </p>
+            {% if promesse_active.commentaire %}
+                <p class="mt-1 text-[0.78rem] text-amber-900/80 whitespace-pre-line">{{ promesse_active.commentaire }}</p>
+            {% endif %}
+            <p class="mt-1 text-[0.65rem] text-amber-700">
+                {{ promesse_active.auteur ? (promesse_active.auteur.firstName ~ ' ' ~ promesse_active.auteur.lastName) : 'Utilisateur inconnu' }}
+                · {{ promesse_active.creeLe|date('d/m/Y H:i') }}
+            </p>
+        </div>
+    {% endif %}
+
+    {# Annotations liees a l'ecriture #}
+    {% if notes|length > 0 %}
+        <div>
+            <p class="mb-2 text-[0.65rem] uppercase tracking-wider text-ink/45">Annotations sur cette ecriture</p>
+            <ul class="space-y-2">
+                {% for n in notes %}
+                    <li class="rounded-md border border-hairline bg-white p-2 text-[0.78rem]">
+                        <div class="flex items-baseline justify-between gap-2">
+                            <span class="font-medium text-navy">{{ n.auteur ? (n.auteur.firstName ~ ' ' ~ n.auteur.lastName) : '—' }}</span>
+                            <span class="text-[0.65rem] text-ink/45">{{ n.creeLe|date('d/m/Y H:i') }}</span>
+                        </div>
+                        <p class="mt-1 text-ink/70 whitespace-pre-line">{{ n.contenu }}</p>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    {# Formulaires de saisie rapide depuis le panneau detail. #}
+    {% if compte_code and not promesse_active %}
+        <details class="rounded-md border border-hairline bg-surface/30 p-3">
+            <summary class="cursor-pointer text-[0.78rem] font-medium text-navy hover:text-navy-light list-none">
+                + Enregistrer une promesse de paiement
+            </summary>
+            <form method="post" action="{{ path('app_creances_promesse_creer', { numero: numero }) }}" class="mt-3 space-y-2">
+                <input type="hidden" name="_token" value="{{ csrf_token('creances_promesse_' ~ numero) }}">
+                <input type="hidden" name="compte_code" value="{{ compte_code }}">
+                <div>
+                    <label class="block text-[0.65rem] text-ink/55">Date promise</label>
+                    <input type="date" name="date_promesse" required min="{{ "today"|date('Y-m-d') }}"
+                           class="w-full rounded-md border border-hairline px-2 py-1 text-[0.78rem]">
+                </div>
+                <div>
+                    <label class="block text-[0.65rem] text-ink/55">Montant (optionnel, EUR)</label>
+                    <input type="number" name="montant" step="0.01" min="0" placeholder="Laisser vide = totalite du solde"
+                           class="w-full rounded-md border border-hairline px-2 py-1 text-[0.78rem]">
+                </div>
+                <div>
+                    <label class="block text-[0.65rem] text-ink/55">Commentaire (optionnel)</label>
+                    <textarea name="commentaire" rows="2" maxlength="2000"
+                              class="w-full rounded-md border border-hairline px-2 py-1 text-[0.78rem]"></textarea>
+                </div>
+                <div class="flex justify-end">
+                    <button type="submit" class="rounded-md border border-navy bg-navy px-3 py-1 text-[0.78rem] font-medium text-white hover:bg-navy-light">
+                        Enregistrer la promesse
+                    </button>
+                </div>
+            </form>
+        </details>
+    {% endif %}
+
+    {% if compte_code %}
+        <details class="rounded-md border border-hairline bg-surface/30 p-3">
+            <summary class="cursor-pointer text-[0.78rem] font-medium text-navy hover:text-navy-light list-none">
+                + Annoter cette ecriture
+            </summary>
+            <form method="post" action="{{ path('app_creances_note_compte', { code: compte_code }) }}" class="mt-3 space-y-2">
+                <input type="hidden" name="_token" value="{{ csrf_token('creances_note_' ~ compte_code) }}">
+                <input type="hidden" name="ecriture_numero" value="{{ numero }}">
+                <textarea name="contenu" rows="3" required maxlength="4000" placeholder="Annotation visible des comptables..."
+                          class="w-full rounded-md border border-hairline px-2 py-1 text-[0.78rem]"></textarea>
+                <div class="flex justify-end">
+                    <button type="submit" class="rounded-md border border-navy bg-navy px-3 py-1 text-[0.78rem] font-medium text-white hover:bg-navy-light">
+                        Enregistrer l'annotation
+                    </button>
+                </div>
+            </form>
+        </details>
+    {% endif %}
+</div>

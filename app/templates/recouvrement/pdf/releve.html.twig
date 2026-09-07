@@ -1,0 +1,135 @@
+{#
+    Relevé des sommes dues — DOCUMENT PDF (joint a l'e-mail, en page de garde avant
+    les factures ; distinct du corps de l'e-mail). Rendu par dompdf (styles inline,
+    A4). Attend : groupe (GroupeARelancer), logo_src (data-URI du logo blanc).
+
+    Mise en page : @page margin 0 -> le header (bandeau navy) est dans le FLUX en
+    haut (donc bord a bord, page 1) et le pied FIXE (position:fixed bottom:0) se cale
+    au VRAI bas physique de chaque page. Le contenu reserve de la place en bas
+    (padding) pour ne pas passer sous le pied. Numero de page via page_text (dompdf).
+#}
+{% set navy = '#2D3250' %}
+{% set gold = '#C8AA73' %}
+{% set ink = '#3A3A3A' %}
+{% set negative = '#B0413E' %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Relevé des sommes dues — {{ groupe.compte_code }}</title>
+    <style>@page { margin: 0; }</style>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'DejaVu Sans', sans-serif; color: {{ ink }}; font-size: 12px; line-height: 1.5;">
+
+    {# En-tete : bandeau navy bord a bord, dans le flux (page 1). #}
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
+        <tr>
+            <td style="padding: 18px 34px; background-color: {{ navy }}; vertical-align: middle;">
+                {% if logo_src|default('') %}
+                    <img src="{{ logo_src }}" alt="SYNTHAUTO Automobile" style="height: 34px;">
+                {% else %}
+                    <span style="color: #FFFFFF; font-size: 17px; font-weight: bold; letter-spacing: 1px;">GROUPE SYNTHAUTO</span>
+                {% endif %}
+            </td>
+            <td style="padding: 18px 34px; background-color: {{ navy }}; vertical-align: middle; text-align: right; color: {{ gold }}; font-size: 11px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase;">Service recouvrement</td>
+        </tr>
+    </table>
+    {# Filet or UNIFORME sur toute la largeur, sous le bandeau. #}
+    <div style="height: 3px; background-color: {{ gold }};"></div>
+    {# Identite societe (letterhead) : memes mentions que le pied legal, en condense. #}
+    <div style="padding: 7px 34px; font-size: 9.5px; color: #8b8f9c; background-color: #F7F7F9; border-bottom: 1px solid #ECECEF;">
+        GROUPE SYNTHAUTO &middot; entité fictive &middot; document de démonstration &middot; mentions légales retirées
+    </div>
+
+    {# Pied FIXE : cale au bas physique (car @page margin 0), repete sur chaque page. #}
+    <div style="position: fixed; bottom: 0; left: 0; right: 0;">
+        <div style="padding: 0 34px 14px;">
+            {% include 'recouvrement/email/_pied_legal.html.twig' %}
+        </div>
+    </div>
+
+    {# Contenu : padding bas genereux pour reserver la place du pied fixe. #}
+    <div style="padding: 22px 34px 104px;">
+
+        {# Emis le + ville A GAUCHE, destinataire A DROITE (conforme a la maquette). #}
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
+            <tr>
+                <td style="vertical-align: top; width: 55%; color: #666666; font-size: 12px;">Émis le {{ 'now'|date('d/m/Y') }}<br>OSKNEM</td>
+                <td align="right" style="vertical-align: top; width: 45%;">
+                    <div style="font-weight: bold; color: {{ navy }};">{{ groupe.destinataire_nom ?: groupe.compte_code }}</div>
+                    {% if groupe.adresse %}<div style="color: #555555;">{{ groupe.adresse }}</div>{% endif %}
+                </td>
+            </tr>
+        </table>
+
+        <p style="margin: 22px 0 4px; font-weight: bold; color: {{ navy }};">
+            Objet : {{ groupe.mise_en_demeure ? 'Mise en demeure de payer' : 'Relevé des sommes dues' }}
+        </p>
+        <p style="margin: 0 0 3px; color: {{ navy }};">
+            Référence dossier : <strong style="font-size: 14px; letter-spacing: 0.5px;">[{{ groupe.compte_code }}]</strong>
+        </p>
+        <p style="margin: 0 0 14px; color: {{ negative }}; font-weight: bold; font-size: 11px;">(à rappeler dans toute correspondance et en libellé de virement)</p>
+
+        {# Synthese : lecture immediate (nb factures dues, plus ancienne echeance, total).
+           Agregats de presentation calcules ici pour ne pas toucher au coeur de selection. #}
+        {% set factures_dues = groupe.factures|default([])|filter(f => f.montant > 0) %}
+        {% set nb_dues = factures_dues|length %}
+        {% set retard_max = 0 %}
+        {% set plus_ancienne = null %}
+        {% for f in factures_dues %}
+            {% if (f.jours_retard|default(0)) > retard_max %}{% set retard_max = f.jours_retard %}{% endif %}
+            {% if f.date_echeance and (plus_ancienne is null or f.date_echeance < plus_ancienne) %}{% set plus_ancienne = f.date_echeance %}{% endif %}
+        {% endfor %}
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin: 4px 0 8px;">
+            <tr>
+                <td style="width: 30%; border: 1px solid #E6E1D4; background-color: #FBF8F1; padding: 10px 14px;">
+                    <span style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #9a8a63; display: block; margin-bottom: 3px;">Factures dues</span>
+                    <span style="font-size: 14px; font-weight: bold; color: {{ navy }};">{{ nb_dues }}</span>
+                </td>
+                <td style="width: 38%; border: 1px solid #E6E1D4; background-color: #FBF8F1; padding: 10px 14px;">
+                    <span style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #9a8a63; display: block; margin-bottom: 3px;">Plus ancienne échéance</span>
+                    <span style="font-size: 14px; font-weight: bold; color: {{ navy }};">{{ plus_ancienne ? plus_ancienne|date('d/m/Y') : '—' }}{% if retard_max > 0 %} &middot; {{ retard_max }} j{% endif %}</span>
+                </td>
+                <td style="width: 32%; border: 1px solid #E6E1D4; background-color: #FBF8F1; padding: 10px 14px;">
+                    <span style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #9a8a63; display: block; margin-bottom: 3px;">Total restant dû</span>
+                    <span style="font-size: 18px; font-weight: bold; color: {{ navy }};">{{ groupe.total|number_format(2, ',', ' ') }} € TTC</span>
+                </td>
+            </tr>
+        </table>
+
+        <p style="margin: 8px 0 12px;">{{ groupe.formule_appel|default('Madame, Monsieur') }},</p>
+
+        {% if groupe.mise_en_demeure %}
+            <p style="margin: 0 0 14px;">
+                En dépit de nos précédentes relances, les factures détaillées ci-dessous demeurent
+                impayées à ce jour. Par la présente, nous vous <strong>mettons en demeure</strong> de
+                procéder à leur règlement intégral sous un délai de <strong>huit (8) jours</strong> à
+                compter de la réception du présent courrier.
+            </p>
+        {% else %}
+            <p style="margin: 0 0 14px;">
+                Sauf erreur ou omission de notre part, nous vous prions de trouver ci-dessous le relevé
+                des sommes restant dues à ce jour, dont nous vous remercions de bien vouloir procéder au
+                règlement.
+            </p>
+        {% endif %}
+
+        {% include 'recouvrement/pdf/_releve_corps.html.twig' with { groupe: groupe } %}
+
+        {% if groupe.mise_en_demeure %}
+            <p style="margin: 14px 0;">
+                À défaut de règlement dans le délai imparti, nous nous réservons le droit d'engager toute
+                procédure de recouvrement amiable ou judiciaire, ainsi que l'application des intérêts de
+                retard et de l'indemnité forfaitaire pour frais de recouvrement prévus par la loi.
+            </p>
+        {% endif %}
+
+        <p style="margin: 16px 0 2px;">Si un différend porte sur ces sommes ou si votre règlement a été
+            effectué récemment, nous vous invitons à nous le signaler par retour de l'e-mail auquel ce
+            relevé est joint.</p>
+
+        <p style="margin: 16px 0 2px;">Cordialement,</p>
+        <p style="margin: 0; font-weight: bold; color: {{ navy }};">Le service recouvrement — SYNTHAUTO Automobile</p>
+    </div>
+</body>
+</html>

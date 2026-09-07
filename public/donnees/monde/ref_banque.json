@@ -1,0 +1,1 @@
+{"n":5,"cols":{"id":{"v":["BNQ-1","BNQ-2","BNQ-3","BNQ-4","BNQ-5"]},"nom":{"v":["BANQUE 1","BANQUE 2","BANQUE 3","BANQUE 4","BANQUE 5"]},"format_libelle":{"v":["VIR SEPA {nom}","VIREMENT {nom}","{nom} VIR RECU","VIR {nom} REF {ref}","SEPA CT {nom}"]}}}

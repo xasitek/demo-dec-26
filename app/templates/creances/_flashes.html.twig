@@ -1,0 +1,17 @@
+{# Affichage des flash messages (success / warning / error) avec auto-hide JS
+   apres 5s. Inclus en haut des pages /creances. #}
+
+{% set _types = {
+    success: 'border-emerald-300 bg-emerald-50 text-emerald-700',
+    warning: 'border-amber-300 bg-amber-50 text-amber-700',
+    error: 'border-rose-300 bg-rose-50 text-rose-700'
+} %}
+
+{% for type, classes in _types %}
+    {% for message in app.flashes(type) %}
+        <div class="mb-3 rounded-md border px-4 py-2 text-sm shadow-sm {{ classes }}"
+             data-controller="auto-hide" data-auto-hide-delay-value="5000">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endfor %}

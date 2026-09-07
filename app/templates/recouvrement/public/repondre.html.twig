@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Répondre à votre relance - Groupe Synthauto</title>
+    <style>
+        :root { --navy:#2D3250; --navy-light:#4A5278; --gold:#C8AA73; --ink:#4A4A4A; --surface:#F5F5F5; --hairline:#E5E5E5; --negative:#B0413E; --positive:#2E7D5F; }
+        * { box-sizing: border-box; }
+        body { margin:0; background:var(--surface); font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:var(--ink); line-height:1.6; }
+        .wrap { max-width:620px; margin:0 auto; padding:32px 16px; }
+        .card { background:#fff; border:1px solid var(--hairline); border-radius:10px; overflow:hidden; box-shadow:0 6px 24px rgba(45,50,80,.08); }
+        .head { background:var(--navy); border-bottom:3px solid var(--gold); padding:22px 28px; }
+        .head .brand { color:#fff; font-size:18px; font-weight:700; letter-spacing:.04em; }
+        .head .sub { color:var(--gold); font-size:11px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; margin-top:4px; }
+        .body { padding:28px; }
+        h1 { font-size:20px; color:var(--navy); margin:0 0 6px; }
+        p.intro { font-size:14px; color:#6b6f80; margin:0 0 22px; }
+        label { display:block; font-size:13px; font-weight:600; color:var(--navy); margin:0 0 6px; }
+        .champ { margin-bottom:18px; }
+        input[type=text], input[type=email], textarea, input[type=file] { width:100%; border:1px solid var(--hairline); border-radius:6px; padding:10px 12px; font:inherit; color:var(--ink); background:#fff; }
+        input[type=text]:focus, input[type=email]:focus, textarea:focus { outline:none; border-color:var(--gold); box-shadow:0 0 0 3px rgba(200,170,115,.25); }
+        textarea { min-height:130px; resize:vertical; }
+        .hint { font-size:12px; color:#9096a6; margin-top:5px; }
+        .btn { display:inline-block; background:var(--navy); color:#fff; border:none; border-radius:6px; padding:12px 22px; font:inherit; font-weight:600; cursor:pointer; transition:background .15s; }
+        .btn:hover { background:var(--navy-light); }
+        .erreurs { background:rgba(176,65,62,.08); border:1px solid rgba(176,65,62,.3); border-radius:6px; padding:12px 16px; margin-bottom:20px; }
+        .erreurs ul { margin:0; padding-left:18px; }
+        .erreurs li { font-size:13px; color:var(--negative); }
+        .hp { position:absolute; left:-9999px; top:-9999px; height:0; width:0; overflow:hidden; }
+        .ok { text-align:center; padding:12px 0; }
+        .ok .rond { width:56px; height:56px; border-radius:50%; background:rgba(46,125,95,.12); display:inline-flex; align-items:center; justify-content:center; margin-bottom:14px; }
+        .ok h1 { color:var(--positive); }
+        .foot { background:var(--surface); border-top:1px solid var(--hairline); padding:16px 28px; font-size:11px; color:#9096a6; }
+        .req { color:var(--negative); }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="card">
+            <div class="head">
+                <div class="brand">GROUPE SYNTHAUTO</div>
+                <div class="sub">Service recouvrement</div>
+            </div>
+
+            <div class="body">
+                {% if succes %}
+                    <div class="ok">
+                        <span class="rond">
+                            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#2E7D5F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                        </span>
+                        <h1>Message bien reçu</h1>
+                        <p class="intro">Votre message a été transmis à notre service recouvrement. Nous reviendrons vers vous à l'adresse indiquée. Inutile de renvoyer le formulaire.</p>
+                    </div>
+                {% else %}
+                    <h1>Répondre à votre relance</h1>
+                    <p class="intro">Votre e-mail n'a pas pu être rattaché à votre dossier. Utilisez ce formulaire pour nous répondre : indiquez la référence figurant dans votre e-mail de relance (entre crochets, <strong>[ref. …]</strong>).</p>
+
+                    {% if erreurs is not empty %}
+                        <div class="erreurs"><ul>{% for e in erreurs %}<li>{{ e }}</li>{% endfor %}</ul></div>
+                    {% endif %}
+
+                    <form method="post" action="{{ path('app_recouvrement_repondre_public') }}" enctype="multipart/form-data">
+                        <input type="hidden" name="_token" value="{{ csrf_token('reponse-publique') }}">
+
+                        {# Honeypot anti-robot : ne pas remplir (invisible pour un humain). #}
+                        <div class="hp" aria-hidden="true">
+                            <label>Ne pas remplir<input type="text" name="site_web" tabindex="-1" autocomplete="off"></label>
+                        </div>
+
+                        <div class="champ">
+                            <label for="reference">Référence de votre dossier <span class="req">*</span></label>
+                            <input type="text" id="reference" name="reference" value="{{ reference }}" required placeholder="ex. ACAPDS…"
+                                   autocomplete="off" data-verif-url="{{ path('app_recouvrement_verifier_ref') }}">
+                            <div class="hint">Elle figure dans l'e-mail de relance, entre crochets : [ref. …]. C'est elle qui rattache votre message à votre dossier.</div>
+                            <div id="ref-msg" style="display:none; margin-top:6px; font-size:12px; font-weight:600;"></div>
+                        </div>
+
+                        <div class="champ">
+                            <label for="email">Votre adresse e-mail <span class="req">*</span></label>
+                            <input type="email" id="email" name="email" value="{{ email }}" required placeholder="vous@exemple.fr">
+                        </div>
+
+                        <div class="champ">
+                            <label for="message">Votre message <span class="req">*</span></label>
+                            <textarea id="message" name="message" required placeholder="Votre réponse…">{{ message }}</textarea>
+                        </div>
+
+                        <div class="champ">
+                            <label for="fichiers">Pièces jointes (facultatif)</label>
+                            <input type="file" id="fichiers" name="fichiers[]" multiple>
+                            <div class="hint">Jusqu'à 5 fichiers, 15 Mo chacun (PDF, image ou document bureautique).</div>
+                        </div>
+
+                        <button type="submit" class="btn" id="btn-envoyer">Envoyer mon message</button>
+                    </form>
+                {% endif %}
+            </div>
+
+            <div class="foot">Groupe Synthauto — Service recouvrement. Ce formulaire est réservé aux réponses aux relances.</div>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        var input = document.getElementById('reference');
+        var msg = document.getElementById('ref-msg');
+        var email = document.getElementById('email');
+        var message = document.getElementById('message');
+        var btn = document.getElementById('btn-envoyer');
+        if (!input || !msg) return;
+        var timer;
+        var refConnue = false;
+
+        function afficher(texte, ok) {
+            if (!texte) { msg.style.display = 'none'; return; }
+            msg.style.display = 'block';
+            msg.textContent = texte;
+            msg.style.color = ok ? '#2E7D5F' : '#B0413E';
+        }
+
+        // "Envoyer" actif seulement si les 3 champs obligatoires sont OK :
+        // reference reconnue + e-mail rempli + message rempli. La piece jointe est facultative.
+        function majBouton() {
+            if (!btn) return;
+            var ok = refConnue
+                && !!(email && email.value.trim())
+                && !!(message && message.value.trim());
+            btn.disabled = !ok;
+            btn.style.opacity = ok ? '' : '0.5';
+            btn.style.cursor = ok ? '' : 'not-allowed';
+        }
+
+        function verifier() {
+            var v = input.value.trim();
+            if ('' === v) { afficher('Référence obligatoire.', false); refConnue = false; majBouton(); return; }
+            fetch(input.dataset.verifUrl + '?ref=' + encodeURIComponent(v), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (d) {
+                    // Verif impossible (reseau / rate-limit) : on n'empeche pas l'envoi, le serveur validera.
+                    if (!d) { refConnue = true; }
+                    else if (d.connue) { afficher('Référence reconnue.', true); refConnue = true; }
+                    else { afficher('Référence introuvable — vérifiez votre e-mail de relance.', false); refConnue = false; }
+                    majBouton();
+                })
+                .catch(function () { refConnue = true; majBouton(); });
+        }
+
+        input.addEventListener('blur', verifier);
+        input.addEventListener('input', function () {
+            clearTimeout(timer);
+            afficher('', true);
+            refConnue = false; // reference modifiee -> a re-verifier
+            majBouton();
+            timer = setTimeout(verifier, 500);
+        });
+        if (email) email.addEventListener('input', majBouton);
+        if (message) message.addEventListener('input', majBouton);
+
+        // Etat initial : verifie la ref si pre-remplie, puis calcule l'etat du bouton.
+        if ('' !== input.value.trim()) { verifier(); } else { majBouton(); }
+    })();
+    </script>
+</body>
+</html>

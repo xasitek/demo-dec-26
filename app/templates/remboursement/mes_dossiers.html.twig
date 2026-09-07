@@ -1,0 +1,92 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Mes dossiers - Remboursement - Finance Créances{% endblock %}
+{% block page_title %}Remboursement client{% endblock %}
+{% block topbar_nav %}{% include '_secretaire_topbar.html.twig' with { active: 'mes_dossiers' } only %}{% endblock %}
+
+{% set champ = 'w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink transition focus:border-navy focus:outline-none focus:ring-4 focus:ring-navy/10' %}
+{% import '_ui.html.twig' as ui %}
+
+{# Options + couleurs de badge pour les selects stylises (identiques au poste comptable) #}
+{% set motifOptions = {'': 'Tous'} %}
+{% for m in motifs %}{% set motifOptions = motifOptions|merge({(m.value): m.libelle}) %}{% endfor %}
+{% set hex = {'neutre': '#6b7280', 'ia': '#6366f1', 'comptable': '#d97706', 'correction': '#ea580c', 'directeur': '#0284c7', 'valide': '#059669', 'paiement': '#0d9488', 'paye': '#16a34a', 'refuse': '#dc2626'} %}
+{% set statutOptions = {'': 'Tous'} %}
+{% set statutColors = {} %}
+{% for s in statuts %}
+    {% set statutOptions = statutOptions|merge({(s.value): s.libelle}) %}
+    {% set statutColors = statutColors|merge({(s.value): hex[s.couleur]|default('#6b7280')}) %}
+{% endfor %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-5xl">
+
+    {% for message in app.flashes('success') %}
+        <div class="mb-4 rounded-lg border border-positive/30 bg-positive/10 px-4 py-2.5 text-sm text-positive">{{ message }}</div>
+    {% endfor %}
+
+    {# Filtres (GET, auto-soumission) #}
+    <form method="get" class="mb-4 flex flex-wrap items-end gap-3">
+        <label class="min-w-[14rem] flex-1">
+            <span class="mb-1 block text-xs font-medium text-ink/55">Client ou référence</span>
+            <input type="search" name="q" value="{{ q }}" placeholder="Rechercher…" class="{{ champ }}"
+                   data-controller="search-debounce" data-action="input->search-debounce#submit">
+        </label>
+        <label>
+            <span class="mb-1 block text-xs font-medium text-ink/55">Motif</span>
+            {{ ui.fc_select('motif', motifOptions, motif ? motif.value : '') }}
+        </label>
+        <label>
+            <span class="mb-1 block text-xs font-medium text-ink/55">État</span>
+            {{ ui.fc_select('statut', statutOptions, statut ? statut.value : '', true, statutColors) }}
+        </label>
+        <noscript><button type="submit" class="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white">Filtrer</button></noscript>
+    </form>
+
+    <p class="mb-2 text-xs text-ink/45">{{ pluriel(total, 'dossier', 'dossiers') }}</p>
+
+    <section data-controller="detail-panel" data-detail-panel-url-value="{{ path('app_remboursement_mon_dossier_panneau', {id: '__ID__'}) }}">
+    {# Table + scroll infini #}
+    <div class="overflow-hidden rounded-xl border border-hairline bg-white shadow-sm"
+         data-controller="infinite-scroll remboursement-dossiers"
+         data-infinite-scroll-url-value="{{ path('app_remboursement_mes_dossiers', {q: q, motif: motif ? motif.value : '', statut: statut ? statut.value : ''}) }}"
+         data-infinite-scroll-page-value="1"
+         data-infinite-scroll-total-pages-value="{{ pages }}">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-hairline bg-surface/60 text-left text-[11px] uppercase tracking-wider text-ink/45">
+                    <th class="px-4 py-2.5 font-semibold">Référence</th>
+                    <th class="px-4 py-2.5 font-semibold">Client</th>
+                    <th class="px-4 py-2.5 font-semibold">Motif</th>
+                    <th class="px-4 py-2.5 text-right font-semibold">Montant</th>
+                    <th class="px-4 py-2.5 font-semibold">État</th>
+                    <th class="px-4 py-2.5 font-semibold">Déposé le</th>
+                </tr>
+            </thead>
+            <tbody data-infinite-scroll-target="items">
+                {% include 'remboursement/_dossiers_rows.html.twig' with { dossiers: dossiers } %}
+            </tbody>
+        </table>
+        {% if dossiers is empty %}
+            <p class="px-4 py-12 text-center text-ink/50">Aucun dossier pour ces critères.</p>
+        {% endif %}
+        <div data-infinite-scroll-target="sentinel"></div>
+        <p data-infinite-scroll-target="loading" class="border-t border-hairline py-3 text-center text-sm text-ink/50" style="display:none">Chargement…</p>
+    </div>
+
+    {# Panneau glissant (quick-view) — s'ouvre pour les dossiers hors "correction requise" #}
+    <div data-detail-panel-target="backdrop" class="fixed inset-0 z-40 pointer-events-none"></div>
+    <aside data-detail-panel-target="panel" class="fixed inset-y-0 right-0 z-50 w-full max-w-3xl translate-x-full transform overflow-y-auto bg-white shadow-2xl shadow-navy/20 transition-transform duration-200">
+        <div class="flex items-center gap-2 border-b border-hairline px-5 py-3">
+            <h2 class="flex-1 font-semibold text-navy">Détail du dossier</h2>
+            <button type="button" data-action="detail-panel#close" class="rounded-md p-1.5 text-ink/55 transition hover:bg-surface hover:text-navy" aria-label="Fermer (Échap)" title="Fermer (Échap)">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div data-detail-panel-target="content">
+            <p class="px-6 py-6 text-sm text-ink/55">Sélectionnez un dossier pour voir le détail.</p>
+        </div>
+    </aside>
+    </section>
+</div>
+{% endblock %}

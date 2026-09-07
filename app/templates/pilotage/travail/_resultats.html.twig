@@ -1,0 +1,205 @@
+{# Les resultats de recherche, groupes par NATURE : le geste possible en
+   depend, et une facture ne se traite pas comme un virement. Chaque ligne
+   ouvre son dossier. #}
+<section class="mb-4 rounded-xl border-2 border-navy/30 bg-white p-4 shadow-sm">
+  <div class="mb-3 flex flex-wrap items-baseline gap-2">
+    <h3 class="text-sm font-bold uppercase tracking-wide text-navy">
+      Résultats pour « {{ resultats.terme }} »
+    </h3>
+    <span class="rounded-full bg-navy/10 px-2 py-0.5 text-xs font-semibold text-navy">
+      {{ resultats.total }}
+    </span>
+    {% if resultats.montant is not null %}
+      <span class="rounded bg-gold/15 px-2 py-0.5 text-[11px] font-semibold text-gold">
+        lu aussi comme un montant : {{ resultats.montant|number_format(2, ',', ' ') }} €
+      </span>
+    {% endif %}
+    <span class="ml-auto text-[11px] text-ink/45">votre file reste ouverte en dessous</span>
+  </div>
+
+  {% if resultats.total == 0 %}
+    <p class="rounded-lg border border-hairline bg-surface px-3 py-6 text-center text-[12.5px] text-ink/55">
+      Rien ne correspond. La recherche couvre le client, son code, la facture, le montant, le VIN,
+      l'immatriculation, le compte et l'établissement — pas le texte libre des notes.
+    </p>
+  {% endif %}
+
+  {% for g in resultats.groupes %}
+    <div class="mb-3 last:mb-0">
+      <div class="mb-1 flex items-baseline gap-2">
+        <h4 class="text-[12px] font-bold uppercase tracking-wider text-ink/55">{{ g.libelle }}</h4>
+        <span class="text-[11px] text-ink/40">{{ g.lignes|length }}</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="fc-table-comptable w-full">
+
+          {% if g.nature == 'facture' %}
+            <thead><tr><th>Créance</th><th>Client</th><th>Établissement</th><th>Immat / VIN</th>
+              <th>Échéance</th><th class="text-right">Montant</th><th>État</th><th class="text-right">Ouvrir</th></tr></thead>
+            <tbody>
+              {% for l in g.lignes %}
+                <tr>
+                  <td class="font-mono text-[11.5px] font-semibold">{{ l.numero ?: l.id }}
+                    <span class="ml-1 font-normal text-[10px] text-ink/35">{{ l.id }}</span></td>
+                  <td class="text-[12px]">{{ l.client_nom ?: l.client_id }}
+                    <span class="ml-1 font-mono text-[10.5px] text-ink/40">{{ l.client_id }}</span></td>
+                  <td class="text-[11.5px] text-ink/60">{{ l.etablissement_nom ?: l.etablissement_id }}</td>
+                  <td class="font-mono text-[11px] text-ink/60">
+                    {{ l.immatriculation ?: (l.serie8 ?: '—') }}</td>
+                  <td class="text-[11.5px] text-ink/60">{{ l.echeance ? l.echeance|date('d/m/Y') : '—' }}</td>
+                  <td class="text-right font-mono text-[12px] font-semibold">{{ l.montant|number_format(2, ',', ' ') }} €</td>
+                  <td>
+                    {% if l.soldee_par_suite %}
+                      <span class="rounded bg-positive/10 px-1.5 py-0.5 text-[10.5px] font-semibold text-positive">
+                        soldée par {{ l.soldee_par }}</span>
+                    {% elseif l.cause %}
+                      <span class="rounded bg-warning/10 px-1.5 py-0.5 text-[10.5px] font-semibold text-warning">
+                        ouverte</span>
+                    {% else %}
+                      <span class="text-[10.5px] text-ink/40">{{ l.statut }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-right">
+                    {% if l.cause %}
+                      <a href="{{ path('app_travail_dossier', {type: 'facture', id: l.id, file: file}) }}"
+                         class="text-[11.5px] font-semibold text-navy hover:underline">Ouvrir →</a>
+                    {% else %}
+                      <a href="{{ path('app_travail_dossier', {type: 'compte', id: l.client_id, file: file}) }}"
+                         class="text-[11.5px] font-semibold text-navy hover:underline">Voir le compte →</a>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+
+          {% elseif g.nature == 'virement' %}
+            <thead><tr><th>Virement</th><th>Date</th><th>Libellé bancaire</th><th>Émetteur</th>
+              <th>Compte proposé</th><th class="text-right">Montant</th><th>Décision</th>
+              <th class="text-right">Ouvrir</th></tr></thead>
+            <tbody>
+              {% for l in g.lignes %}
+                <tr>
+                  <td class="font-mono text-[11.5px] font-semibold">{{ l.id }}</td>
+                  <td class="text-[11.5px] text-ink/60">{{ l.date_operation|date('d/m/Y') }}</td>
+                  <td class="max-w-[18rem] truncate text-[11.5px]" title="{{ l.libelle }}">{{ l.libelle }}</td>
+                  <td class="text-[11.5px] text-ink/60">{{ l.nom_donneur_ordre ?: '—' }}</td>
+                  <td class="text-[12px]">{{ l.client_nom ?: (l.client_propose ?: '—') }}</td>
+                  <td class="text-right font-mono text-[12px] font-semibold">{{ l.montant|number_format(2, ',', ' ') }} €</td>
+                  <td><span class="rounded bg-ink/5 px-1.5 py-0.5 text-[10.5px] font-semibold text-ink/60">
+                    {{ l.decision ?: '—' }}</span></td>
+                  <td class="text-right">
+                    <a href="{{ path('app_travail_dossier', {type: 'virement', id: l.id, file: file}) }}"
+                       class="text-[11.5px] font-semibold text-navy hover:underline">Ouvrir →</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+
+          {% elseif g.nature == 'ecriture' %}
+            <thead><tr><th>Écriture</th><th>Date</th><th>Compte</th><th>Client</th><th>Référence</th>
+              <th>Immat / VIN</th><th class="text-right">Débit</th><th class="text-right">Crédit</th>
+              <th>Lettrage</th><th class="text-right">Ouvrir</th></tr></thead>
+            <tbody>
+              {% for l in g.lignes %}
+                <tr>
+                  <td class="font-mono text-[11px] font-semibold">{{ l.id }}</td>
+                  <td class="text-[11.5px] text-ink/60">{{ l.date_ecriture|date('d/m/Y') }}</td>
+                  <td class="font-mono text-[11px]">{{ l.compte }} <span class="text-ink/40">{{ l.journal }}</span></td>
+                  <td class="text-[12px]">{{ l.client_nom ?: l.client_id }}</td>
+                  <td class="font-mono text-[11px] text-ink/60">{{ l.reference_piece ?: '—' }}</td>
+                  <td class="font-mono text-[11px] text-ink/60">{{ l.immatriculation ?: (l.vin8 ?: '—') }}</td>
+                  <td class="text-right font-mono text-[11.5px]">
+                    {{ l.sens == 'D' ? l.montant|number_format(2, ',', ' ') ~ ' €' : '' }}</td>
+                  <td class="text-right font-mono text-[11.5px] text-navy">
+                    {{ l.sens == 'C' ? l.montant|number_format(2, ',', ' ') ~ ' €' : '' }}</td>
+                  <td>
+                    {% if l.lot_demo %}
+                      <span class="rounded bg-positive/10 px-1.5 py-0.5 text-[10.5px] font-semibold text-positive">
+                        {{ l.lot_demo }}</span>
+                    {% elseif l.lettrage %}
+                      <span class="font-mono text-[10.5px] text-ink/50">{{ l.lettrage }}</span>
+                    {% else %}
+                      <span class="rounded bg-warning/10 px-1.5 py-0.5 text-[10.5px] font-semibold text-warning">
+                        non lettré</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-right">
+                    <a href="{{ path('app_travail_dossier', {type: 'ecriture', id: l.id, file: file}) }}"
+                       class="text-[11.5px] font-semibold text-navy hover:underline">Ouvrir →</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+
+          {% elseif g.nature == 'lot' %}
+            <thead><tr><th>Lot</th><th>Client</th><th class="text-right">Écritures</th>
+              <th class="text-right">Montant</th><th class="text-right">Solde</th>
+              <th>Verdict</th><th>Méthode</th><th class="text-right">Ouvrir</th></tr></thead>
+            <tbody>
+              {% for l in g.lignes %}
+                <tr>
+                  <td class="font-mono text-[11.5px] font-semibold">{{ l.id }}</td>
+                  <td class="text-[12px]">{{ l.client_nom ?: l.client_id }}</td>
+                  <td class="text-right font-mono text-[11.5px]">{{ l.nb_ecritures }}</td>
+                  <td class="text-right font-mono text-[12px] font-semibold">{{ l.montant|number_format(2, ',', ' ') }} €</td>
+                  <td class="text-right font-mono text-[11.5px] {{ l.solde is not null and l.solde != 0 ? 'text-negative' : '' }}">
+                    {{ l.solde is not null ? l.solde|number_format(2, ',', ' ') ~ ' €' : '—' }}</td>
+                  <td><span class="rounded bg-ink/5 px-1.5 py-0.5 text-[10.5px] font-semibold text-ink/60">
+                    {{ l.verdict ?: '—' }}</span></td>
+                  <td class="font-mono text-[11px] text-ink/55">{{ l.methode ?: '—' }}</td>
+                  <td class="text-right">
+                    <a href="{{ path('app_travail_dossier', {type: 'lot', id: l.id, file: file}) }}"
+                       class="text-[11.5px] font-semibold text-navy hover:underline">Ouvrir →</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+
+          {% elseif g.nature == 'compte' %}
+            <thead><tr><th>Compte</th><th>Nom</th><th>Type</th><th>Code balance</th>
+              <th class="text-right">Créances</th><th class="text-right">Encore ouvert</th>
+              <th class="text-right">Ouvrir</th></tr></thead>
+            <tbody>
+              {% for l in g.lignes %}
+                <tr>
+                  <td class="font-mono text-[11.5px] font-semibold">{{ l.id }}</td>
+                  <td class="text-[12px] font-semibold">{{ l.nom }}</td>
+                  <td class="text-[11px] text-ink/55">{{ l.type }}</td>
+                  <td class="font-mono text-[11px] text-ink/50">{{ l.code_balance ?: '—' }}</td>
+                  <td class="text-right font-mono text-[11.5px]">{{ l.creances }}</td>
+                  <td class="text-right font-mono text-[12px] font-semibold text-warning">
+                    {{ l.ouvert|number_format(2, ',', ' ') }} €</td>
+                  <td class="text-right">
+                    <a href="{{ path('app_travail_dossier', {type: 'compte', id: l.id, file: file}) }}"
+                       class="text-[11.5px] font-semibold text-navy hover:underline">Ouvrir →</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+
+          {% else %}
+            <thead><tr><th>Établissement</th><th>Nom</th><th>Société</th>
+              <th class="text-right">Créances ouvertes</th><th class="text-right">Montant</th>
+              <th class="text-right">Descendre</th></tr></thead>
+            <tbody>
+              {% for l in g.lignes %}
+                <tr>
+                  <td class="font-mono text-[11.5px] font-semibold">{{ l.id }}</td>
+                  <td class="text-[12px] font-semibold">{{ l.nom }}</td>
+                  <td class="font-mono text-[11px] text-ink/55">{{ l.societe_id }}</td>
+                  <td class="text-right font-mono text-[11.5px]">{{ l.creances }}</td>
+                  <td class="text-right font-mono text-[12px] font-semibold">{{ l.ouvert|number_format(2, ',', ' ') }} €</td>
+                  <td class="text-right">
+                    <a href="{{ path('app_travail', {file: file, etablissement_id: l.id}) }}"
+                       class="text-[11.5px] font-semibold text-navy hover:underline">Filtrer ma file →</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          {% endif %}
+
+        </table>
+      </div>
+    </div>
+  {% endfor %}
+</section>

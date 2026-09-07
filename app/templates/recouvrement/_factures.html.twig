@@ -1,0 +1,134 @@
+{# Panneau "factures du client" : consultation + configuration du gel de relance.
+   Refonte UX en LISTE DE CARTES (le panneau est etroit, ~50 % de l'ecran) :
+   - recherche instantanee (piece / ref / montant / etab) + filtre statut ;
+   - relance site = un bouton par carte -> modal "message au site" OBLIGATOIRE ;
+     enregistrer le message met la facture en relance site automatiquement ;
+   - "ne pas relancer" / "reactiver" restent des actions GROUPEES (cases a cocher).
+   Charge et rafraichi en AJAX par le controleur Stimulus factures-panel (le POST
+   renvoie ce meme fragment). Attend : compte, factures (list v_impayes),
+   gels (map ecriture_id => FactureSite actif). #}
+<div data-config-url="{{ path('app_recouvrement_compte_factures_configurer', {compte: compte}) }}"
+     data-csrf="{{ csrf_token('factures-site') }}">
+{% if factures is not empty %}
+    {# En-tete collant : recherche + filtre statut + compteur. Fond OPAQUE (sinon les
+       cartes defilent en transparence derriere). #}
+    <div class="sticky top-0 z-20 border-b border-hairline bg-white px-3 py-2.5 shadow-sm">
+        <div class="relative">
+            <svg viewBox="0 0 24 24" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="search" data-role="recherche" data-action="input->factures-panel#rechercher" autocomplete="off"
+                   placeholder="Rechercher : pièce, réf, montant, étab…"
+                   class="w-full rounded-md border border-hairline bg-white py-2 pl-9 pr-3 text-sm text-ink transition focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/20">
+        </div>
+        <div class="mt-2 flex items-center justify-between gap-2">
+            <select data-role="filtre-statut" data-action="change->factures-panel#rechercher"
+                    class="rounded-md border border-hairline bg-white px-2 py-1 text-xs text-ink/70 focus:border-navy focus:outline-none">
+                <option value="">Statut : tous</option>
+                <option value="site">Relance site</option>
+                <option value="pause">En pause</option>
+                <option value="actif">Non gelées</option>
+            </select>
+            <span class="text-xs text-ink/55"><span data-role="compteur-visibles">{{ factures|length }}</span> / {{ factures|length }} factures</span>
+        </div>
+    </div>
+
+    {# Liste des cartes. #}
+    <div class="space-y-1.5 px-3 py-3">
+        {% for f in factures %}
+            {% set gel = gels[f.ecriture_id]|default(null) %}
+            <div class="facture-carte cursor-pointer select-none rounded-lg border border-hairline bg-white px-3 py-2.5 {{ gel and gel.site ? 'ring-1 ring-navy/20' : '' }}"
+                 data-action="click->factures-panel#toggleCarte"
+                 data-statut="{{ gel ? (gel.site ? 'site' : 'pause') : 'actif' }}"
+                 data-search="{{ (f.numpiece ~ ' ' ~ (f.reference_facture ?: '') ~ ' ' ~ f.montant_solde ~ ' ' ~ (f.montant_solde|number_format(2, ',', ' ')) ~ ' ' ~ (f.codeetab ?: ''))|lower }}">
+                <div class="flex items-start gap-2">
+                    <input type="checkbox" name="ecritures[]" value="{{ f.ecriture_id }}" data-action="change->factures-panel#majSelection" class="mt-1 shrink-0">
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-start justify-between gap-2">
+                            <span class="mono break-words text-xs font-semibold text-navy">
+                                {{ f.numpiece ?: '—' }}{% if f.reference_facture %} <span class="font-normal text-ink/55">· réf {{ f.reference_facture }}</span>{% endif %}
+                            </span>
+                            <span class="shrink-0 whitespace-nowrap text-sm font-bold text-navy">{{ f.montant_solde|number_format(2, ',', ' ') }} €</span>
+                        </div>
+                        <div class="mt-1 flex items-center justify-between gap-2">
+                            <span class="truncate text-[0.7rem] text-ink/55">éch. {{ f.date_echeance ? f.date_echeance|date('d/m/Y') : '—' }} · retard {{ f.retard ?: '—' }} · Ét. {{ f.codeetab ?: '—' }}</span>
+                            <span class="flex shrink-0 items-center gap-2">
+                                {% if f.chemin_pdf %}
+                                    <a href="{{ f.chemin_pdf }}" target="_blank" rel="noopener" title="Ouvrir le PDF de la facture (Progiciel)" aria-label="Ouvrir le PDF"
+                                       class="text-navy/45 transition hover:text-navy">
+                                        <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                                    </a>
+                                {% endif %}
+                                <button type="button" data-action="factures-panel#ouvrirMessage"
+                                        data-factures-panel-ecriture-param="{{ f.ecriture_id }}"
+                                        data-factures-panel-piece-param="{{ f.numpiece }}"
+                                        data-factures-panel-note-param="{{ gel ? gel.noteSite : '' }}"
+                                        data-factures-panel-cadence-param="{{ cadences[f.codeetab]|default('2s') }}"
+                                        class="rounded-md border border-navy/30 px-2 py-0.5 text-[0.7rem] font-semibold text-navy transition {{ gel and gel.site ? 'hover:bg-navy/5' : 'hover:bg-navy hover:text-white' }}">
+                                    {{ gel and gel.site ? 'Modifier le message' : 'Relance site' }}
+                                </button>
+                            </span>
+                        </div>
+                        {% if gel and gel.site %}
+                            <div class="mt-1.5 flex items-start gap-1.5 rounded-md bg-navy/5 px-2 py-1 text-[0.7rem]">
+                                <span class="shrink-0 rounded-full bg-navy/10 px-1.5 font-semibold text-navy">Site</span>
+                                <span class="italic text-ink/70">{{ gel.noteSite ?: '(sans message)' }}</span>
+                            </div>
+                        {% elseif gel %}
+                            <div class="mt-1.5 text-[0.7rem] font-semibold text-ink/45">En pause (pas de relance)</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    {# Barre d'actions groupees collante (uniquement les actions SANS message).
+       Fond OPAQUE (sinon les cartes defilent en transparence derriere). #}
+    <div class="sticky bottom-0 z-20 flex items-center justify-between gap-2 border-t border-hairline bg-white px-3 py-2.5 shadow-[0_-2px_6px_rgba(0,0,0,0.05)]">
+        <label class="flex items-center gap-1.5 text-xs text-ink/60">
+            <input type="checkbox" data-action="change->factures-panel#toutCocher"> Tout cocher
+            <span class="ml-1 text-ink/45">· <span data-role="compteur-selection">0</span> sél.</span>
+        </label>
+        <div class="flex items-center gap-1.5">
+            <button type="button" data-role="action-groupee" disabled data-action="factures-panel#configurer" data-factures-panel-action-param="ne_pas_relancer"
+                    class="rounded-md border border-ink/25 bg-white px-2.5 py-1 text-xs font-semibold text-ink/70 transition hover:bg-ink/5 disabled:cursor-not-allowed disabled:opacity-40">Ne pas relancer</button>
+            <button type="button" data-role="action-groupee" disabled data-action="factures-panel#configurer" data-factures-panel-action-param="degel"
+                    class="rounded-md border border-positive/40 bg-white px-2.5 py-1 text-xs font-semibold text-positive transition hover:bg-positive/10 disabled:cursor-not-allowed disabled:opacity-40">Réactiver</button>
+        </div>
+    </div>
+
+    {# Modal "message au site" (relance site). Enregistrer = mise en relance site. #}
+    <div data-role="msg-modal" class="hidden fixed inset-0 z-[70] flex items-center justify-center p-4">
+        <div data-action="factures-panel#fermerMessage" class="absolute inset-0 bg-navy-deep/40"></div>
+        <div class="relative w-full max-w-md rounded-lg border border-hairline bg-white p-4 shadow-2xl shadow-navy/30">
+            <h3 class="text-sm font-bold text-navy">Relance site — <span data-role="msg-titre" class="mono font-semibold"></span></h3>
+            <p class="mt-0.5 text-xs text-ink/55">Ce message part au site avec la facture. Il est <strong>obligatoire</strong> : dites au site quoi faire.</p>
+            <textarea data-role="msg-input" data-action="input->factures-panel#validerMessage" rows="4"
+                      placeholder="ex. avoir en attente, à valider avec M. Durand — ne pas régler avant retour de notre part…"
+                      class="mt-2 w-full rounded-md border border-hairline px-2.5 py-2 text-sm text-ink transition focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/15"></textarea>
+
+            {# Cadence de relance du SITE (niveau dossier : s'applique à tout le site,
+               groupée et toujours le lundi). Libellés alignés sur DemandeSite::CADENCES. #}
+            <label class="mt-3 block text-xs font-semibold text-ink/60">
+                Cadence de relance du site
+                <span class="font-normal text-ink/45">· groupée, toujours le lundi · vaut pour tout ce site</span>
+            </label>
+            <select data-role="msg-cadence"
+                    class="mt-1 w-full rounded-md border border-hairline px-2.5 py-2 text-sm text-ink transition focus:border-navy focus:outline-none">
+                <option value="1s">Chaque lundi</option>
+                <option value="2s">Un lundi sur deux</option>
+                <option value="3s">Un lundi sur trois</option>
+                <option value="4s">Un lundi sur quatre</option>
+                <option value="mois">Premier lundi du mois</option>
+            </select>
+
+            <div class="mt-3 flex items-center justify-end gap-2">
+                <button type="button" data-action="factures-panel#fermerMessage" class="rounded-md px-3 py-1.5 text-sm text-ink/60 transition hover:bg-surface">Annuler</button>
+                <button type="button" data-role="msg-save" data-action="factures-panel#enregistrerMessage" disabled
+                        class="rounded-md bg-navy px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-navy-light disabled:cursor-not-allowed disabled:opacity-40">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <p class="p-6 text-sm italic text-ink/50">Aucune facture en cours pour ce client.</p>
+{% endif %}
+</div>

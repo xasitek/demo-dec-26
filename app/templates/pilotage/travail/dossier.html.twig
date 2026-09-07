@@ -1,0 +1,344 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}{{ id }} — dossier{% endblock %}
+{% block page_title %}Mes créances à traiter{% endblock %}
+{% block topbar_nav %}{% include 'pilotage/travail/_nav.html.twig' with { active: 'files' } %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1500px]">
+
+  {# ---------------------------------------------------- l'identite du dossier #}
+  <section class="mb-3 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="mb-2 flex flex-wrap items-center gap-2 text-[12.5px]">
+      <a href="{{ path('app_travail', file ? {file: file} : {}) }}"
+         class="font-semibold text-ink/50 hover:text-navy">← Mes créances</a>
+      <span class="text-ink/30">›</span>
+      <span class="rounded bg-navy/5 px-2 py-0.5 font-mono text-[11.5px] font-semibold text-navy">
+        {{ type }} {{ id }}
+      </span>
+      <span class="ml-auto text-[11px] text-ink/45">ouvert en {{ ms|number_format(0, ',', ' ') }} ms</span>
+    </div>
+
+    <div class="flex flex-wrap items-start gap-4">
+      <div class="min-w-[16rem]">
+        <h3 class="text-lg font-bold text-navy">{{ dossier.client_nom ?: dossier.client_id ?: id }}</h3>
+        <p class="text-[11.5px] text-ink/55">
+          {% if dossier.client_id %}Compte <b class="font-mono">{{ dossier.client_id }}</b>{% endif %}
+          {%- if dossier.client_type %} · {{ dossier.client_type }}{% endif %}
+          {%- if dossier.etablissement_nom is defined and dossier.etablissement_nom %}
+            · {{ dossier.etablissement_nom }}{% elseif dossier.etablissement_id %}
+            · {{ dossier.etablissement_id }}{% endif %}
+        </p>
+      </div>
+      <div class="min-w-[10rem]">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Montant</div>
+        <div class="font-mono text-xl font-bold text-ink">
+          {{ dossier.montant|number_format(2, ',', ' ') }} <span class="text-xs text-gold">€</span>
+        </div>
+      </div>
+      {% if dossier.echeance %}
+        <div class="min-w-[10rem]">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Échéance</div>
+          <div class="text-[13px] font-semibold">{{ dossier.echeance|date('d/m/Y') }}</div>
+          {% if dossier.retard is defined and dossier.retard > 0 %}
+            <div class="text-[11.5px] font-semibold {{ dossier.retard > 90 ? 'text-negative' : 'text-warning' }}">
+              {{ dossier.retard }} jours de retard</div>
+          {% endif %}
+        </div>
+      {% endif %}
+      {% if dossier.cause %}
+        <div class="min-w-[14rem] flex-1">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">
+            {{ type == 'facture' ? "Cause d'ouverture" : 'État' }}
+          </div>
+          <div class="text-[12.5px] font-semibold">
+            {{ causes[dossier.cause] is defined ? causes[dossier.cause].libelle : dossier.cause }}
+          </div>
+          {% if causes[dossier.cause] is defined %}
+            <div class="text-[11.5px] leading-snug text-ink/60">{{ causes[dossier.cause].suite }}</div>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+
+    {% for message in app.flashes('fait') %}
+      <p class="mt-2 rounded-lg border border-positive/40 bg-positive/5 px-3 py-2 text-[12.5px]
+                font-semibold text-positive">{{ message }}</p>
+    {% endfor %}
+  </section>
+
+  {# ---------------------------------------------------- les gestes, en haut #}
+  <section class="mb-3 rounded-xl border-2 border-navy/30 bg-navy/[0.03] p-4 shadow-sm">
+    <div class="mb-2 flex flex-wrap items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-navy">Ce que je peux faire ici</h3>
+      <span class="ml-auto text-[11px] text-ink/50">
+        l'outil 6 oriente le travail ; la décision est prise et journalisée par le module qui l'exécute
+      </span>
+    </div>
+    <div class="grid gap-2 lg:grid-cols-2">
+      {% for a in actions %}
+        <div class="rounded-xl border bg-white p-3
+                    {{ a.nature == 'preparee' ? 'border-dashed border-ink/30' : 'border-hairline' }}">
+          <div class="mb-1 flex flex-wrap items-baseline gap-2">
+            <span class="text-[13px] font-bold
+                         {{ a.nature == 'preparee' ? 'text-ink/45'
+                          : a.teinte == 'positive' ? 'text-positive'
+                          : a.teinte == 'gold' ? 'text-gold'
+                          : a.teinte == 'warning' ? 'text-warning' : 'text-ink/75' }}">
+              {{ a.libelle }}
+            </span>
+            {% if a.module %}
+              <span class="rounded bg-ink/5 px-1.5 font-mono text-[10px] text-ink/50">{{ a.module }}</span>
+            {% endif %}
+            {% if a.nature == 'preparee' %}
+              <span class="rounded bg-warning/10 px-1.5 py-0.5 text-[10px] font-bold uppercase
+                           tracking-wider text-warning">module en cours de construction</span>
+            {% elseif a.nature == 'execution' %}
+              <span class="rounded bg-positive/10 px-1.5 py-0.5 text-[10px] font-bold uppercase
+                           tracking-wider text-positive">exécuté dans {{ a.module }}</span>
+            {% endif %}
+          </div>
+          <p class="mb-2 text-[11.5px] leading-relaxed text-ink/65">{{ a.effet }}</p>
+
+          {% if a.nature == 'annotation' %}
+            <form method="post" action="{{ path('app_travail_geste') }}">
+              <input type="hidden" name="type" value="note">
+              <input type="hidden" name="objet_type" value="{{ type }}">
+              <input type="hidden" name="objet_id" value="{{ id }}">
+              <input type="hidden" name="file" value="{{ file }}">
+              <textarea name="note" rows="2" maxlength="400" required
+                        placeholder="Ce que le prochain comptable doit savoir…"
+                        class="mb-2 w-full rounded-lg border border-hairline px-2 py-1.5 text-[12px]"></textarea>
+              <button type="submit"
+                      class="w-full rounded-lg bg-navy px-3 py-2 text-[12.5px] font-semibold
+                             text-white hover:bg-navy-deep">Consigner la note</button>
+            </form>
+
+          {% elseif a.url %}
+            <a href="{{ a.url }}"
+               class="block w-full rounded-lg px-3 py-2 text-center text-[12.5px] font-semibold
+                      text-white transition
+                      {{ a.teinte == 'positive' ? 'bg-positive hover:opacity-90'
+                       : a.teinte == 'ink' ? 'bg-ink/60 hover:bg-ink' : 'bg-navy hover:bg-navy-deep' }}">
+              {{ a.libelle }} →
+            </a>
+
+          {% else %}
+            {# Rien a cliquer : le module n'existe pas encore. On ne simule pas
+               son execution, et on n'inscrit rien comme fait. Le comptable peut
+               en revanche consigner une note, qui restera l'unique trace
+               honnete de son intention. #}
+            <div class="rounded-lg border border-dashed border-ink/25 bg-surface px-3 py-2
+                        text-[11.5px] leading-relaxed text-ink/55">
+              {% if a.niveaux %}
+                Paliers prévus : <b>{{ a.niveaux|join(', ') }}</b>.
+                {% for n in a.niveaux %}<span class="mt-0.5 block text-[11px]">
+                  <b>{{ n }}</b> — {{ niveaux[n] }}</span>{% endfor %}
+              {% endif %}
+              <span class="mt-1 block font-semibold text-ink/65">
+                {{ a.module }} n'est pas encore construit. Aucune exécution n'est simulée et
+                rien n'est journalisé comme fait.
+              </span>
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <div class="mb-3 grid gap-3 lg:grid-cols-3">
+    {# ------------------------------------------------ la situation du compte #}
+    {% if situation is not empty %}
+      <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+        <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">Situation du compte</h3>
+        <table class="fc-table-comptable w-full">
+          <tbody>
+            <tr><td class="text-[12px]">Créances recensées</td>
+              <td class="text-right font-mono text-[12px] font-semibold">{{ situation.creances }}</td></tr>
+            <tr><td class="text-[12px]">Encore ouvertes</td>
+              <td class="text-right font-mono text-[12px] font-semibold text-warning">
+                {{ situation.ouvert|number_format(2, ',', ' ') }} €</td></tr>
+            <tr><td class="text-[12px]">Soldées par la chaîne</td>
+              <td class="text-right font-mono text-[12px] font-semibold text-positive">
+                {{ situation.solde_par_chaine|number_format(2, ',', ' ') }} €</td></tr>
+            <tr><td class="text-[12px]">Échu</td>
+              <td class="text-right font-mono text-[12px]">{{ situation.echu|number_format(2, ',', ' ') }} €</td></tr>
+            <tr><td class="text-[12px]">À échoir</td>
+              <td class="text-right font-mono text-[12px]">{{ situation.a_echoir|number_format(2, ',', ' ') }} €</td></tr>
+            <tr><td class="text-[12px]">Solde comptable du compte 411x</td>
+              <td class="text-right font-mono text-[12px] font-bold
+                         {{ situation.solde_comptable < 0 ? 'text-negative' : '' }}">
+                {{ situation.solde_comptable|number_format(2, ',', ' ') }} €</td></tr>
+            <tr><td class="text-[12px]">Présent sur</td>
+              <td class="text-right font-mono text-[12px]">{{ situation.etablissements }} établissement{{ situation.etablissements > 1 ? 's' }}</td></tr>
+          </tbody>
+        </table>
+        {% if situation.plus_ancienne %}
+          <p class="mt-2 text-[11px] text-ink/50">
+            Plus ancienne échéance {{ situation.plus_ancienne|date('d/m/Y') }} ·
+            plus récente {{ situation.plus_recente|date('d/m/Y') }}
+          </p>
+        {% endif %}
+      </section>
+    {% endif %}
+
+    {# ------------------------------------------------ pourquoi ce dossier est la #}
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">Ce que la chaîne en sait</h3>
+      <table class="fc-table-comptable w-full">
+        <tbody>
+          {% for cle, valeur in dossier %}
+            {% if valeur is not null and valeur != '' and cle not in
+                 ['id', 'nature', 'client_nom', 'client_id', 'montant', 'client_type'] %}
+              <tr>
+                <td class="text-[11.5px] text-ink/55">{{ cle|replace({'_': ' '}) }}</td>
+                <td class="text-right font-mono text-[11.5px]">
+                  {% if valeur is same as(true) %}oui
+                  {% elseif valeur is same as(false) %}non
+                  {% else %}{{ valeur|slice(0, 46) }}{{ valeur|length > 46 ? '…' }}{% endif %}
+                </td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="mt-2 text-[11px] leading-relaxed text-ink/45">
+        Ces champs viennent des tables de décision des outils 4, 5 et 6. Rien n'est ressaisi ici :
+        ce que le comptable lit est ce que le moteur a écrit.
+      </p>
+    </section>
+
+    {# ------------------------------------------------ l'historique #}
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">Historique du dossier</h3>
+      {% if historique is empty %}
+        <p class="rounded-lg border border-hairline bg-surface px-3 py-4 text-center text-[12px] text-ink/50">
+          Aucun geste posé pour l'instant. Le premier créera l'historique.
+        </p>
+      {% else %}
+        <ol class="space-y-2">
+          {% for h in historique %}
+            <li class="rounded-lg border border-hairline bg-surface px-3 py-2">
+              <div class="flex flex-wrap items-baseline gap-2">
+                <b class="text-[12.5px]">{{ catalogue[h.type].libelle|default(h.type) }}</b>
+                {% if h.niveau %}
+                  <span class="rounded bg-warning/15 px-1.5 text-[10.5px] font-bold text-warning">{{ h.niveau }}</span>
+                {% endif %}
+                <span class="ml-auto font-mono text-[10.5px] text-ink/45">
+                  {{ h.fait_le|date('d/m/Y à H\\hi') }}</span>
+              </div>
+              <div class="text-[11px] text-ink/55">par {{ h.auteur }}
+                {%- if h.file %} · depuis la file « {{ h.file|replace({'_': ' '}) }} »{% endif %}</div>
+              {% if h.note %}
+                <p class="mt-1 text-[11.5px] italic leading-snug text-ink/70">« {{ h.note }} »</p>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ol>
+      {% endif %}
+    </section>
+  </div>
+
+  {# ------------------------------------------------ les creances du compte #}
+  {% if creances is not empty %}
+    <section class="mb-3 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">
+        Les créances de ce compte
+      </h3>
+      <div class="overflow-x-auto">
+        <table class="fc-table-comptable w-full">
+          <thead><tr><th>Créance</th><th>Établissement</th><th>Échéance</th>
+            <th class="text-right">Retard</th><th class="text-right">Montant</th>
+            <th>Cause</th><th>État</th><th class="text-right">Ouvrir</th></tr></thead>
+          <tbody>
+            {% for c in creances %}
+              <tr class="{{ c.facture_id == id ? 'bg-navy/5 font-semibold' : '' }}">
+                <td class="font-mono text-[11.5px]">{{ c.facture_id }}</td>
+                <td class="text-[11.5px] text-ink/60">{{ c.etablissement_id }}</td>
+                <td class="text-[11.5px] text-ink/60">{{ c.echeance|date('d/m/Y') }}</td>
+                <td class="text-right font-mono text-[11.5px]
+                           {{ c.retard > 90 ? 'text-negative' : c.retard > 30 ? 'text-warning' : 'text-ink/55' }}">
+                  {{ c.retard > 0 ? c.retard ~ ' j' : '—' }}</td>
+                <td class="text-right font-mono text-[12px]">{{ c.montant|number_format(2, ',', ' ') }} €</td>
+                <td class="text-[11px] text-ink/60">
+                  {{ causes[c.cause] is defined ? causes[c.cause].libelle : c.cause }}</td>
+                <td>
+                  {% if c.soldee_par_suite %}
+                    <span class="rounded bg-positive/10 px-1.5 py-0.5 text-[10.5px] font-semibold text-positive">
+                      soldée par {{ c.soldee_par }}</span>
+                  {% else %}
+                    <span class="rounded bg-warning/10 px-1.5 py-0.5 text-[10.5px] font-semibold text-warning">
+                      ouverte</span>
+                  {% endif %}
+                </td>
+                <td class="text-right">
+                  <a href="{{ path('app_travail_dossier', {type: 'facture', id: c.facture_id, file: file}) }}"
+                     class="text-[11.5px] font-semibold text-navy hover:underline">Ouvrir →</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+
+  {# ------------------------------------------------ les ecritures du compte #}
+  {% if ecritures is not empty %}
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <div class="mb-3 flex flex-wrap items-baseline gap-2">
+        <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">
+          Les écritures du compte client
+        </h3>
+        <span class="ml-auto text-[11px] text-ink/45">
+          c'est le niveau où une question de lettrage se tranche
+        </span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="fc-table-comptable w-full">
+          <thead><tr><th>Écriture</th><th>Date</th><th>Compte</th><th>Jrn</th>
+            <th>Référence</th><th>Immat / VIN</th>
+            <th class="text-right">Débit</th><th class="text-right">Crédit</th><th>Lettrage</th></tr></thead>
+          <tbody>
+            {% set d = 0 %}{% set c = 0 %}
+            {% for e in ecritures %}
+              {% if e.sens == 'D' %}{% set d = d + e.montant %}{% else %}{% set c = c + e.montant %}{% endif %}
+              <tr>
+                <td class="font-mono text-[11px]">{{ e.id }}</td>
+                <td class="text-[11.5px] text-ink/60">{{ e.date_ecriture|date('d/m/Y') }}</td>
+                <td class="font-mono text-[11px]">{{ e.compte }}</td>
+                <td class="font-mono text-[11px] text-ink/50">{{ e.journal }}</td>
+                <td class="font-mono text-[11px] text-ink/60">{{ e.reference_piece ?: '—' }}</td>
+                <td class="font-mono text-[11px] text-ink/60">{{ e.immatriculation ?: (e.vin8 ?: '—') }}</td>
+                <td class="text-right font-mono text-[11.5px]">
+                  {{ e.sens == 'D' ? e.montant|number_format(2, ',', ' ') ~ ' €' : '' }}</td>
+                <td class="text-right font-mono text-[11.5px] text-navy">
+                  {{ e.sens == 'C' ? e.montant|number_format(2, ',', ' ') ~ ' €' : '' }}</td>
+                <td>
+                  {% if e.lot_demo %}
+                    <span class="rounded bg-positive/10 px-1.5 py-0.5 text-[10.5px] font-semibold text-positive">
+                      lot {{ e.lot_demo }}</span>
+                  {% elseif e.lettrage %}
+                    <span class="font-mono text-[10.5px] text-ink/50">{{ e.lettrage }}</span>
+                  {% else %}
+                    <span class="rounded bg-warning/10 px-1.5 py-0.5 text-[10.5px] font-semibold text-warning">
+                      non lettré</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+            <tr class="border-t-2 border-ink/20 font-semibold">
+              <td colspan="6" class="text-[12px]">Total des {{ ecritures|length }} lignes affichées</td>
+              <td class="text-right font-mono text-[12px]">{{ d|number_format(2, ',', ' ') }} €</td>
+              <td class="text-right font-mono text-[12px]">{{ c|number_format(2, ',', ' ') }} €</td>
+              <td class="font-mono text-[11.5px] {{ (d - c) < 0 ? 'text-negative' : '' }}">
+                solde {{ (d - c)|number_format(2, ',', ' ') }} €</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endif %}
+
+</div>
+{% endblock %}

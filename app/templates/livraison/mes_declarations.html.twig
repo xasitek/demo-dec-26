@@ -1,0 +1,62 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Mes déclarations - Finance Créances{% endblock %}
+{% block page_title %}Livraison{% endblock %}
+{% block topbar_nav %}{% include '_secretaire_topbar.html.twig' with { active: 'mes_declarations' } only %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-4xl">
+
+    {% for message in app.flashes('success') %}
+        <div class="mb-4 rounded-lg border border-positive/30 bg-positive/10 px-4 py-2.5 text-sm font-medium text-positive">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div class="mb-4 rounded-lg border border-negative/30 bg-negative/10 px-4 py-2.5 text-sm text-negative">{{ message }}</div>
+    {% endfor %}
+
+    <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+            <h1 class="text-xl font-bold text-navy">Mes déclarations</h1>
+            <p class="mt-0.5 text-sm text-ink/55">Les livraisons que vous avez déclarées, les plus récentes d'abord.</p>
+        </div>
+        <a href="{{ path('app_livraison_declarer') }}" class="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-deep">Déclarer une livraison</a>
+    </div>
+
+    {% if declarations is empty %}
+        <div class="rounded-xl border border-dashed border-hairline bg-white/60 px-5 py-12 text-center">
+            <p class="text-sm font-semibold text-navy">Aucune déclaration pour l'instant.</p>
+            <p class="mt-1 text-sm text-ink/55">Vos déclarations apparaîtront ici dès votre premier dépôt.</p>
+        </div>
+    {% else %}
+        <div class="overflow-hidden rounded-xl border border-hairline bg-white shadow-sm">
+            <table class="fc-table-comptable w-full">
+                <thead>
+                    <tr>
+                        <th class="text-left">Véhicule</th>
+                        <th class="text-left">Loueur</th>
+                        <th class="text-left">Établissement</th>
+                        <th class="text-left">Pièces</th>
+                        <th class="text-left">Déclarée le</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in declarations %}
+                        <tr>
+                            <td class="font-mono font-semibold text-navy">
+                                {{ d.libelleVehicule }}
+                                {% if d.immatriculation is null %}
+                                    <span class="ml-1 rounded bg-gold/15 px-1.5 py-0.5 text-[11px] font-semibold text-ink/60" title="Véhicule facturé avant immatriculation">non immat.</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ d.loueur }}</td>
+                            <td class="text-ink/70">{{ d.codeEtab }}</td>
+                            <td class="text-ink/70">{{ d.pieces|length }} / 3</td>
+                            <td class="text-ink/70">{{ d.declareeLe|date('d/m/Y à H:i') }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

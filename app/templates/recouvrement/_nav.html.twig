@@ -1,0 +1,30 @@
+{# Navigation principale du module Recouvrement (niveau 1) : Retours / Courriers.
+   Partagee par les deux ecrans pour une nav coherente.
+   Params : active ('retours'|'courriers'), nb_retours, nb_courriers. #}
+<div class="inline-flex rounded-md border border-hairline bg-white p-1">
+    {% if active == 'retours' %}
+        <span class="inline-flex items-center gap-2 rounded bg-navy px-4 py-1.5 text-sm font-medium text-white">
+            Retours <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-white/20 px-1.5 text-xs font-semibold">{{ nb_retours|number_format(0, ',', ' ') }}</span>
+        </span>
+    {% else %}
+        <a href="{{ path('app_recouvrement_index') }}" class="inline-flex items-center gap-2 rounded px-4 py-1.5 text-sm font-medium text-ink/70 transition hover:text-navy">
+            Retours <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-surface px-1.5 text-xs font-semibold text-ink/60">{{ nb_retours|number_format(0, ',', ' ') }}</span>
+        </a>
+    {% endif %}
+
+    {% if active == 'relancer' %}
+        <span class="inline-flex items-center gap-2 rounded bg-navy px-4 py-1.5 text-sm font-medium text-white">Relancer</span>
+    {% else %}
+        <a href="{{ path('app_recouvrement_relancer') }}" class="inline-flex items-center gap-2 rounded px-4 py-1.5 text-sm font-medium text-ink/70 transition hover:text-navy">Relancer</a>
+    {% endif %}
+
+    {% if active == 'courriers' %}
+        <span class="inline-flex items-center gap-2 rounded bg-navy px-4 py-1.5 text-sm font-medium text-white">
+            Courriers <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-white/20 px-1.5 text-xs font-semibold">{{ nb_courriers|number_format(0, ',', ' ') }}</span>
+        </span>
+    {% else %}
+        <a href="{{ path('app_recouvrement_courriers') }}" class="inline-flex items-center gap-2 rounded px-4 py-1.5 text-sm font-medium text-ink/70 transition hover:text-navy">
+            Courriers <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-surface px-1.5 text-xs font-semibold text-ink/60">{{ nb_courriers|number_format(0, ',', ' ') }}</span>
+        </a>
+    {% endif %}
+</div>

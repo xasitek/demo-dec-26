@@ -1,0 +1,34 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Statistiques - Recouvrement - Finance Créances{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+{% block topbar_nav %}{% include 'recouvrement/_topbar_nav.html.twig' with {active: 'stats'} %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full px-3">
+
+    <h1 class="mb-3 text-2xl font-bold text-navy">Statistiques</h1>
+    <p class="mb-5 max-w-2xl text-sm text-ink/60">Vue de suivi du recouvrement. D'autres indicateurs (taux de réponse, encours relancé, délais) viendront enrichir cet écran.</p>
+
+    {% set tuiles = [
+        {label: 'Retours à traiter', valeur: retours_a_traiter, accent: 'navy'},
+        {label: 'Relances envoyées', valeur: relances_envoyees, accent: 'navy'},
+        {label: 'Courriers à envoyer', valeur: courriers_a_envoyer, accent: 'gold'},
+        {label: 'Courriers envoyés', valeur: courriers_envoyes, accent: 'gold'},
+        {label: 'Comptes relançables', valeur: comptes_relancables, accent: 'positive'},
+        {label: 'Comptes écartés', valeur: comptes_ecartes, accent: 'negative'},
+    ] %}
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {% for t in tuiles %}
+            <div class="fc-elev rounded-md border border-hairline bg-white p-5">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-ink/55">{{ t.label }}</div>
+                <div class="mt-1 text-3xl font-bold tabular-nums
+                    {{ t.accent == 'positive' ? 'text-positive' : (t.accent == 'negative' ? 'text-negative' : (t.accent == 'gold' ? 'text-gold-dark' : 'text-navy')) }}">
+                    {{ t.valeur|number_format(0, ',', ' ') }}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

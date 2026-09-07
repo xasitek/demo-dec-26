@@ -1,0 +1,101 @@
+{% import '_ui.html.twig' as ui %}
+{% set labels = roles_metier|merge(roles_eleves) %}
+{% for u in users %}
+    {% set est_eleve = u.roles|filter(r => r in roles_eleves|keys)|length > 0 %}
+    {% set modifiable = not est_eleve or is_granted('ROLE_SUPER_ADMIN') %}
+    <div class="rounded-lg border border-hairline bg-white px-4 py-3">
+        <div class="flex flex-wrap items-center gap-3">
+            {% if u.avatarUrl %}
+                <img src="{{ u.avatarUrl }}" alt="" class="h-9 w-9 rounded-full object-cover" referrerpolicy="no-referrer">
+            {% else %}
+                <span class="flex h-9 w-9 items-center justify-center rounded-full bg-navy text-xs font-bold text-gold">{{ u.firstName|first|upper }}{{ u.lastName|first|upper }}</span>
+            {% endif %}
+            <div class="min-w-0">
+                <p class="font-semibold text-navy">
+                    {{ u.fullName }}
+                    {% if u.id == app.user.id %}<span class="ml-1 rounded bg-gold/20 px-1.5 py-0.5 text-xs font-medium text-gold-dark">Vous</span>{% endif %}
+                    {% if not u.isActive %}<span class="ml-1 rounded bg-negative/10 px-1.5 py-0.5 text-xs font-medium text-negative">Désactivé</span>{% endif %}
+                </p>
+                <p class="text-sm text-ink/60">{{ u.email }}</p>
+            </div>
+            <div class="ml-auto flex flex-wrap items-center justify-end gap-1.5">
+                {% set metier = u.roles|filter(r => r != 'ROLE_USER') %}
+                {% if metier is empty %}
+                    <span class="rounded-full bg-surface px-2.5 py-1 text-xs font-medium text-ink/50">Non habilité</span>
+                {% else %}
+                    {% for r in metier %}
+                        <span class="rounded-full bg-navy/5 px-2.5 py-1 text-xs font-medium text-navy">{{ labels[r]|default(r) }}</span>
+                    {% endfor %}
+                {% endif %}
+                {% if u.poleComptable %}
+                    <span class="rounded-full bg-gold/15 px-2.5 py-1 text-xs font-medium text-gold-dark">Pôle : {{ u.poleComptable.libelle }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-hairline pt-2 text-xs text-ink/50">
+            <span>Créé le {{ u.createdAt|date('d/m/Y') }}</span>
+            <span>Dernière connexion : {{ u.lastLoginAt ? u.lastLoginAt|date('d/m/Y H:i') : 'jamais' }}</span>
+
+            <a href="{{ path('app_admin_activite', { user: u.id }) }}" class="flex items-center gap-1 font-medium text-navy hover:underline">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 2"/><circle cx="12" cy="12" r="9"/></svg>
+                Journal d'activité
+            </a>
+
+            {% if modifiable %}
+                <details class="ml-auto">
+                    <summary class="cursor-pointer font-medium text-navy hover:underline">Modifier les rôles</summary>
+                    <form method="post" action="{{ path('app_admin_users_roles', { id: u.id }) }}" class="mt-3 w-full"
+                          data-controller="pole-toggle" data-action="change->pole-toggle#refresh">
+                        <input type="hidden" name="_token" value="{{ csrf_token('roles' ~ u.id) }}">
+                        <div class="flex flex-wrap gap-2">
+                            {# Roles eleves (Administrateur / Super administrateur) volontairement
+                               non modifiables ici : geres uniquement en CLI (app:user:promote)
+                               pour eviter les mauvaises manips. Ils restent visibles en badge. #}
+                            {% for role, label in roles_metier %}
+                                <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-hairline px-3 py-1.5 text-sm text-ink transition has-[:checked]:border-navy has-[:checked]:bg-navy has-[:checked]:text-white">
+                                    <input type="checkbox" name="roles[]" value="{{ role }}" class="accent-navy" {{ role in u.roles ? 'checked' }}{% if role == 'ROLE_COMPTABLE' %} data-pole-toggle-target="comptable"{% endif %}>{{ label }}
+                                </label>
+                            {% endfor %}
+                        </div>
+                        {# Pole : uniquement pour un comptable (affiche par pole-toggle). #}
+                        <div data-pole-toggle-target="pole" hidden class="mt-3">
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-ink/50">Pôle du comptable</label>
+                            {{ ui.fc_select('pole', poles, u.poleComptable ? u.poleComptable.value : 'general', false) }}
+                        </div>
+                        <button type="submit" class="mt-3 block rounded-lg bg-navy px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-navy-light">Enregistrer</button>
+                    </form>
+                </details>
+
+                <details class="ml-auto">
+                    <summary class="cursor-pointer font-medium text-navy hover:underline">Modifier les modules</summary>
+                    <form method="post" action="{{ path('app_admin_users_modules', { id: u.id }) }}" class="mt-3 w-full">
+                        <input type="hidden" name="_token" value="{{ csrf_token('modules' ~ u.id) }}">
+                        <p class="mb-2 text-xs text-ink/50">Modules accessibles + notifications reçues (les admins voient tout).</p>
+                        <div class="flex flex-wrap gap-2">
+                            {% for m in modules_dispo %}
+                                <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-hairline px-3 py-1.5 text-sm text-ink transition has-[:checked]:border-navy has-[:checked]:bg-navy has-[:checked]:text-white">
+                                    <input type="checkbox" name="modules[]" value="{{ m.value }}" class="accent-navy" {{ m.value in u.modules ? 'checked' }}>{{ m.libelle }}
+                                </label>
+                            {% endfor %}
+                        </div>
+                        <button type="submit" class="mt-3 block rounded-lg bg-navy px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-navy-light">Enregistrer</button>
+                    </form>
+                </details>
+            {% endif %}
+
+            {% if u.id != app.user.id and modifiable %}
+                <form method="post" action="{{ path('app_admin_users_toggle', { id: u.id }) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('toggle' ~ u.id) }}">
+                    <button type="submit" class="font-medium {{ u.isActive ? 'text-negative' : 'text-positive' }} hover:underline">
+                        {{ u.isActive ? 'Désactiver' : 'Réactiver' }}
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+{% else %}
+    <div class="rounded-xl border border-hairline bg-white p-10 text-center">
+        <p class="text-ink/70">Aucun utilisateur ne correspond à la recherche.</p>
+    </div>
+{% endfor %}

@@ -1,0 +1,68 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Boîte à idées - Finance Créances{% endblock %}
+{% block page_title %}Boîte à idées{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl" data-controller="suggestion-mur">
+
+    {% for message in app.flashes('success') %}
+        <div class="mb-4 rounded-lg border border-positive/30 bg-positive/10 px-4 py-3 text-sm text-positive">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div class="mb-4 rounded-lg border border-negative/30 bg-negative/10 px-4 py-3 text-sm text-negative">{{ message }}</div>
+    {% endfor %}
+
+    {# Bandeau temps reel : une idee vient d'arriver ailleurs (cf. suggestion_mur_controller). #}
+    <div data-suggestion-mur-target="bandeau" hidden class="mb-4 flex items-center justify-between rounded-lg border border-gold/40 bg-gold/10 px-4 py-2.5 text-sm text-navy">
+        <span>Une nouvelle idée vient d'être proposée.</span>
+        <button type="button" data-action="suggestion-mur#actualiser" class="font-semibold text-navy underline decoration-gold underline-offset-2">Actualiser</button>
+    </div>
+
+    <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <p class="text-sm text-ink/60">
+            {{ pluriel(total, 'idée', 'idées') }} proposée{{ total > 1 ? 's' }} par les équipes.
+            Soutenez celles qui vous feraient gagner du temps.
+        </p>
+
+        <div class="flex items-center gap-1.5">
+            {% set tris = { (constant('App\\Shared\\Repository\\SuggestionRepository::TRI_POPULAIRES')): 'Populaires', (constant('App\\Shared\\Repository\\SuggestionRepository::TRI_RECENTES')): 'Récentes' } %}
+            {% for valeur, libelle in tris %}
+                <a href="{{ path('app_suggestions_index', { tri: valeur, statut: statut ? statut.value : null }) }}"
+                   class="rounded-lg border px-3 py-1.5 text-xs font-medium transition {{ tri == valeur ? 'border-navy bg-navy text-white' : 'border-hairline text-ink/65 hover:border-navy/40 hover:text-navy' }}">{{ libelle }}</a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="mb-5 flex flex-wrap items-center gap-1.5 border-b border-hairline pb-4">
+        <a href="{{ path('app_suggestions_index', { tri: tri }) }}"
+           class="rounded-full border px-3 py-1 text-xs font-medium transition {{ statut is null ? 'border-gold bg-gold/10 text-gold-dark' : 'border-hairline text-ink/60 hover:border-navy/40 hover:text-navy' }}">Toutes</a>
+        {% for valeur, libelle in statuts %}
+            <a href="{{ path('app_suggestions_index', { tri: tri, statut: valeur }) }}"
+               class="rounded-full border px-3 py-1 text-xs font-medium transition {{ statut and statut.value == valeur ? 'border-gold bg-gold/10 text-gold-dark' : 'border-hairline text-ink/60 hover:border-navy/40 hover:text-navy' }}">{{ libelle }}</a>
+        {% endfor %}
+    </div>
+
+    {% if suggestions is empty %}
+        <div class="rounded-xl border border-hairline bg-white p-10 text-center">
+            <p class="text-ink/70">Aucune idée pour l'instant.</p>
+            <p class="mt-1 text-sm text-ink/50">L'ampoule en bas à droite de l'écran est là pour ça, sur toutes les pages.</p>
+        </div>
+    {% else %}
+        <div data-controller="infinite-scroll"
+             data-infinite-scroll-url-value="{{ path('app_suggestions_index', { tri: tri, statut: statut ? statut.value : null }) }}"
+             data-infinite-scroll-page-value="1"
+             data-infinite-scroll-total-pages-value="{{ pages }}">
+            <div class="space-y-3" data-infinite-scroll-target="items" data-suggestion-mur-target="liste">
+                {% include 'suggestions/_liste.html.twig' %}
+            </div>
+            <p data-infinite-scroll-target="loading" class="py-4 text-center text-sm text-ink/50" style="display:none">Chargement...</p>
+            <div data-infinite-scroll-target="sentinel" class="h-1"></div>
+        </div>
+
+        <p class="mt-6 text-center text-xs text-ink/45">
+            Une idée à ajouter ? L'ampoule en bas à droite, depuis n'importe quelle page.
+        </p>
+    {% endif %}
+</div>
+{% endblock %}

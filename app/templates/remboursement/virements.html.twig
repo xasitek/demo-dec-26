@@ -1,0 +1,232 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Paiements - Remboursement{% endblock %}
+{% block page_title %}Remboursement client{% endblock %}
+{% block topbar_nav %}{% include 'remboursement/_nav.html.twig' with { active: 'virements', nbAVerifier: 0 } %}{% endblock %}
+
+{% import '_ui.html.twig' as ui %}
+{% set champ = 'w-full rounded-lg border border-hairline bg-white px-3 py-2 text-sm text-ink transition focus:border-navy focus:outline-none focus:ring-4 focus:ring-navy/10' %}
+
+{% macro entetes(select) %}
+    <thead class="border-b border-hairline bg-surface/60 text-left text-[11px] uppercase tracking-wider text-ink/45">
+        <tr>
+            {% if select %}<th class="w-10 px-4 py-2.5"><input type="checkbox" checked data-action="virement#toutCocher" title="Tout cocher / décocher" class="h-4 w-4 rounded border-hairline text-navy focus:ring-2 focus:ring-navy/30"></th>{% endif %}
+            <th class="px-4 py-2.5 font-semibold">Référence</th>
+            <th class="px-4 py-2.5 font-semibold">Client</th>
+            <th class="px-4 py-2.5 font-semibold">Établissement</th>
+            <th class="px-4 py-2.5 font-semibold">Immat / ICAR</th>
+            <th class="px-4 py-2.5 font-semibold">IBAN · BIC</th>
+            <th class="px-4 py-2.5 text-right font-semibold">Montant</th>
+            <th class="px-4 py-2.5 font-semibold">Contrôles</th>
+            <th class="px-4 py-2.5 font-semibold">Date</th>
+        </tr>
+    </thead>
+{% endmacro %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1500px]" data-controller="virement"
+     data-virement-panneau-url-value="{{ path('app_remboursement_dossier_panneau', {id: '__ID__'}) }}"
+     data-virement-zip-url-value="{{ path('app_remboursement_virements_zip') }}">
+
+    {% for message in app.flashes('info') %}<div class="mb-4 rounded-lg border border-navy/20 bg-navy/[0.04] px-4 py-2.5 text-sm text-ink/80">{{ message }}</div>{% endfor %}
+    {% for message in app.flashes('error') %}<div class="mb-4 rounded-lg border border-negative/30 bg-negative/10 px-4 py-2.5 text-sm text-negative">{{ message }}</div>{% endfor %}
+
+    <div class="mb-5">
+        <h1 class="text-xl font-bold text-navy">Paiements</h1>
+    </div>
+
+    {# Bandeau : Doublons / Anomalies (sur TOUT ce qui est en paiement) cliquables -> panneau #}
+    <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">À télécharger</div>
+            <div class="text-xl font-bold text-navy">{{ aTraiter|length }}</div>
+        </div>
+        <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Montant à payer</div>
+            <div class="text-xl font-bold text-navy">{{ total|number_format(2, ',', ' ') }} <span class="text-sm text-gold">€</span></div>
+        </div>
+        <div class="rounded-xl border px-4 py-3 shadow-sm {{ nbDoublons > 0 ? 'cursor-pointer border-amber-300 bg-amber-50 hover:bg-amber-100' : 'border-emerald-200 bg-emerald-50' }}"
+             {% if nbDoublons > 0 %}data-action="click->virement#ouvrirApercu" title="Voir les doublons"{% endif %}>
+            <div class="text-[10px] font-semibold uppercase tracking-wider {{ nbDoublons > 0 ? 'text-amber-700' : 'text-emerald-700' }}">Doublons</div>
+            <div class="text-xl font-bold {{ nbDoublons > 0 ? 'text-amber-800' : 'text-emerald-700' }}">{{ nbDoublons }}</div>
+        </div>
+        <div class="rounded-xl border px-4 py-3 shadow-sm {{ nbEcarts > 0 ? 'border-orange-300 bg-orange-50' : 'border-emerald-200 bg-emerald-50' }}"
+             title="IBAN ou montant modifié entre la saisie, la lecture de la pièce et la validation comptable (file à télécharger)">
+            <div class="text-[10px] font-semibold uppercase tracking-wider {{ nbEcarts > 0 ? 'text-orange-700' : 'text-emerald-700' }}">IBAN / montant modifié</div>
+            <div class="text-xl font-bold {{ nbEcarts > 0 ? 'text-orange-800' : 'text-emerald-700' }}">{{ nbEcarts }}</div>
+        </div>
+    </div>
+
+    {# Onglets #}
+    <div class="mb-4 inline-flex gap-1 rounded-lg border border-hairline bg-surface/50 p-1">
+        <button type="button" data-virement-target="onglet" data-onglet="atraiter" data-action="virement#changerOnglet"
+                class="inline-flex items-center gap-2 rounded-md px-4 py-1.5 text-sm font-semibold transition">
+            À télécharger <span class="rounded-full bg-amber-100 px-1.5 text-xs font-bold text-amber-800">{{ aTraiter|length }}</span>
+        </button>
+        <button type="button" data-virement-target="onglet" data-onglet="traites" data-action="virement#changerOnglet"
+                class="inline-flex items-center gap-2 rounded-md px-4 py-1.5 text-sm font-semibold transition">
+            Déjà téléchargés <span class="rounded-full bg-ink/10 px-1.5 text-xs font-bold text-ink/60">{{ totalTraites }}</span>
+        </button>
+    </div>
+
+    {# Panneau : à télécharger (form + cases à cocher pré-cochées) #}
+    <div data-virement-target="panneau" data-onglet="atraiter">
+        {% if aTraiter is not empty %}
+            <form method="post" action="{{ path('app_remboursement_virements_zip') }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('virements_zip') }}">
+                <div class="mb-3 flex flex-wrap items-center justify-end gap-3">
+                    {# Telechargeable autant de fois que voulu : la direction reprend
+                       l'archive quand elle en a besoin. L'e-mail au directeur, lui, ne
+                       part que pour les dossiers jamais telecharges (cf. VirementController). #}
+                    <button type="submit" data-action="click->virement#telecharger"
+                            class="inline-flex items-center gap-2 rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-light">
+                        <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+                        Télécharger la sélection (SEPA + OD)
+                    </button>
+                </div>
+                <div class="overflow-x-auto rounded-xl border border-hairline bg-white shadow-sm">
+                    <table class="w-full text-sm">
+                        {{ _self.entetes(true) }}
+                        <tbody>
+                            {% for groupe in aTraiterGroupes %}
+                                <tr class="border-t border-hairline bg-surface/70">
+                                    <td colspan="9" class="px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-ink/60">
+                                        {{ groupe.motif.libelle }}
+                                        <span class="ml-1.5 rounded-full bg-ink/10 px-1.5 py-0.5 text-[10px] font-bold text-ink/60">{{ groupe.dossiers|length }}</span>
+                                        <span class="ml-2 font-normal normal-case text-ink/45">{{ groupe.total|number_format(2, ',', ' ') }} €</span>
+                                    </td>
+                                </tr>
+                                {% include 'remboursement/_virements_rows.html.twig' with { dossiers: groupe.dossiers, meta: meta, etabs: etabs, traite: false, select: true, ecarts: ecarts } %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </form>
+        {% else %}
+            <p class="rounded-xl border border-hairline bg-white px-4 py-12 text-center text-sm text-ink/50">Aucun virement en attente de téléchargement.</p>
+        {% endif %}
+    </div>
+
+    {# Panneau : déjà téléchargés (recherche + filtre + scroll infini) #}
+    <div data-virement-target="panneau" data-onglet="traites" class="hidden">
+        {% set etabOptions = {'': 'Tous les établissements'} %}
+        {% for code, nom in etabs %}{% set etabOptions = etabOptions|merge({(code): nom}) %}{% endfor %}
+
+        <form method="get" class="mb-3 flex flex-wrap items-end gap-3">
+            <input type="hidden" name="onglet" value="traites">
+            <label class="min-w-[16rem] flex-1">
+                <span class="mb-1 block text-xs font-medium text-ink/55">Recherche</span>
+                <input type="search" name="q" value="{{ q }}" placeholder="Réf, client, immat, ICAR, établissement…" class="{{ champ }}"
+                       data-controller="search-debounce" data-action="input->search-debounce#submit">
+            </label>
+            <label>
+                <span class="mb-1 block text-xs font-medium text-ink/55">Établissement</span>
+                {{ ui.fc_select('etab', etabOptions, etab) }}
+            </label>
+            <noscript><button type="submit" class="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white">Filtrer</button></noscript>
+        </form>
+
+        <div class="overflow-x-auto rounded-xl border border-hairline bg-white shadow-sm"
+             data-controller="infinite-scroll"
+             data-infinite-scroll-url-value="{{ path('app_remboursement_virements', {q: q, etab: etab}) }}"
+             data-infinite-scroll-page-value="1"
+             data-infinite-scroll-total-pages-value="{{ pages }}">
+            <table class="w-full text-sm">
+                {{ _self.entetes(false) }}
+                <tbody data-infinite-scroll-target="items">{% include 'remboursement/_virements_rows.html.twig' with { dossiers: traites, meta: meta, etabs: etabs, traite: true, select: false, ecarts: ecarts } %}</tbody>
+            </table>
+            {% if traites is empty %}
+                <p class="px-4 py-10 text-center text-sm text-ink/45">Aucun fichier récupéré pour ces critères.</p>
+            {% endif %}
+            <div data-infinite-scroll-target="sentinel"></div>
+            <p data-infinite-scroll-target="loading" class="border-t border-hairline py-3 text-center text-sm text-ink/50" style="display:none">Chargement…</p>
+        </div>
+    </div>
+
+    {# Panneau glissant : dossiers en anomalie / doublon (sur TOUT ce qui est en paiement) #}
+    <aside data-virement-target="apercu" class="fixed inset-y-0 right-0 z-50 w-full max-w-md translate-x-full transform overflow-y-auto bg-white shadow-2xl shadow-navy/20 transition-transform duration-200">
+        <div class="flex items-center gap-2 border-b border-hairline px-5 py-3">
+            <h2 class="flex-1 font-semibold text-navy">Points à vérifier</h2>
+            <button type="button" data-action="virement#fermerApercu" class="rounded-md p-1.5 text-ink/55 transition hover:bg-surface hover:text-navy" aria-label="Fermer">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="space-y-5 px-5 py-5">
+            {# Doublons #}
+            <div>
+                <div class="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700">
+                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+                    Doublons ({{ nbDoublons }})
+                </div>
+                {% set aucunD = true %}
+                {% for d in tous %}{% if meta[d.id].doublon %}{% set aucunD = false %}
+                    <div data-ref="{{ d.reference }}" class="mb-2 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="font-semibold text-navy">{{ (d.valideNom ?: d.nomClient) ?: '—' }}</span>
+                            <span class="whitespace-nowrap font-mono text-xs text-ink/50"><button type="button" data-action="virement#ouvrirFiche" data-id="{{ d.id }}" class="font-mono text-navy underline decoration-dotted underline-offset-2 transition hover:decoration-solid" title="Ouvrir la fiche">{{ d.reference }}</button>{% if d.sepaTelecharge %} <span class="rounded bg-ink/10 px-1 text-[9px] uppercase text-ink/50">pris</span>{% endif %}</span>
+                        </div>
+                        <div class="mt-1 text-xs text-ink/70">{{ (d.valideMontant ?: d.montant)|number_format(2, ',', ' ') }} € · {{ etabs[d.etablissementCode]|default(d.etablissementCode) }} · {{ meta[d.id].immatIcar }}</div>
+                        <div class="mt-1.5 text-[11px] text-amber-800">Même bénéficiaire que :
+                            {% for j in meta[d.id].doublonJumeaux %}<button type="button" data-action="virement#ouvrirFiche" data-id="{{ j.id }}" class="font-mono underline decoration-dotted underline-offset-2 transition hover:decoration-solid">{{ j.reference }}</button>{% if not loop.last %}, {% endif %}{% endfor %}
+                        </div>
+                    </div>
+                {% endif %}{% endfor %}
+                {% if aucunD %}<p class="text-xs text-ink/45">Aucun doublon.</p>{% endif %}
+            </div>
+
+            {# Anomalies #}
+            <div>
+                <div class="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-red-700">
+                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                    Anomalies ({{ nbAnomalies }})
+                </div>
+                {% set aucunA = true %}
+                {% for d in tous %}{% if meta[d.id].anomalies is not empty %}{% set aucunA = false %}
+                    <div data-ref="{{ d.reference }}" class="mb-2 rounded-lg border border-red-200 bg-red-50/60 p-3">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="font-semibold text-navy">{{ (d.valideNom ?: d.nomClient) ?: '—' }}</span>
+                            <span class="whitespace-nowrap font-mono text-xs text-ink/50"><button type="button" data-action="virement#ouvrirFiche" data-id="{{ d.id }}" class="font-mono text-navy underline decoration-dotted underline-offset-2 transition hover:decoration-solid" title="Ouvrir la fiche">{{ d.reference }}</button>{% if d.sepaTelecharge %} <span class="rounded bg-ink/10 px-1 text-[9px] uppercase text-ink/50">pris</span>{% endif %}</span>
+                        </div>
+                        <div class="mt-1 text-xs text-ink/70">{{ (d.valideMontant ?: d.montant)|number_format(2, ',', ' ') }} € · {{ etabs[d.etablissementCode]|default(d.etablissementCode ?: '—') }}</div>
+                        <div class="mt-1.5 flex flex-wrap gap-1">
+                            {% for a in meta[d.id].anomalies %}<span class="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">{{ a }}</span>{% endfor %}
+                        </div>
+                    </div>
+                {% endif %}{% endfor %}
+                {% if aucunA %}<p class="text-xs text-ink/45">Aucune anomalie.</p>{% endif %}
+            </div>
+        </div>
+    </aside>
+
+    {# Panneau glissant de DROITE : fiche du dossier (clic sur une ligne en alerte). Charge a la
+       volee le fragment partage (infos + pieces + historique) via app_remboursement_dossier_panneau. #}
+    <aside data-virement-target="detail" class="fixed inset-y-0 right-0 z-50 w-full max-w-2xl translate-x-full transform overflow-y-auto bg-white shadow-2xl shadow-navy/20 transition-transform duration-200">
+        <div class="flex items-center gap-2 border-b border-hairline px-5 py-3">
+            <h2 class="flex-1 text-sm font-semibold text-navy">Détail du dossier</h2>
+            <button type="button" data-action="virement#fermerDetail" class="rounded-md p-1.5 text-ink/55 transition hover:bg-surface hover:text-navy" aria-label="Fermer">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div data-virement-target="detailContenu" class="overflow-y-auto">
+            <p class="px-5 py-10 text-center text-sm text-ink/55">Chargement…</p>
+        </div>
+    </aside>
+
+    {# Modal CENTRAL : fiche complete d'un dossier (clic sur une reference) — infos, statut,
+       pieces (boutons « voir ») et historique. Charge a la volee via le fragment partage. #}
+    <div data-virement-target="fiche" class="fixed inset-0 z-[60] hidden items-center justify-center p-4">
+        <div class="absolute inset-0 bg-navy/40 backdrop-blur-sm" data-action="click->virement#fermerFiche"></div>
+        <div class="relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl shadow-navy/30">
+            <div class="flex items-center gap-2 border-b border-hairline px-5 py-3">
+                <h2 class="flex-1 text-sm font-semibold text-navy">Fiche du dossier</h2>
+                <button type="button" data-action="virement#fermerFiche" class="rounded-md p-1.5 text-ink/55 transition hover:bg-surface hover:text-navy" aria-label="Fermer">
+                    <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div data-virement-target="ficheContenu" class="overflow-y-auto">
+                <p class="px-5 py-10 text-center text-sm text-ink/55">Chargement…</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

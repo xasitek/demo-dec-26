@@ -1,0 +1,100 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Utilisateurs - Finance Créances{% endblock %}
+{% block page_title %}Utilisateurs{% endblock %}
+
+{% block content %}
+{% import '_ui.html.twig' as ui %}
+{% set labels = roles_metier|merge(roles_eleves) %}
+<div class="mx-auto max-w-5xl">
+
+    {% for message in app.flashes('success') %}
+        <div class="mb-4 rounded-lg border border-positive/30 bg-positive/10 px-4 py-3 text-sm text-positive">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div class="mb-4 rounded-lg border border-negative/30 bg-negative/10 px-4 py-3 text-sm text-negative">{{ message }}</div>
+    {% endfor %}
+
+    {# Statistiques #}
+    <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div class="rounded-xl border border-hairline bg-white p-4">
+            <p class="text-2xl font-bold text-navy">{{ stats.total }}</p>
+            <p class="text-xs uppercase tracking-wider text-ink/50">Utilisateurs</p>
+        </div>
+        <div class="rounded-xl border border-hairline bg-white p-4">
+            <p class="text-2xl font-bold text-positive">{{ stats.actifs }}</p>
+            <p class="text-xs uppercase tracking-wider text-ink/50">Actifs</p>
+        </div>
+        <div class="rounded-xl border border-hairline bg-white p-4">
+            <p class="text-2xl font-bold text-gold-dark">{{ stats.attente }}</p>
+            <p class="text-xs uppercase tracking-wider text-ink/50">En attente</p>
+        </div>
+        <div class="rounded-xl border border-hairline bg-white p-4">
+            <p class="text-2xl font-bold text-negative">{{ stats.inactifs }}</p>
+            <p class="text-xs uppercase tracking-wider text-ink/50">Désactivés</p>
+        </div>
+    </div>
+
+    {# Pré-création d'un utilisateur #}
+    <details class="mb-6 rounded-xl border border-hairline bg-white">
+        <summary class="flex cursor-pointer items-center gap-2 px-5 py-4 font-semibold text-navy">
+            <svg class="h-5 w-5 text-gold-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            Ajouter un utilisateur
+        </summary>
+        <form method="post" action="{{ path('app_admin_users_create') }}" class="space-y-4 border-t border-hairline p-5"
+              data-controller="pole-toggle" data-action="change->pole-toggle#refresh">
+            <input type="hidden" name="_token" value="{{ csrf_token('create_user') }}">
+            <div class="grid gap-4 sm:grid-cols-3">
+                <input type="email" name="email" required placeholder="prenom.nom@demonstration.invalid" class="rounded-lg border border-hairline px-3 py-2 text-sm focus:border-navy focus:outline-none">
+                <input type="text" name="first_name" required placeholder="Prénom" class="rounded-lg border border-hairline px-3 py-2 text-sm focus:border-navy focus:outline-none">
+                <input type="text" name="last_name" required placeholder="Nom" class="rounded-lg border border-hairline px-3 py-2 text-sm focus:border-navy focus:outline-none">
+            </div>
+            <div class="flex flex-wrap gap-2">
+                {% for role, label in labels %}
+                    {% if role in roles_metier|keys or is_granted('ROLE_SUPER_ADMIN') %}
+                        <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-hairline px-3 py-1.5 text-sm transition hover:border-navy/40 has-[:checked]:border-navy has-[:checked]:bg-navy has-[:checked]:text-white">
+                            <input type="checkbox" name="roles[]" value="{{ role }}" class="accent-navy"{% if role == 'ROLE_COMPTABLE' %} data-pole-toggle-target="comptable"{% endif %}>{{ label }}
+                        </label>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {# Pole : uniquement pour un comptable (affiche par pole-toggle). #}
+            <div data-pole-toggle-target="pole" hidden>
+                <label class="mb-1 block text-xs font-semibold uppercase tracking-wider text-ink/50">Pôle du comptable</label>
+                {{ ui.fc_select('pole', poles, 'general', false) }}
+            </div>
+            <button type="submit" class="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy-light">Créer l'utilisateur</button>
+        </form>
+    </details>
+
+    {# Recherche (autocompletion custom), filtre et tri (selects custom) #}
+    <form method="get" class="mb-4 flex flex-wrap items-center gap-2">
+        <div class="fc-ac" data-controller="autocomplete" data-autocomplete-items-value="{{ suggestions|json_encode }}">
+            <svg class="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-ink/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4-4"/></svg>
+            <input type="search" name="q" value="{{ q }}" autocomplete="off" data-autocomplete-target="input" data-action="input->autocomplete#filter focus->autocomplete#filter" placeholder="Rechercher un nom" class="w-full rounded-lg border border-hairline py-2 pl-9 pr-3 text-sm text-navy focus:border-navy focus:outline-none">
+            <ul class="fc-ac-menu" data-autocomplete-target="menu" hidden></ul>
+        </div>
+        {{ ui.fc_select('statut', { 'tous': 'Tous les statuts', 'actif': 'Actifs', 'inactif': 'Désactivés', 'attente': 'Non habilités' }, statut) }}
+        {{ ui.fc_select('sort', { 'nom': 'Trier par nom', 'connexion': 'Dernière connexion', 'creation': 'Date de création' }, sort) }}
+        {{ ui.fc_select('dir', { 'asc': 'Croissant', 'desc': 'Décroissant' }, dir) }}
+        <button type="submit" class="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy-light">Filtrer</button>
+        {% if q is not empty or statut != 'tous' %}
+            <a href="{{ path('app_admin_users') }}" class="text-sm text-ink/60 hover:text-navy">Réinitialiser</a>
+        {% endif %}
+    </form>
+
+    {# Liste des utilisateurs : scroll infini (tranche de {{ per_page }}) #}
+    <div data-controller="infinite-scroll"
+         data-infinite-scroll-url-value="{{ path('app_admin_users', { q: q, statut: statut, sort: sort, dir: dir }) }}"
+         data-infinite-scroll-page-value="{{ page }}"
+         data-infinite-scroll-total-pages-value="{{ total_pages }}">
+        <div data-infinite-scroll-target="items" class="space-y-3">
+            {% include 'admin/utilisateurs/_rows.html.twig' %}
+        </div>
+        <div data-infinite-scroll-target="sentinel" class="h-px"></div>
+        <p data-infinite-scroll-target="loading" class="mt-4 text-center text-sm text-ink/50" style="display:none">Chargement...</p>
+    </div>
+
+    <p class="mt-4 text-center text-xs text-ink/40">{{ pluriel(total_filtres, 'utilisateur', 'utilisateurs') }} au total</p>
+</div>
+{% endblock %}

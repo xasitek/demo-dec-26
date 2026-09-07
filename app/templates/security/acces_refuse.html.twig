@@ -1,0 +1,23 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Accès non autorisé - Finance Créances{% endblock %}
+{% block page_title %}Accès non autorisé{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl">
+    <div class="flex flex-col items-center justify-center rounded-2xl border border-hairline bg-white px-6 py-20 text-center">
+        <span class="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-navy text-gold">
+            <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+        </span>
+        <h3 class="text-xl font-bold text-navy">Vous n'avez pas accès à ce module</h3>
+        <p class="mt-2 max-w-md text-sm text-ink/60">
+            Votre compte n'est pas rattaché à ce module. Pour y accéder, rapprochez-vous de
+            votre chef de pôle afin qu'il en fasse la demande.
+        </p>
+        <a href="{{ path('app_home') }}" class="mt-6 rounded-md bg-navy px-5 py-2 text-sm font-semibold text-white transition hover:bg-navy-light">Retour au tableau de bord</a>
+    </div>
+</div>
+{% endblock %}

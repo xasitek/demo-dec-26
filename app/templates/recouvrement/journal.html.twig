@@ -1,0 +1,166 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Journal des relances - Recouvrement - Finance Créances{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+{% block topbar_nav %}{% include 'recouvrement/_topbar_nav.html.twig' with {active: 'journal'} %}{% endblock %}
+
+{# --- Fragments reutilisables --------------------------------------------- #}
+{% macro badgeNiveau(niveau) %}
+    {% if niveau >= 3 %}
+        <span class="inline-flex items-center rounded-full bg-negative/10 px-2 py-0.5 text-[0.65rem] font-semibold text-negative">Mise en demeure</span>
+    {% else %}
+        <span class="inline-flex items-center rounded-full bg-navy/5 px-2 py-0.5 text-[0.65rem] font-semibold text-navy/70">Relance {{ niveau }}</span>
+    {% endif %}
+{% endmacro %}
+
+{% macro badgeCanal(vecteur) %}
+    {% if vecteur == 'courrier' %}
+        <span class="inline-flex items-center gap-1 text-xs text-ink/70" title="Courrier papier">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+            Courrier
+        </span>
+    {% else %}
+        <span class="inline-flex items-center gap-1 text-xs text-ink/70" title="E-mail">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="h-3.5 w-3.5"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+            E-mail
+        </span>
+    {% endif %}
+{% endmacro %}
+
+{% macro celluleClient(l) %}
+    <span class="block font-medium text-navy">{{ l.client }}</span>
+    <button type="button" data-controller="copy" data-copy-text-value="{{ l.compte }}" data-action="click->copy#copier"
+            class="mt-0.5 inline-flex items-center gap-1 text-[0.7rem] text-ink/55 transition hover:text-navy" title="Copier le code compte">
+        <span data-copy-target="label">{{ l.compte }}</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+    </button>
+{% endmacro %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-6xl px-3">
+
+    <h1 class="mb-1 text-2xl font-bold text-navy">Journal des relances</h1>
+    <p class="mb-5 max-w-2xl text-sm text-ink/60">Ce qui est parti (ou a échoué) chaque jour. Naviguez d'un jour à l'autre avec les flèches.</p>
+
+    {# En-tete : navigation jour precedent / suivant + bouton "Aujourd'hui" #}
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+            <a href="{{ path('app_recouvrement_journal', {jour: jour.precedentIso}) }}"
+               class="rounded-md border border-hairline bg-white p-1.5 text-ink/70 transition hover:border-navy hover:text-navy" aria-label="Jour précédent" title="Jour précédent">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="m15 18-6-6 6-6"/></svg>
+            </a>
+            <div class="min-w-[14rem] text-center">
+                <span class="text-lg font-semibold text-navy">{{ jour.libelle|capitalize }}</span>
+                {% if jour.estAujourdhui %}
+                    <span class="ml-1 align-middle text-[0.7rem] font-semibold uppercase tracking-wide text-gold-dark">aujourd'hui</span>
+                {% elseif jour.estHier %}
+                    <span class="ml-1 align-middle text-[0.7rem] font-medium uppercase tracking-wide text-ink/45">hier</span>
+                {% endif %}
+            </div>
+            {% if jour.suivantIso %}
+                <a href="{{ path('app_recouvrement_journal', {jour: jour.suivantIso}) }}"
+                   class="rounded-md border border-hairline bg-white p-1.5 text-ink/70 transition hover:border-navy hover:text-navy" aria-label="Jour suivant" title="Jour suivant">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="m9 18 6-6-6-6"/></svg>
+                </a>
+            {% else %}
+                <span class="rounded-md border border-hairline bg-white p-1.5 text-ink/25" aria-hidden="true" title="Pas de jour suivant">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="m9 18 6-6-6-6"/></svg>
+                </span>
+            {% endif %}
+        </div>
+        {% if not jour.estAujourdhui %}
+            <a href="{{ path('app_recouvrement_journal') }}" class="rounded-md bg-navy px-3 py-1.5 text-sm font-medium text-white transition hover:bg-navy-light">Aujourd'hui</a>
+        {% endif %}
+    </div>
+
+    {# Synthese du jour #}
+    <div class="mb-5 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-hairline bg-white px-4 py-3 text-sm">
+        <span class="font-semibold text-navy">{{ pluriel(synthese.nb, 'relance envoyée', 'relances envoyées') }}</span>
+        <span class="text-ink/70">{{ synthese.total|number_format(2, ',', ' ') }} €</span>
+        {% if synthese.emails %}<span class="text-ink/55">{{ pluriel(synthese.emails, 'e-mail', 'e-mails') }}</span>{% endif %}
+        {% if synthese.courriers %}<span class="text-ink/55">{{ pluriel(synthese.courriers, 'courrier', 'courriers') }}</span>{% endif %}
+        {% if synthese.mises_en_demeure %}<span class="font-medium text-negative">{{ pluriel(synthese.mises_en_demeure, 'mise en demeure', 'mises en demeure') }}</span>{% endif %}
+        {% if synthese.echecs %}<span class="text-negative">{{ pluriel(synthese.echecs, 'échec', 'échecs') }}</span>{% endif %}
+        {% if synthese.annules %}<span class="text-ink/45">{{ pluriel(synthese.annules, 'annulée', 'annulées') }}</span>{% endif %}
+    </div>
+
+    {# Bloc "en attente" : relances a envoyer / courriers a poster (aujourd'hui uniquement) #}
+    {% if en_attente is not empty %}
+        <section class="mb-6">
+            <h2 class="mb-2 flex items-center gap-2 text-sm font-semibold text-navy">
+                En attente d'envoi
+                <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-navy/5 px-1.5 py-0.5 text-[0.65rem] font-semibold text-navy/70">{{ en_attente|length }}</span>
+            </h2>
+            <div class="overflow-x-auto rounded-lg border border-hairline bg-white">
+                <table class="fc-table-comptable">
+                    <thead>
+                        <tr>
+                            <th>Client</th>
+                            <th>Niveau</th>
+                            <th>Canal</th>
+                            <th class="text-right">Montant</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for l in en_attente %}
+                            <tr>
+                                <td class="text-xs">{{ _self.celluleClient(l) }}</td>
+                                <td class="fc-cell-fit whitespace-nowrap">{{ _self.badgeNiveau(l.niveau) }}</td>
+                                <td class="fc-cell-fit whitespace-nowrap">{{ _self.badgeCanal(l.vecteur) }}</td>
+                                <td class="fc-cell-fit whitespace-nowrap text-right text-xs font-semibold text-navy">{{ l.montant|number_format(2, ',', ' ') }} €</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    {% endif %}
+
+    {# Relances du jour #}
+    {% if lignes is empty %}
+        <div class="flex flex-col items-center justify-center rounded-lg border border-dashed border-hairline bg-white/50 py-16 text-center">
+            <span class="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-navy/5 text-navy/40">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+            </span>
+            <h3 class="text-base font-semibold text-navy">Aucune relance ce jour</h3>
+            <p class="mt-1 text-sm text-ink/55">Rien n'est parti {{ jour.estAujourdhui ? "aujourd'hui" : "ce jour-là" }}.</p>
+        </div>
+    {% else %}
+        <div class="overflow-x-auto rounded-lg border border-hairline bg-white">
+            <table class="fc-table-comptable">
+                <thead>
+                    <tr>
+                        <th class="fc-cell-fit">Heure</th>
+                        <th>Client</th>
+                        <th>Niveau</th>
+                        <th>Canal</th>
+                        <th class="text-right">Montant</th>
+                        <th>Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for l in lignes %}
+                        <tr>
+                            <td class="fc-cell-fit whitespace-nowrap text-xs text-ink/80">{{ l.heure|date('H:i') }}</td>
+                            <td class="text-xs">{{ _self.celluleClient(l) }}</td>
+                            <td class="fc-cell-fit whitespace-nowrap">{{ _self.badgeNiveau(l.niveau) }}</td>
+                            <td class="fc-cell-fit whitespace-nowrap">{{ _self.badgeCanal(l.vecteur) }}</td>
+                            <td class="fc-cell-fit whitespace-nowrap text-right text-xs font-semibold text-navy">{{ l.montant|number_format(2, ',', ' ') }} €</td>
+                            <td class="fc-cell-fit whitespace-nowrap">
+                                {% if l.statut == 'envoye' %}
+                                    <span class="inline-flex items-center rounded-full bg-positive/10 px-2 py-0.5 text-[0.65rem] font-semibold text-positive">Envoyé</span>
+                                {% elseif l.statut == 'echec' %}
+                                    <span class="inline-flex items-center rounded-full bg-negative/10 px-2 py-0.5 text-[0.65rem] font-semibold text-negative" title="{{ l.erreur }}">Échec</span>
+                                {% else %}
+                                    <span class="inline-flex items-center rounded-full bg-ink/5 px-2 py-0.5 text-[0.65rem] font-semibold text-ink/50" title="Compte soldé avant l'envoi">Annulé</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}

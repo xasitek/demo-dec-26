@@ -1,0 +1,252 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Méthode et performance — Affectation{% endblock %}
+{% block page_title %}Affectation des règlements{% endblock %}
+{% block topbar_nav %}{% include 'affectation/_nav.html.twig' with { active: 'methode' } %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-[1500px]">
+
+  {# Le resultat publie, formule comme un constat date et non comme une
+     propriete du moteur. La table ci-dessous le detaille population par
+     population ; cet encart dit ce qui est publiable et pourquoi. #}
+  <section class="mb-3 rounded-xl border-2 border-positive/40 bg-positive/5 p-4 shadow-sm">
+    <div class="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">Résultat du test indépendant final</h3>
+      <span class="rounded-full bg-white px-2 py-0.5 font-mono text-[11px] font-semibold text-ink/60">{{ publie.population }}</span>
+      <span class="text-[11px] text-ink/45">{{ publie.virements }} virements, une seule mesure, le {{ publie.date }}</span>
+    </div>
+    <p class="text-[13.5px] leading-relaxed text-ink/80">
+      <b class="text-positive">{{ publie.precision }} % de précision observée</b> sur
+      <b>{{ publie.automatiques }}</b> affectations automatiques —
+      <b class="text-positive">0 € affecté automatiquement à tort</b>,
+      <b>{{ publie.automatisation }} %</b> automatisés,
+      <b>{{ publie.humain }} %</b> des montants laissés volontairement au contrôle humain.
+    </p>
+    <p class="mt-2 text-[11.5px] leading-relaxed text-ink/60">
+      C'est un <b>constat sur une population</b>, pas une propriété du moteur. Sur une autre
+      population, sur d'autres données, le chiffre serait différent : la seule chose que cette
+      mesure établit, c'est qu'aucune des {{ publie.automatiques }} affectations prises seule
+      sur ce test ne portait sur le mauvais compte client.
+    </p>
+  </section>
+
+  {# ------------------------------------------------- les cinq populations #}
+  <section class="mb-3 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="mb-2 flex items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">Six populations disjointes</h3>
+      <span class="ml-auto text-[11px] text-ink/45">
+        poids et seuils réglés sur CALIBRATION, et sur elle seule
+      </span>
+    </div>
+    <table class="fc-table-comptable w-full">
+      <thead><tr>
+        <th>Population</th><th class="text-right">Virements</th>
+        <th class="text-right">Automatique</th><th class="text-right">À valider</th><th class="text-right">Humain</th>
+        <th class="text-right">Précision</th><th class="text-right">Rappel</th><th class="text-right">Faux positifs</th>
+        <th class="text-right">Montant juste</th><th class="text-right">Montant à tort</th>
+        <th class="text-right">Laissé à l'humain</th><th class="text-right">Durée</th>
+      </tr></thead>
+      <tbody>
+        {% for c in cohortes %}
+          <tr class="{{ c.cohorte == 'BLIND_TEST_4' ? 'bg-gold/5' : (c.cohorte in ['HOLDOUT_1', 'BLIND_TEST_2', 'BLIND_TEST_3'] ? 'opacity-70' : '') }}">
+            <td class="font-mono text-[12px] font-semibold">{{ c.cohorte }}</td>
+            <td class="text-right font-mono text-[12px]">{{ c.n|number_format(0, ',', ' ') }}</td>
+            <td class="text-right font-mono text-[12px] text-positive">{{ c.n > 0 ? (c.auto / c.n * 100)|number_format(1, ',', ' ') : '0,0' }} %</td>
+            <td class="text-right font-mono text-[12px]">{{ c.n > 0 ? (c.validation / c.n * 100)|number_format(1, ',', ' ') : '0,0' }} %</td>
+            <td class="text-right font-mono text-[12px] text-warning">{{ c.n > 0 ? (c.humain / c.n * 100)|number_format(1, ',', ' ') : '0,0' }} %</td>
+            <td class="text-right font-mono text-[13px] font-bold text-navy">{{ c.auto > 0 ? (c.auto_justes / c.auto * 100)|number_format(2, ',', ' ') : '—' }} %</td>
+            <td class="text-right font-mono text-[12px]">{{ c.automatisables > 0 ? (c.auto_justes / c.automatisables * 100)|number_format(1, ',', ' ') : '—' }} %</td>
+            <td class="text-right font-mono text-[13px] font-bold {{ c.faux_positifs > 0 ? 'text-negative' : 'text-positive' }}">{{ c.faux_positifs }}</td>
+            <td class="text-right font-mono text-[12px]">{{ (c.montant_juste / 1000000)|number_format(2, ',', ' ') }} M€</td>
+            <td class="text-right font-mono text-[12px] {{ c.montant_faux > 0 ? 'text-negative' : 'text-ink/35' }}">{{ (c.montant_faux / 1000000)|number_format(3, ',', ' ') }} M€</td>
+            <td class="text-right font-mono text-[12px] text-navy">{{ (c.montant_humain / 1000000)|number_format(2, ',', ' ') }} M€</td>
+            <td class="text-right font-mono text-[11px] text-ink/50">{{ c.duree }} ms</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="12" class="py-8 text-center text-[12px] text-ink/40">
+            Aucune mesure. Lancez <span class="font-mono">app:affectation:mesurer</span>.
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="mt-3 grid gap-3 text-[11.5px] leading-relaxed text-ink/65 md:grid-cols-2">
+      <p>
+        <b>La ligne qui compte est BLIND_TEST_4.</b> Elle est tirée d'une quatrième graine,
+        après le gel du générateur, des contrats de scénario, des poids, des seuils et des
+        règles d'arrêt, et elle n'a été mesurée qu'une fois. <b>HOLDOUT_1</b>,
+        <b>BLIND_TEST_2</b> et <b>BLIND_TEST_3</b> l'ont précédée : chacune a révélé un
+        défaut, on a regardé ses erreurs, et elle est devenue un jeu de validation. Une
+        population dont on a ouvert les fautes cesse d'être une preuve. C'est la séparation
+        ordinaire entre développement, validation et test.
+      </p>
+      <p>
+        <b>Précision</b> : parmi les virements affectés sans intervention, la part où le bon
+        compte client est désigné <i>et</i> où l'outil avait le droit de trancher seul. Désigner
+        le bon compte sur un cas que la vérité déclare ambigu reste une faute : le moteur a eu
+        raison par chance. <b>Rappel</b> : parmi les virements légitimement automatisables, la
+        part réellement automatisée. <b>Montant laissé à l'humain</b> : ce que l'outil refuse de
+        décider seul. Ce n'est pas une perte, c'est le prix du reste.
+      </p>
+    </div>
+  </section>
+
+  {# ------------------------------------------------- matrice + règles d'arrêt #}
+  <div class="mb-3 grid gap-3 lg:grid-cols-2">
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">Matrice de confusion — BLIND_TEST_4</h3>
+      <table class="fc-table-comptable w-full">
+        <thead><tr><th>Attendu</th><th>Obtenu</th><th class="text-right">Nombre</th><th>Verdict</th></tr></thead>
+        <tbody>
+          {% set justes = 0 %}{% set total = 0 %}
+          {% for m in matrice %}
+            {% set bon = (m.attendu == 'auto' and m.obtenu in ['automatique', 'validation'])
+                      or (m.attendu == 'exception' and m.obtenu in ['exception', 'refus', 'validation']) %}
+            {% set justes = justes + (bon ? m.n : 0) %}{% set total = total + m.n %}
+            <tr>
+              <td class="font-mono text-[12px]">{{ m.attendu }}</td>
+              <td class="text-[12px]">{% include 'affectation/_badge.html.twig' with { decision: m.obtenu } %}</td>
+              <td class="text-right font-mono text-[12px]">{{ m.n|number_format(0, ',', ' ') }}</td>
+              <td class="text-[11px] font-semibold {{ bon ? 'text-positive' : 'text-negative' }}">{{ bon ? 'juste' : 'écart' }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if total > 0 %}
+        <p class="mt-2 text-[12px] text-ink/65">
+          Exactitude : <b class="font-mono text-navy">{{ (justes / total * 100)|number_format(2, ',', ' ') }} %</b>
+          ({{ justes|number_format(0, ',', ' ') }} sur {{ total|number_format(0, ',', ' ') }}).
+          Une proposition soumise au comptable compte comme juste dans les deux sens : le payeur
+          est trouvé, et la décision passe par un humain. C'est le seul écart qui ne coûte rien.
+        </p>
+      {% endif %}
+    </section>
+
+    <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+      <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-ink/70">Ce qu'il faut réunir pour affecter seul</h3>
+      <table class="fc-table-comptable w-full">
+        <tbody>
+          <tr><td class="text-[12.5px]">Indice de confiance</td>
+            <td class="text-right font-mono text-[13px] font-bold text-positive">≥ {{ seuils.automatique }}</td></tr>
+          <tr><td class="text-[12.5px]">Marge sur le second candidat</td>
+            <td class="text-right font-mono text-[13px] font-bold text-positive">≥ {{ seuils.marge_auto }}</td></tr>
+          <tr><td class="text-[12.5px]">Identité du payeur établie</td>
+            <td class="text-right text-[12px] font-semibold text-positive">exigée</td></tr>
+          <tr><td class="text-[12.5px]">Signal désignant le compte à créditer</td>
+            <td class="text-right text-[12px] font-semibold text-positive">exigé</td></tr>
+          <tr><td class="text-[12.5px]">Signal contradictoire</td>
+            <td class="text-right text-[12px] font-semibold text-negative">rédhibitoire</td></tr>
+          <tr class="border-t-2 border-ink/15"><td class="text-[12.5px]">Compte bancaire partagé : marge exigée</td>
+            <td class="text-right font-mono text-[13px] font-bold text-warning">≥ {{ seuils.marge_partage }}</td></tr>
+          <tr><td class="text-[12.5px]">Deux candidats séparés de moins de</td>
+            <td class="text-right font-mono text-[13px] font-bold text-warning">{{ seuils.ecart }} points → humain</td></tr>
+          <tr><td class="text-[12.5px]">Aucune composition exacte</td>
+            <td class="text-right text-[12px] font-semibold text-negative">refus</td></tr>
+        </tbody>
+      </table>
+      <p class="mt-2.5 text-[11.5px] leading-relaxed text-ink/60">
+        L'indice ne décide plus seul. Ce qui protège une affectation n'est pas sa hauteur, c'est
+        la <b>marge</b> qui sépare la meilleure hypothèse de la suivante, l'absence de
+        contradiction, et le fait qu'un signal désigne le compte à créditer et pas seulement le
+        payeur. Un indice de 95 sans marge est dangereux ; un indice de 78 avec cinquante points
+        d'écart et une facture qui tombe à l'euro ne l'est pas.
+      </p>
+    </section>
+  </div>
+
+  {# ------------------------------------------------- la règle de l'IBAN partagé #}
+  <section class="mb-3 rounded-xl border-2 border-warning/40 bg-warning/5 p-4 shadow-sm">
+    <h3 class="mb-2 text-sm font-bold uppercase tracking-wide text-ink/70">
+      Un IBAN identifie le payeur, il ne prouve pas le compte à créditer
+    </h3>
+    <p class="text-[12.5px] leading-relaxed text-ink/75">
+      {% if partage and partage.groupes > 0 %}
+        Dans ce référentiel, <b class="font-mono">{{ partage.groupes|number_format(0, ',', ' ') }}</b>
+        comptes bancaires sont utilisés par <b class="font-mono">{{ partage.comptes|number_format(0, ',', ' ') }}</b>
+        comptes clients distincts.
+      {% endif %}
+      Une même enseigne porte plusieurs codes clients, un par établissement, ou un ancien et un
+      nouveau, et règle depuis un compte unique. Désigner l'un d'eux comme titulaire relève du
+      paramétrage, pas de la preuve. L'outil pose donc les signaux d'IBAN <b>à l'identique sur
+      tous les comptes du groupe</b> : ils ne départagent rien. Pour affecter seul dans cette
+      situation, il exige un écart d'au moins {{ seuils.marge_partage }} points, c'est-à-dire un
+      signal propre au compte : un numéro de facture cité, une combinaison qui ne tombe juste que
+      d'un côté, un véhicule rattaché. À défaut, la décision revient au comptable.
+    </p>
+  </section>
+
+  {# ------------------------------------------------- le barème, déclaré #}
+  <section class="rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <div class="mb-2 flex items-baseline gap-2">
+      <h3 class="text-sm font-bold uppercase tracking-wide text-ink/70">Le barème, signal par signal</h3>
+      <span class="rounded-full bg-ink/10 px-2 py-0.5 text-xs font-semibold text-ink/60">{{ signaux|length }}</span>
+      <span class="ml-auto text-[11px] text-ink/45">ce sont des données, pas du code enfoui</span>
+    </div>
+    <table class="fc-table-comptable w-full">
+      <thead><tr><th>Signal</th><th class="text-right">Poids</th><th>Ce qu'il prouve</th>
+        <th class="text-right">Observé</th><th>Règle d'origine</th></tr></thead>
+      <tbody>
+        {% set freq = {} %}
+        {% for f in frequence %}{% set freq = freq|merge({(f.signal): f.n}) %}{% endfor %}
+        {% for cle, s in signaux %}
+          <tr>
+            <td class="text-[12.5px] {{ s.poids < 0 ? 'text-negative' : '' }}">{{ s.libelle }}</td>
+            <td class="text-right font-mono text-[13px] font-bold {{ s.poids >= 0 ? 'text-positive' : 'text-negative' }}">
+              {{ s.poids >= 0 ? '+' : '' }}{{ s.poids }}</td>
+            <td class="text-[11px]">
+              {% if cle in compte and cle in identite %}<span class="text-navy">le payeur et le compte</span>
+              {% elseif cle in compte %}<span class="text-navy">le compte à créditer</span>
+              {% elseif cle in identite %}<span class="text-ink/55">l'identité du payeur</span>
+              {% elseif cle in contradictoires %}<span class="text-negative">arrêt : contradiction</span>
+              {% else %}<span class="text-ink/40">un indice, rien de plus</span>{% endif %}
+            </td>
+            <td class="text-right font-mono text-[12px] text-ink/55">{{ freq[cle]|default(0)|number_format(0, ',', ' ') }} fois</td>
+            <td class="font-mono text-[10.5px] text-ink/40">{{ s.origine }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="mt-2.5 text-[11.5px] leading-relaxed text-ink/60">
+      <b>Un signal absent ne retire rien</b> : il ne prouve rien. Seul un signal
+      <b>contradictoire</b> retire des points, et deux d'entre eux arrêtent l'automatisation
+      quel que soit l'indice atteint par ailleurs. Les références en dernière colonne désignent
+      l'origine fonctionnelle de chaque règle dans les développements de la mission.
+    </p>
+  </section>
+
+  <section class="mt-3 rounded-xl border border-hairline bg-white p-4 shadow-sm">
+    <h3 class="mb-2 text-sm font-bold uppercase tracking-wide text-ink/70">Limites assumées</h3>
+    <ul class="space-y-1.5 text-[12.5px] leading-relaxed text-ink/70">
+      <li>— L'indice de confiance <b>n'est pas une probabilité</b>. Le moteur n'est pas calibré
+        sur des fréquences observées : il additionne des preuves déclarées et borne le total à
+        cent pour rester lisible. Un indice de 100 veut dire « toutes les preuves attendues sont
+        réunies », jamais « une chance sur cent de se tromper ».</li>
+      <li>— La recherche de combinaison est bornée à {{ seuils.combinaison }} factures et à un
+        budget maximal de calcul. Au-delà, elle s'arrête et le dit, plutôt que de rendre une
+        réponse partielle sans le signaler. Sous une charge machine différente, un cas limite
+        peut être orienté vers validation humaine plutôt qu'automatisé : ce garde-fou est
+        conservateur, l'épuisement du budget ne peut pas transformer un dossier non démontré
+        en affectation automatique.</li>
+      <li>— Les données sont <b>entièrement synthétiques</b>. Elles reproduisent les mécanismes
+        métier, elles ne mesurent rien de réel. Les durées, elles, sont chronométrées.</li>
+      <li>— Le taux d'automatisation dépend du <b>contrat de données</b>. Il s'effondre en donnée
+        brute, et la fiche d'un virement le montre virement par virement. Ce que l'outil
+        démontre, ce n'est pas la puissance d'un algorithme : c'est le rendement d'une donnée
+        d'entrée mieux tenue.</li>
+    </ul>
+  </section>
+
+
+  {# Perimetres de mesure. Le cockpit compte sur l'univers complet de
+     demonstration ; les taux publies ici portent sur une population de test
+     independante, bien plus petite. Sans cette phrase, un lecteur compare deux
+     nombres qui ne parlent pas de la meme chose et croit a une contradiction. #}
+  <p class="mt-3 rounded-xl border border-hairline bg-surface px-4 py-3 text-[11.5px] leading-relaxed text-ink/60">
+    <b>Périmètres de mesure.</b> Les volumes du cockpit de pilotage portent sur l'univers complet
+    de démonstration. Les taux de précision publiés ici proviennent d'une population de test
+    indépendante et ne portent donc pas sur le même nombre d'opérations.
+  </p>
+
+</div>
+{% endblock %}

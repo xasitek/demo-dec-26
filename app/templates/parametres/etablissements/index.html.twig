@@ -1,0 +1,125 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Établissements - Finance Créances{% endblock %}
+{% block page_title %}Établissements{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-5xl">
+
+    {# Flashs lus UNE fois (les consommer dans le rendu les retirerait de la session
+       avant qu'on puisse re-ouvrir le formulaire de creation en cas d'erreur). #}
+    {% set erreurs = app.flashes('error') %}
+    {% for message in app.flashes('success') %}
+        <div class="mb-4 rounded-lg border border-positive/30 bg-positive/10 px-4 py-3 text-sm text-positive">{{ message }}</div>
+    {% endfor %}
+    {% for message in erreurs %}
+        <div class="mb-4 rounded-lg border border-negative/30 bg-negative/10 px-4 py-3 text-sm text-negative">{{ message }}</div>
+    {% endfor %}
+
+    <p class="mb-4 text-sm text-ink/60">Référentiel partagé des établissements SYNTHAUTO et de leurs contacts e-mail (directeur, secrétaires). Sert notamment à router les relances vers le site.</p>
+
+    {# Compteurs du referentiel + creation. #}
+    <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Établissements</div>
+            <div class="text-lg font-bold text-navy">{{ compteurs.total }}</div>
+        </div>
+        <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Actifs</div>
+            <div class="text-lg font-bold text-positive">{{ compteurs.actifs }}</div>
+            <div class="text-[11px] text-ink/45">{{ compteurs.total - compteurs.actifs }} inactif{{ compteurs.total - compteurs.actifs > 1 ? 's' }}</div>
+        </div>
+        <div class="rounded-xl border border-hairline bg-white px-4 py-3 shadow-sm">
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-ink/40">Affichés</div>
+            <div class="text-lg font-bold text-navy">{{ etablissements|length }}</div>
+            {% if q is not empty %}<div class="text-[11px] text-ink/45">recherche « {{ q }} »</div>{% endif %}
+        </div>
+    </div>
+
+    <form method="get" action="{{ path('app_etablissements') }}" class="mb-4 flex gap-2">
+        <input type="search" name="q" value="{{ q }}" autocomplete="off"
+               placeholder="Rechercher : code, libellé, société..."
+               class="w-full rounded-lg border border-hairline bg-white px-4 py-2.5 text-sm text-ink shadow-sm transition focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30">
+        <button type="submit" class="shrink-0 rounded-lg bg-navy px-4 py-2.5 text-sm font-medium text-white transition hover:bg-navy-deep">Rechercher</button>
+    </form>
+
+    {# Formulaire de creation, replie par defaut (<details> natif : aucun JS). #}
+    <details class="group mb-4 overflow-hidden rounded-xl border border-gold/40 bg-gold/[0.05]"{{ erreurs is not empty ? ' open' }}>
+        <summary class="flex cursor-pointer list-none items-center gap-2 px-5 py-3 text-sm font-semibold text-navy transition hover:bg-gold/10">
+            <svg viewBox="0 0 24 24" class="h-4 w-4 text-gold-dark transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            Nouvel établissement
+        </summary>
+        <form method="post" action="{{ path('app_etablissements_creer') }}" class="border-t border-gold/30">
+            <input type="hidden" name="_token" value="{{ csrf_token('etab_creer') }}">
+            <div class="grid grid-cols-1 gap-3 px-5 py-4 sm:grid-cols-4">
+                <div>
+                    <label for="etab-code" class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-ink/45">Code Progiciel</label>
+                    <input type="text" id="etab-code" name="code_etab" required inputmode="numeric" pattern="\d{1,8}" placeholder="093" autocomplete="off"
+                           class="w-full rounded-md border border-hairline bg-white px-2.5 py-1.5 font-mono text-sm text-ink transition focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/25">
+                </div>
+                <div class="sm:col-span-2">
+                    <label for="etab-libelle" class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-ink/45">Libellé</label>
+                    <input type="text" id="etab-libelle" name="libelle" required placeholder="SYNTHAUTO OSKNEM 67 VN" autocomplete="off"
+                           class="w-full rounded-md border border-hairline bg-white px-2.5 py-1.5 text-sm text-ink transition focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/25">
+                </div>
+                <div>
+                    <label for="etab-societe" class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-ink/45">Société</label>
+                    <input type="text" id="etab-societe" name="societe" placeholder="GARAGESYNTH" autocomplete="off"
+                           class="w-full rounded-md border border-hairline bg-white px-2.5 py-1.5 text-sm text-ink transition focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/25">
+                </div>
+            </div>
+            <div class="flex items-center justify-between gap-3 border-t border-gold/30 px-5 py-3">
+                <p class="text-xs text-ink/50">Les coordonnées bancaires (SEPA, compte de contrepartie) se saisissent sur la fiche, juste après.</p>
+                <button type="submit" class="shrink-0 rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy-deep">Créer</button>
+            </div>
+        </form>
+    </details>
+
+    <div class="overflow-hidden rounded-xl border border-hairline bg-white">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-hairline bg-surface text-left text-xs uppercase tracking-wider text-ink/50">
+                    <th class="px-4 py-3 font-semibold">Code</th>
+                    <th class="px-4 py-3 font-semibold">Établissement</th>
+                    <th class="px-4 py-3 font-semibold">Société</th>
+                    <th class="px-4 py-3 text-center font-semibold">Contacts</th>
+                    <th class="px-4 py-3 text-center font-semibold">Statut</th>
+                    <th class="px-4 py-3 text-right font-semibold"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in etablissements %}
+                    <tr class="border-t border-hairline transition hover:bg-surface">
+                        <td class="px-4 py-2.5 font-mono text-navy">{{ e.codeEtab }}</td>
+                        <td class="px-4 py-2.5">
+                            <a href="{{ path('app_etablissements_detail', {code: e.codeEtab}) }}" class="font-medium text-navy hover:underline">{{ e.libelle }}</a>
+                        </td>
+                        <td class="px-4 py-2.5 text-ink/70">{{ e.societe ?: e.codeSociete ?: '—' }}</td>
+                        <td class="px-4 py-2.5 text-center">
+                            {% set nb = nb_contacts[e.codeEtab] ?? 0 %}
+                            {% if nb > 0 %}
+                                <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-navy/10 px-2 py-0.5 text-xs font-semibold text-navy">{{ nb }}</span>
+                            {% else %}
+                                <span class="text-xs text-negative">aucun</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-2.5 text-center">
+                            {% if e.actif %}
+                                <span class="text-xs font-medium text-positive">Actif</span>
+                            {% else %}
+                                <span class="text-xs font-medium text-ink/40">Inactif</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-2.5 text-right">
+                            <a href="{{ path('app_etablissements_detail', {code: e.codeEtab}) }}" class="text-sm font-medium text-gold-dark hover:underline">Gérer</a>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="6" class="px-4 py-10 text-center text-ink/50">Aucun établissement pour cette recherche.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+{% endblock %}

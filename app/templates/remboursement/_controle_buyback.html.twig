@@ -1,0 +1,32 @@
+{#- Fragment TEMPS REEL du controle Buy Back, injecte sous la section 2 du formulaire de
+   depot (rachat sec). Attend : c = {vehicule, erTtc, montant, ecart, surpaiement}. -#}
+{%- set v = c.vehicule -%}
+{%- set infos -%}
+    {{ (v.marque ~ ' ' ~ v.modele)|trim ?: 'Vehicule' }} · {{ v.immat }}{% if v.contrat %} · contrat {{ v.contrat }}{% endif %}{% if v.dateEcheance %} · fin {{ v.dateEcheance|date('d/m/Y') }}{% endif %}
+{%- endset -%}
+
+{% if c.surpaiement %}
+    <div data-buyback-surpaiement class="flex items-start gap-3 rounded-xl border border-negative/40 bg-negative/[0.06] p-4">
+        <svg class="mt-0.5 h-5 w-5 shrink-0 text-negative" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        <div class="min-w-0 text-sm">
+            <p class="font-semibold text-negative">Montant supérieur à l'engagement de reprise</p>
+            <p class="mt-1 text-ink/75">
+                Le montant saisi (<strong>{{ c.montant|number_format(2, ',', ' ') }} €</strong>) dépasse de
+                <strong>{{ c.ecart|number_format(2, ',', ' ') }} €</strong> l'engagement de reprise
+                (<strong>ER TTC {{ c.erTtc|number_format(2, ',', ' ') }} €</strong>). Au-delà de 3 €, le dépôt sera refusé.
+            </p>
+            <p class="mt-1.5 text-xs text-ink/50">{{ infos }}</p>
+        </div>
+    </div>
+{% else %}
+    <div class="flex items-start gap-3 rounded-xl border border-positive/40 bg-positive/[0.07] p-4">
+        <svg class="mt-0.5 h-5 w-5 shrink-0 text-positive" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+        <div class="min-w-0 text-sm">
+            <p class="font-semibold text-positive">Véhicule trouvé dans Buy Back</p>
+            <p class="mt-1 text-ink/75">
+                Engagement de reprise : <strong>ER TTC {{ c.erTtc|number_format(2, ',', ' ') }} €</strong>{% if c.montant is not null %} — montant saisi cohérent (écart {{ c.ecart|number_format(2, ',', ' ') }} €).{% endif %}
+            </p>
+            <p class="mt-1.5 text-xs text-ink/50">{{ infos }}</p>
+        </div>
+    </div>
+{% endif %}

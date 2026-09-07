@@ -1,0 +1,152 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Statistiques Garanties - Finance Créances{% endblock %}
+{% block page_title %}Statistiques Garanties{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full px-3">
+
+    {# En-tete : retour audit + fraicheur des donnees #}
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <a href="{{ path('app_garanties_index') }}"
+           class="inline-flex items-center gap-1.5 text-sm font-medium text-ink/70 transition hover:text-navy">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            Retour à l'audit
+        </a>
+        <p class="text-xs text-ink/50">
+            Mirror Progiciel à jour le
+            <span class="font-medium text-navy">{{ fraicheur_mirror ? fraicheur_mirror|date('d/m/Y à H:i') : 'date inconnue' }}</span>
+        </p>
+    </div>
+
+    {% set solde_label = 'lettrees' == vue ? 'lettré' : 'non lettré' %}
+    {% set solde_tooltip = 'lettrees' == vue
+        ? 'Écritures déjà pointées et soldées (sorties de la balance Progiciel).'
+        : 'Écritures encore ouvertes dans Progiciel, pas encore pointées/soldées : ce qui reste dû ou à traiter.' %}
+
+    {# KPI globaux #}
+    <div class="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div class="flex flex-col rounded-md border border-hairline bg-white p-4">
+            <p class="text-2xl font-bold text-navy tabular-nums">{{ total_lignes|number_format(0, ',', ' ') }}</p>
+            <p class="mt-auto pt-2 text-xs uppercase tracking-wider text-ink/50">{{ total_lignes > 1 ? 'lignes Progiciel' : 'ligne Progiciel' }}</p>
+        </div>
+        <div class="flex flex-col justify-center rounded-md border border-hairline bg-white p-4" title="{{ solde_tooltip }}">
+            <div class="flex items-baseline justify-between gap-2">
+                <span class="text-xs uppercase tracking-wider text-ink/50">Débit</span>
+                <span class="text-lg font-bold text-navy tabular-nums">{{ total_debit|number_format(0, ',', ' ') }} €</span>
+            </div>
+            <div class="mt-1.5 flex items-baseline justify-between gap-2">
+                <span class="text-xs uppercase tracking-wider text-ink/50">Crédit</span>
+                <span class="text-lg font-bold text-navy tabular-nums">{{ total_credit|number_format(0, ',', ' ') }} €</span>
+            </div>
+        </div>
+        <div class="flex flex-col rounded-md border border-hairline bg-white p-4">
+            <p class="text-2xl font-bold text-navy tabular-nums">{{ total_dg_base|number_format(0, ',', ' ') }}</p>
+            <p class="mt-auto pt-2 text-xs uppercase tracking-wider text-ink/50">DG en base</p>
+        </div>
+        <div class="flex flex-col rounded-md border border-hairline bg-white p-4">
+            <p class="text-2xl font-bold text-navy tabular-nums">{{ nb_marques_suivies }}<span class="text-base font-medium text-ink/40"> / {{ nb_marques_total }}</span></p>
+            <p class="mt-auto pt-2 text-xs uppercase tracking-wider text-ink/50">marques suivies</p>
+        </div>
+    </div>
+
+    {# Graphique : classement des marques par solde (toutes marques) #}
+    <section class="mb-6 rounded-md border border-hairline bg-white p-4">
+        <div class="mb-3 flex flex-wrap items-center gap-2">
+            <h2 class="text-sm font-semibold uppercase tracking-wider text-navy">Solde {{ solde_label }} par marque</h2>
+            <span class="inline-flex items-center gap-1.5 text-xs text-ink/45">
+                <span class="inline-flex h-2 w-2 rounded-sm bg-navy"></span>robot actif
+                <span class="ml-2 inline-flex h-2 w-2 rounded-sm bg-gold-soft"></span>à venir
+            </span>
+        </div>
+        <p class="mb-3 text-xs text-ink/45">Solde = débit − crédit = ce qui reste réellement dû une fois les paiements déduits.</p>
+        <div class="space-y-1.5">
+            {% for c in classement %}
+            <div class="flex items-center gap-3">
+                <span class="w-24 shrink-0 truncate text-xs font-medium {{ c.suivie ? 'text-navy' : 'text-ink/55' }}" title="{{ c.marque }}">{{ c.marque }}</span>
+                <span class="relative h-5 flex-1 overflow-hidden rounded bg-surface">
+                    <span class="absolute inset-y-0 left-0 rounded {{ c.suivie ? 'bg-navy' : 'bg-gold-soft' }}"
+                          style="width: {{ solde_max > 0 ? (c.solde|abs / solde_max * 100)|round(1) : 0 }}%"></span>
+                </span>
+                <span class="w-32 shrink-0 text-right text-xs tabular-nums {{ c.suivie ? 'font-medium text-navy' : 'text-ink/55' }}">{{ c.solde|number_format(0, ',', ' ') }} €</span>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    {# Marques suivies par un robot : rapprochement pertinent #}
+    <section class="mb-6 rounded-md border border-hairline bg-white">
+        <header class="flex items-center gap-2 border-b border-hairline px-4 py-3">
+            <span class="inline-flex h-2 w-2 rounded-full bg-gold" aria-hidden="true"></span>
+            <h2 class="text-sm font-semibold uppercase tracking-wider text-navy">Marques suivies</h2>
+            <span class="text-xs text-ink/45">robot de scraping actif — classées par solde décroissant</span>
+        </header>
+
+        {% if suivies is empty %}
+            <p class="px-4 py-6 text-center text-sm text-ink/50">Aucune donnée pour cette vue.</p>
+        {% else %}
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-hairline text-left text-xs uppercase tracking-wider text-ink/50">
+                    <th class="px-4 py-2 font-medium">Marque</th>
+                    <th class="px-4 py-2 text-right font-medium">Lignes Progiciel</th>
+                    <th class="px-4 py-2 text-right font-medium">Solde {{ solde_label }}</th>
+                    <th class="px-4 py-2 text-right font-medium">DG en base</th>
+                    <th class="px-4 py-2 text-right font-medium">DG rapprochées</th>
+                    <th class="px-4 py-2 font-medium">Dernier scrap</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in suivies %}
+                <tr class="border-b border-hairline/60 last:border-0">
+                    <td class="px-4 py-2.5 font-medium text-navy">{{ m.marque }}</td>
+                    <td class="px-4 py-2.5 text-right tabular-nums">{{ m.lignes|number_format(0, ',', ' ') }}</td>
+                    <td class="px-4 py-2.5 text-right tabular-nums font-medium {{ m.solde < 0 ? 'text-positive' : 'text-navy' }}">{{ m.solde|number_format(0, ',', ' ') }} €</td>
+                    <td class="px-4 py-2.5 text-right tabular-nums">{{ m.nb_dg_base|number_format(0, ',', ' ') }}</td>
+                    <td class="px-4 py-2.5 text-right tabular-nums text-ink/70">{{ m.nb_dg_matchees|number_format(0, ',', ' ') }}</td>
+                    <td class="px-4 py-2.5 text-ink/70">{{ m.dernier_scrap ? m.dernier_scrap|date('d/m/Y H:i') : '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </section>
+
+    {# Marques pas encore couvertes : volume seulement, pour ne pas fausser l'analyse #}
+    {% if non_suivies is not empty %}
+    <section class="rounded-md border border-hairline bg-white">
+        <header class="flex items-center gap-2 border-b border-hairline px-4 py-3">
+            <span class="inline-flex h-2 w-2 rounded-full bg-ink/25" aria-hidden="true"></span>
+            <h2 class="text-sm font-semibold uppercase tracking-wider text-ink/60">Marques non encore suivies</h2>
+            <span class="text-xs text-ink/45">robot à venir — volume indicatif, hors classement</span>
+        </header>
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-hairline text-left text-xs uppercase tracking-wider text-ink/50">
+                    <th class="px-4 py-2 font-medium">Marque</th>
+                    <th class="px-4 py-2 text-right font-medium">Lignes Progiciel</th>
+                    <th class="px-4 py-2 text-right font-medium">Solde {{ 'lettrees' == vue ? 'lettré' : 'non lettré' }}</th>
+                    <th class="px-4 py-2 font-medium">Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in non_suivies %}
+                <tr class="border-b border-hairline/60 last:border-0">
+                    <td class="px-4 py-2.5 font-medium text-ink/80">{{ m.marque }}</td>
+                    <td class="px-4 py-2.5 text-right tabular-nums">{{ m.lignes|number_format(0, ',', ' ') }}</td>
+                    <td class="px-4 py-2.5 text-right tabular-nums text-ink/70">{{ m.solde|number_format(0, ',', ' ') }} €</td>
+                    <td class="px-4 py-2.5">
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium text-ink/60">
+                            <span class="inline-flex h-1.5 w-1.5 rounded-full bg-ink/30" aria-hidden="true"></span>
+                            Robot à venir
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+    {% endif %}
+
+</div>
+{% endblock %}

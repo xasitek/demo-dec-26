@@ -1,0 +1,242 @@
+{% set ec = detail.ecriture %}
+{% set asp = detail.asp %}
+{% set autres = detail.dossiers_asp_chassis %}
+{% set historique = detail.historique_relances|default([]) %}
+{% set relance_possible = detail.relance_possible|default({vendeur: false, secretaire: false, raison_blocage: null}) %}
+
+{# Libelles ASP simplifie (depuis categories_asp) #}
+{% set brut_vers_categorie = {} %}
+{% for cle, meta in detail.categories_asp|default({}) %}
+    {% for brut in meta.bruts %}
+        {% set brut_vers_categorie = brut_vers_categorie|merge({ (brut): meta }) %}
+    {% endfor %}
+{% endfor %}
+{% set asp_cat = asp ? brut_vers_categorie[asp.lib_etat]|default(null) : null %}
+
+<div class="fc-detail" data-controller="bonus-eco-relance"
+     {% if ec.numero is defined and ec.numero %}
+     data-bonus-eco-relance-url-value="{{ path('app_bonus_eco_relance', {numero: ec.numero}) }}"
+     data-bonus-eco-relance-token-value="{{ csrf_token('bonus-eco-relance-' ~ ec.numero) }}"
+     {% endif %}>
+
+    <header class="fc-detail-identity">
+        <div class="fc-detail-identity-main">
+            <p class="fc-detail-vin">{{ ec.numpiece ?? '—' }}</p>
+            <p class="fc-detail-identity-meta">
+                <span>{{ ec.dateecriture ? ec.dateecriture|date('d/m/Y') : '—' }}</span>
+                {% if ec.numvin %}<span class="sep">·</span><span>VIN {{ ec.numvin }}</span>{% endif %}
+                {% if ec.numimmat %}<span class="sep">·</span><span>{{ ec.numimmat }}</span>{% endif %}
+            </p>
+        </div>
+        {% if asp_cat %}
+            <span class="inline-block rounded-full px-3 py-1 text-xs font-medium bg-{{ asp_cat.ton }}/10 text-{{ asp_cat.ton }}" title="{{ asp.lib_etat }}">{{ asp_cat.libelle }}</span>
+        {% elseif asp %}
+            <span class="inline-block rounded-full px-3 py-1 text-xs font-medium bg-surface text-ink/60">{{ asp.lib_etat }}</span>
+        {% endif %}
+    </header>
+
+    {# ============ HERO : montant ============ #}
+    <section class="fc-detail-hero">
+        <p class="fc-detail-hero-label">Montant dû par l'ASP</p>
+        <p class="fc-detail-hero-value">
+            {% if ec['Montant signe'] is not null %}
+                {{ ec['Montant signe']|number_format(2, ',', ' ') }} <span class="fc-detail-hero-cur">€</span>
+            {% else %}<span class="text-ink/35">—</span>{% endif %}
+        </p>
+        <p class="fc-detail-hero-sub">
+            {% if ec.debit %}<span>Débit {{ ec.debit|number_format(2, ',', ' ') }} €</span>{% endif %}
+            {% if ec.credit %}<span class="sep">·</span><span>Crédit {{ ec.credit|number_format(2, ',', ' ') }} €</span>{% endif %}
+            {% if ec.retard %}<span class="sep">·</span><span>Retard&nbsp;: {{ ec.retard }}</span>{% endif %}
+        </p>
+    </section>
+
+    {# ============ INFOS VEHICULE / COMPTA ============ #}
+    <section class="fc-detail-section">
+        <div class="fc-detail-section-head">
+            <h3 class="fc-detail-section-title">Véhicule &amp; compta</h3>
+        </div>
+        <section class="fc-detail-grid">
+            <div class="fc-detail-field fc-detail-field-strong">
+                <p class="fc-detail-field-label">Société</p>
+                <p class="fc-detail-field-value">{{ ec.codesoc ?? '—' }}</p>
+            </div>
+            <div class="fc-detail-field fc-detail-field-strong">
+                <p class="fc-detail-field-label">Concession</p>
+                <p class="fc-detail-field-value">{{ ec.codeetab ?? '—' }}</p>
+            </div>
+            <div class="fc-detail-field">
+                <p class="fc-detail-field-label">Marque / modèle</p>
+                <p class="fc-detail-field-value">{{ (ec.marque ?? '')|trim }} {{ ec.modele ?? '' }}</p>
+            </div>
+            <div class="fc-detail-field">
+                <p class="fc-detail-field-label">N° écriture Progiciel</p>
+                <p class="fc-detail-field-value mono text-sm">{{ ec.numero ?? '—' }}</p>
+            </div>
+            <div class="fc-detail-field">
+                <p class="fc-detail-field-label">Référence</p>
+                <p class="fc-detail-field-value mono text-sm">{{ ec.reference ?? '—' }}</p>
+            </div>
+            <div class="fc-detail-field">
+                <p class="fc-detail-field-label">Compte client</p>
+                <p class="fc-detail-field-value">{{ ec.codecompte ?? '—' }} · {{ ec.nom ?? '—' }}</p>
+            </div>
+        </section>
+    </section>
+
+    {# ============ CONTACTS : client / vendeur / secretaire ============ #}
+    <section class="fc-detail-section">
+        <div class="fc-detail-section-head">
+            <h3 class="fc-detail-section-title">Contacts</h3>
+        </div>
+        <section class="fc-detail-grid">
+            <div class="fc-detail-field">
+                <p class="fc-detail-field-label">Client</p>
+                <p class="fc-detail-field-value">
+                    {{ ((ec.civilite ?? '')|trim ~ ' ' ~ (ec.prenom ?? '') ~ ' ' ~ (ec.nomclientproprietaire ?? ec.nom ?? ''))|trim ?: '—' }}
+                </p>
+                {% if ec.email and ec.email|trim %}<p class="fc-detail-field-value text-xs"><a href="mailto:{{ ec.email|trim }}" class="text-navy hover:underline">{{ ec.email|trim }}</a></p>{% endif %}
+                {% if ec.numtel1 and ec.numtel1|trim %}<p class="fc-detail-field-value text-xs text-ink/70">{{ ec.numtel1|trim }}</p>{% endif %}
+                {% if ec.numgsm and ec.numgsm|trim %}<p class="fc-detail-field-value text-xs text-ink/70">{{ ec.numgsm|trim }}</p>{% endif %}
+            </div>
+
+            <div class="fc-detail-field">
+                <div class="flex items-center justify-between gap-2">
+                    <p class="fc-detail-field-label">Vendeur</p>
+                    {% if relance_possible.vendeur and not relance_possible.raison_blocage %}
+                        <button type="button"
+                                data-action="click->bonus-eco-relance#envoyer"
+                                data-bonus-eco-relance-type-param="vendeur"
+                                class="inline-flex items-center gap-1 rounded-md border border-navy bg-white px-2 py-0.5 text-xs font-medium text-navy transition hover:bg-navy hover:text-white"
+                                title="Envoyer un email de relance au vendeur">
+                            <svg viewBox="0 0 24 24" class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                            Relancer
+                        </button>
+                    {% endif %}
+                </div>
+                {% set nom_vendeur = (ec.prenomvendeur ?? '')|trim ~ ' ' ~ (ec.nomvendeur ?? '')|trim %}
+                <p class="fc-detail-field-value">{{ nom_vendeur|trim ?: '—' }}</p>
+                {% if ec.emailvendeur and ec.emailvendeur|trim %}
+                    <p class="fc-detail-field-value text-xs"><a href="mailto:{{ ec.emailvendeur|trim }}" class="text-navy hover:underline">{{ ec.emailvendeur|trim }}</a></p>
+                {% elseif nom_vendeur|trim %}
+                    <p class="fc-detail-field-value text-xs italic text-ink/55">Email reconstruit à la volée</p>
+                {% endif %}
+            </div>
+
+            <div class="fc-detail-field">
+                <div class="flex items-center justify-between gap-2">
+                    <p class="fc-detail-field-label">Secrétaire</p>
+                    {% if relance_possible.secretaire and not relance_possible.raison_blocage %}
+                        <button type="button"
+                                data-action="click->bonus-eco-relance#envoyer"
+                                data-bonus-eco-relance-type-param="secretaire"
+                                class="inline-flex items-center gap-1 rounded-md border border-navy bg-white px-2 py-0.5 text-xs font-medium text-navy transition hover:bg-navy hover:text-white"
+                                title="Envoyer un email de relance à la secrétaire">
+                            <svg viewBox="0 0 24 24" class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                            Relancer
+                        </button>
+                    {% endif %}
+                </div>
+                <p class="fc-detail-field-value">{{ (ec.nomsecretaire ?? '')|trim ?: '—' }}</p>
+                {% if ec.emailsecr and ec.emailsecr|trim %}
+                    <p class="fc-detail-field-value text-xs"><a href="mailto:{{ ec.emailsecr|trim }}" class="text-navy hover:underline">{{ ec.emailsecr|trim }}</a></p>
+                {% elseif (ec.nomsecretaire ?? '')|trim %}
+                    <p class="fc-detail-field-value text-xs italic text-ink/55">Email reconstruit à la volée</p>
+                {% endif %}
+            </div>
+        </section>
+
+        {# Statut de la dernière action de relance (rendu par bonus-eco-relance_controller) #}
+        {% if relance_possible.raison_blocage %}
+            <p class="mt-3 rounded bg-surface px-3 py-2 text-xs italic text-ink/55">{{ relance_possible.raison_blocage }}</p>
+        {% else %}
+            <p data-bonus-eco-relance-target="message" class="mt-3 hidden text-xs"></p>
+        {% endif %}
+    </section>
+
+    {# ============ DOSSIER ASP MATCHE ============ #}
+    {% if asp %}
+        <section class="fc-detail-section">
+            <div class="fc-detail-section-head">
+                <h3 class="fc-detail-section-title">Dossier ASP rapproché</h3>
+                <span class="fc-detail-section-meta">N° dossier {{ asp.num_dossier_mensuel ?? '—' }}</span>
+            </div>
+            <section class="fc-detail-grid">
+                <div class="fc-detail-field">
+                    <p class="fc-detail-field-label">Statut ASP brut</p>
+                    <p class="fc-detail-field-value">{{ asp.lib_etat ?? '—' }}</p>
+                </div>
+                <div class="fc-detail-field">
+                    <p class="fc-detail-field-label">Montant payé</p>
+                    <p class="fc-detail-field-value">{{ asp.mt_paye is not null ? (asp.mt_paye|number_format(2, ',', ' ') ~ ' €') : '—' }}</p>
+                </div>
+                <div class="fc-detail-field">
+                    <p class="fc-detail-field-label">Bonus</p>
+                    <p class="fc-detail-field-value">{{ asp.mt_bonus is not null ? (asp.mt_bonus|number_format(2, ',', ' ') ~ ' €') : '—' }}</p>
+                </div>
+                <div class="fc-detail-field">
+                    <p class="fc-detail-field-label">Prime conversion</p>
+                    <p class="fc-detail-field-value">{{ asp.mt_prime_conversion is not null ? (asp.mt_prime_conversion|number_format(2, ',', ' ') ~ ' €') : '—' }}</p>
+                </div>
+                <div class="fc-detail-field">
+                    <p class="fc-detail-field-label">Date paie bonus</p>
+                    <p class="fc-detail-field-value">{{ asp.date_paie_bonus ? asp.date_paie_bonus|date('d/m/Y') : '—' }}</p>
+                </div>
+                <div class="fc-detail-field">
+                    <p class="fc-detail-field-label">N° OR ASP</p>
+                    <p class="fc-detail-field-value mono text-sm">{{ asp.numero_or ?? '—' }}</p>
+                </div>
+            </section>
+        </section>
+    {% else %}
+        <section class="fc-detail-section">
+            <div class="fc-detail-section-head">
+                <h3 class="fc-detail-section-title">Dossier ASP rapproché</h3>
+            </div>
+            <p class="px-2 py-4 text-sm italic text-ink/55">
+                Aucun dossier ASP trouvé pour ce VIN. Soit le dossier n'a pas encore été
+                transmis à l'ASP, soit il n'apparaît pas encore dans la dernière sync du sheet.
+            </p>
+        </section>
+    {% endif %}
+
+    {# ============ HISTORIQUE DES RELANCES ============ #}
+    {% if historique is not empty %}
+        <section class="fc-detail-section">
+            <div class="fc-detail-section-head">
+                <h3 class="fc-detail-section-title">Historique des relances</h3>
+                <span class="fc-detail-section-meta">{{ pluriel(historique|length, 'relance envoyée', 'relances envoyées') }}</span>
+            </div>
+            <div class="fc-detail-table-wrap">
+                <table class="fc-detail-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Destinataire</th>
+                            <th>Type</th>
+                            <th>Auteur</th>
+                            <th>État</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for h in historique %}
+                            <tr>
+                                <td>{{ h.envoye_le|date('d/m/Y H:i') }}</td>
+                                <td class="text-xs">{{ h.destinataire_nom }} ({{ h.destinataire_email }})</td>
+                                <td>{{ h.destinataire_type|capitalize }}</td>
+                                <td>{{ h.auteur_prenom }} {{ h.auteur_nom }}</td>
+                                <td>
+                                    {% if h.erreur %}
+                                        <span class="text-xs text-negative" title="{{ h.erreur }}">Échec</span>
+                                    {% else %}
+                                        <span class="text-xs text-positive">Envoyée</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    {% endif %}
+
+</div>

@@ -1,0 +1,84 @@
+{% set tons = {
+    'positive': 'bg-positive/10 text-positive',
+    'negative': 'bg-negative/10 text-negative',
+    'warning': 'bg-gold/15 text-gold-dark',
+    'info': 'bg-navy/10 text-navy',
+    'neutral': 'bg-surface text-ink/55'
+} %}
+{% set offset = numerotation_offset|default(0) %}
+{# Regroupement visuel par chassis : actif seulement quand on trie par chassis,
+   sinon les rangs d'un meme chassis ne sont pas contigus. #}
+{% set grouper = (tri|default('') == 'chassis') %}
+{% for l in lignes %}
+    {% set statut_dg = statut_meta[l.statut_dg_principal] ?? null %}
+    {% set has_cle = l.cle_ecriture is defined and l.cle_ecriture %}
+    {% set chassis_prec = loop.first ? null : lignes[loop.index0 - 1].chassis %}
+    {% set debut_groupe = grouper and (loop.first or l.chassis != chassis_prec) %}
+    <tr class="group is-clickable{{ grouper and debut_groupe and not loop.first ? ' [&>td]:border-t-2 [&>td]:border-navy/15' : '' }}"
+        {% if has_cle %}data-action="click->detail-panel#open" data-detail-panel-id-param="{{ l.cle_ecriture }}" tabindex="0"{% endif %}>
+        <td class="is-rownum">{{ offset + loop.index }}</td>
+        <td class="text-ink/80 whitespace-nowrap">{{ l.date_piece ? l.date_piece|date('d/m/Y') : '—' }}</td>
+        <td class="mono text-xs text-ink/80">{{ l.no_piece ?? '—' }}</td>
+        <td class="text-xs">
+            {% if l.type_piece %}
+                <span class="inline-block rounded bg-surface px-1.5 py-0.5 font-mono text-ink/75">{{ l.type_piece }}</span>
+            {% else %}—{% endif %}
+        </td>
+        {# Concession et code etablissement dans une seule cellule : deux codes courts
+           qui se lisent ensemble, une colonne gagnee sur un tableau deja large. #}
+        <td class="text-xs whitespace-nowrap text-ink/80">
+            {{- l.concession_sage ?? '—' -}}
+            {%- if l.etablissement_sage %}<span class="text-ink/45"> · {{ l.etablissement_sage }}</span>{% endif -%}
+        </td>
+        <td class="text-xs">{{ l.marque_sage ?? '—' }}</td>
+        <td class="mono text-xs font-medium text-navy">
+            {%- if grouper %}{{ debut_groupe ? (l.chassis ?? '—') : '' }}{% else %}{{ l.chassis ?? '—' }}{% endif -%}
+        </td>
+        <td class="mono text-xs text-ink/70">{{ l.numor ?? '—' }}</td>
+        <td class="text-xs text-ink/70">{{ l.payeur_sage ?? '—' }}</td>
+        <td class="num {{ (l.debit is not null and l.debit > 0) ? 'text-navy' : 'text-ink/30' }}">
+            {{ l.debit is not null and l.debit > 0 ? (l.debit|number_format(2, ',', ' ') ~ ' €') : '—' }}
+        </td>
+        <td class="num {{ (l.credit is not null and l.credit > 0) ? 'text-positive' : 'text-ink/30' }}">
+            {{ l.credit is not null and l.credit > 0 ? (l.credit|number_format(2, ',', ' ') ~ ' €') : '—' }}
+        </td>
+        <td class="num font-medium {{ (l.solde is not null and l.solde > 0) ? 'text-navy' : ((l.solde is not null and l.solde < 0) ? 'text-warning' : 'text-ink/30') }}">
+            {{ l.solde is not null ? (l.solde|number_format(2, ',', ' ') ~ ' €') : '—' }}
+        </td>
+        <td class="whitespace-nowrap">
+            {% if statut_dg %}
+                <span class="inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium {{ tons[statut_dg.ton] ?? tons.neutral }}" title="Code {{ l.statut_dg_principal }}">{{ statut_dg.libelle }}</span>
+                {% if l.nb_dg and l.nb_dg > 1 %}<span class="ml-1 text-[0.65rem] text-ink/50">+{{ l.nb_dg - 1 }}</span>{% endif %}
+            {% else %}<span class="text-xs italic text-ink/40">—</span>{% endif %}
+        </td>
+        {# Commentaires. Deux icones, jamais de cellule vide : bulle pleine quand la
+           ligne est commentee, bulle a « + » tres atténuée sinon (elle se renforce au
+           survol de la ligne). Les deux ouvrent le meme panneau a droite. L'ancrage est
+           porte par l'URL : la DG principale si l'ecriture est rapprochee, sinon le
+           couple cle + oidech qui identifie la ligne comptable. `:stop` empeche le clic
+           d'ouvrir aussi le panneau de detail de la ligne. #}
+        <td class="text-center">
+            {% set nb = l.nb_commentaires|default(0) %}
+            {% set ancre_params = l.id_dg_principal
+                ? { dg: l.id_dg_principal }
+                : { cle: l.cle_ecriture, oidech: l.oidech } %}
+            <button type="button"
+               data-url="{{ path('app_garanties_commentaires', ancre_params|merge({ ref: l.chassis ?? l.no_piece })) }}"
+               data-action="click->commentaires-drawer#ouvrir:stop"
+               class="group/comm inline-flex items-center gap-1 rounded p-1 align-middle hover:bg-surface"
+               title="{{ nb > 0 ? pluriel(nb, 'commentaire', 'commentaires') : 'Ajouter un commentaire' }}"
+               aria-label="{{ nb > 0 ? pluriel(nb, 'commentaire', 'commentaires') : 'Ajouter un commentaire' }}">
+                {% if nb > 0 %}
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" class="text-navy" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                    {% if nb > 1 %}<span class="text-[0.65rem] font-medium text-navy/70">{{ nb }}</span>{% endif %}
+                {% else %}
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="text-ink/20 transition-colors group-hover:text-ink/55 group-hover/comm:text-navy" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/><path d="M12 8v6"/><path d="M9 11h6"/></svg>
+                {% endif %}
+            </button>
+        </td>
+    </tr>
+{% else %}
+    <tr>
+        <td colspan="14" class="px-4 py-10 text-center text-ink/60">Aucune ligne ne correspond à ces critères.</td>
+    </tr>
+{% endfor %}

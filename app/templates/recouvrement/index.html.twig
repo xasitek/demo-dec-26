@@ -1,0 +1,161 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Retours clients - Recouvrement - Finance Créances{% endblock %}
+{% block page_title %}Recouvrement{% endblock %}
+{% block topbar_nav %}{% include 'recouvrement/_topbar_nav.html.twig' with {active: 'retours'} %}{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full px-3"
+     data-controller="detail-panel factures-panel"
+     data-detail-panel-url-value="{{ path('app_recouvrement_retour_detail', {id: '__ID__'}) }}"
+     data-factures-panel-url-value="{{ path('app_recouvrement_compte_factures', {compte: '__COMPTE__'}) }}"
+     data-action="keydown@window->factures-panel#keydown detail-panel:close->factures-panel#close recouvrement:reponse-envoyee@document->detail-panel#close">
+
+    {# En-tete : titre + nav principale (Retours / Courriers) #}
+    <h1 class="mb-3 text-2xl font-bold text-navy">Retours clients</h1>
+    <p class="mb-5 max-w-2xl text-sm text-ink/60">Les réponses des clients à vos relances. Traitez-les ou répondez : un retour traité sort de la liste.</p>
+
+    {# Recherche (email ou compte) + filtre par plage de dates de réception #}
+    <form method="get" action="{{ path('app_recouvrement_index') }}" class="mb-4 flex flex-wrap items-end gap-3">
+        <input type="hidden" name="dir" value="{{ dir }}">
+        <input type="hidden" name="filtre" value="{{ filtre }}">
+        <div class="relative">
+            <svg viewBox="0 0 24 24" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="search" name="q" value="{{ q }}" placeholder="Rechercher un email ou un compte..."
+                   class="w-72 rounded-md border border-hairline bg-white py-1.5 pl-9 pr-3 text-sm text-ink focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30">
+        </div>
+        <div>
+            <label class="mb-1 block text-xs font-medium text-ink/50">Du</label>
+            <input type="date" name="du" value="{{ du }}" class="rounded-md border border-hairline bg-white px-3 py-1.5 text-sm text-ink focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30">
+        </div>
+        <div>
+            <label class="mb-1 block text-xs font-medium text-ink/50">Au</label>
+            <input type="date" name="au" value="{{ au }}" class="rounded-md border border-hairline bg-white px-3 py-1.5 text-sm text-ink focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30">
+        </div>
+        <button type="submit" class="rounded-md bg-navy px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-navy-light">Filtrer</button>
+        {% if q != '' or du != '' or au != '' %}
+            <a href="{{ path('app_recouvrement_index', {filtre: filtre}) }}" class="text-sm text-ink/55 hover:text-navy">Réinitialiser</a>
+        {% endif %}
+    </form>
+
+    {# Orphelins (réponses non reliées à une relance) volontairement NON affichés :
+       seul l'accusé automatique leur est envoyé. Un orphelin rattaché plus tard (via
+       sa réf) réapparaît naturellement dans les rattachés. #}
+
+    {# Tableau principal : retours à traiter (scroll infini + insertion temps réel) #}
+    <div class="fc-elev overflow-hidden rounded-md border border-hairline bg-white"
+         data-controller="infinite-scroll retours"
+         data-infinite-scroll-url-value="{{ path('app_recouvrement_index', {q: q, du: du, au: au, dir: dir, filtre: filtre}) }}"
+         data-infinite-scroll-page-value="{{ page }}"
+         data-infinite-scroll-total-pages-value="{{ total_pages }}"
+         data-retours-row-url-value="{{ path('app_recouvrement_retour_row', {id: '__ID__'}) }}"
+         data-retours-restant-value="{{ total }}"
+         data-retours-label-singulier-value="retour à traiter"
+         data-retours-label-pluriel-value="retours à traiter"
+         data-action="recouvrement:retour@document->retours#nouveau recouvrement:reponse-envoyee@document->retours#conversationTraitee">
+        <table class="fc-table-comptable" data-retours-target="tableau"{% if total == 0 %} style="display:none"{% endif %}>
+            <thead>
+                <tr>
+                    <th class="whitespace-nowrap">
+                        <a href="{{ path('app_recouvrement_index', {q: q, du: du, au: au, dir: (dir == 'asc' ? 'desc' : 'asc'), filtre: filtre}) }}" class="inline-flex items-center gap-1 hover:text-navy" title="Trier par date de réception">
+                            Reçu le
+                            {% if dir == 'asc' %}
+                                <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>
+                            {% else %}
+                                <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th>Client / compte</th>
+                    <th class="whitespace-nowrap">Encours</th>
+                    <th class="whitespace-nowrap">Retard</th>
+                    <th class="whitespace-nowrap">Relance</th>
+                    <th>Dernier message</th>
+                </tr>
+            </thead>
+            <tbody data-infinite-scroll-target="items" data-retours-target="items">
+                {% include 'recouvrement/_rows.html.twig' %}
+            </tbody>
+        </table>
+        <div data-infinite-scroll-target="sentinel" class="h-px"></div>
+        <p data-infinite-scroll-target="loading" class="py-4 text-center text-sm text-ink/50" style="display:none">Chargement...</p>
+
+        {# Etat vide : affiche a la place du tableau quand il n'y a plus rien a traiter #}
+        <div data-retours-target="vide" class="flex flex-col items-center justify-center px-6 py-16 text-center"{% if total > 0 %} style="display:none"{% endif %}>
+            <span class="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-navy/5 text-navy/45">
+                <svg viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+            </span>
+            <h3 class="text-base font-semibold text-navy">Boîte à jour</h3>
+            <p class="mt-1 max-w-sm text-sm text-ink/55">Aucun retour client à traiter pour le moment. Les nouvelles réponses à vos relances apparaîtront ici, en temps réel.</p>
+        </div>
+
+        <p data-retours-target="compteur" class="border-t border-hairline py-3 text-center text-xs text-ink/40"{% if total == 0 %} style="display:none"{% endif %}>{{ pluriel(total, 'retour à traiter', 'retours à traiter') }}</p>
+    </div>
+
+    {# Panneau détail (slide-in) #}
+    <div data-detail-panel-target="backdrop" class="fixed inset-0 z-40 pointer-events-none"></div>
+    <aside data-detail-panel-target="panel" class="fixed inset-y-0 right-0 z-50 w-full max-w-3xl translate-x-full transform overflow-y-auto bg-white shadow-2xl shadow-navy/20 transition-transform duration-200">
+        <div class="flex items-center gap-2 border-b border-hairline px-5 py-3">
+            <h2 class="flex-1 font-semibold text-navy">Détail du retour</h2>
+            <button type="button" data-detail-panel-target="prev" data-action="detail-panel#prev" class="rounded-md p-1.5 text-ink/55 hover:bg-surface hover:text-navy disabled:opacity-30 disabled:cursor-not-allowed" aria-label="Retour précédent" title="Précédent">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>
+            </button>
+            <button type="button" data-detail-panel-target="next" data-action="detail-panel#next" class="rounded-md p-1.5 text-ink/55 hover:bg-surface hover:text-navy disabled:opacity-30 disabled:cursor-not-allowed" aria-label="Retour suivant" title="Suivant">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <button type="button" data-action="detail-panel#cloturer" class="rounded-md p-1.5 text-negative/70 transition hover:bg-negative/10 hover:text-negative" aria-label="Clôturer sans répondre" title="Clôturer sans répondre">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+            </button>
+            <button type="button" data-action="detail-panel#close" class="rounded-md p-1.5 text-ink/55 hover:bg-surface hover:text-navy" aria-label="Fermer (Échap)" title="Fermer (Échap)">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div data-detail-panel-target="content">
+            <p class="px-6 py-5 text-sm text-ink/60">Sélectionnez un retour pour voir le détail et le traiter.</p>
+        </div>
+    </aside>
+
+    {# Modale de clôture (sans répondre) : ouverte par l'icône rouge du header du
+       détail. Sibling du panneau (hors transform). Motif optionnel -> POST traiter. #}
+    <div data-controller="cloture"
+         data-cloture-url-value="{{ path('app_recouvrement_retour_traiter', {id: '__ID__'}) }}"
+         data-cloture-csrf-value="{{ csrf_token('recouvrement-cloture') }}"
+         data-action="recouvrement:ouvrir-cloture@document->cloture#ouvrir keydown@window->cloture#keydown">
+        <div data-cloture-target="backdrop" data-action="click->cloture#annuler" class="fixed inset-0 z-[60] hidden bg-navy-deep/40"></div>
+        <div data-cloture-target="dialog" class="fixed left-1/2 top-1/2 z-[61] hidden w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-5 shadow-2xl shadow-navy/30">
+            <h3 class="mb-1 flex items-center gap-2 text-base font-semibold text-navy">
+                <svg viewBox="0 0 24 24" class="h-5 w-5 text-negative" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+                Clôturer sans répondre
+            </h3>
+            <p class="mb-3 text-sm text-ink/60">Le retour (et toute la conversation) sortira de la liste à traiter. Motif optionnel, gardé en note interne.</p>
+            <textarea data-cloture-target="motif" rows="3" maxlength="5000" placeholder="Motif de la clôture (optionnel)..." class="fc-input mb-4 w-full text-sm"></textarea>
+            <div class="flex justify-end gap-2">
+                <button type="button" data-action="cloture#annuler" class="rounded-md border border-ink/20 bg-white px-4 py-1.5 text-sm font-medium text-ink/70 transition hover:border-navy hover:text-navy">Annuler</button>
+                <button type="button" data-action="cloture#confirmer" data-cloture-target="confirmer" class="inline-flex items-center gap-1.5 rounded-md bg-negative px-4 py-1.5 text-sm font-medium text-white transition hover:bg-negative/90 disabled:cursor-not-allowed disabled:opacity-60">Clôturer</button>
+            </div>
+        </div>
+    </div>
+
+    {# Panneau "factures du client" : sibling du détail (PAS dedans, sinon le
+       transform du détail piégerait son position:fixed).
+       Fermé : translate-x-full -> hors-écran à droite (vraiment caché au chargement).
+       Ouvert : -translate-x-full -> collé à gauche du détail (largeur = celle du
+       détail, max-w-3xl = 48rem). Il glisse de la droite vers la gauche en passant
+       derrière le détail (z-[46] sous le détail z-50). #}
+    <div data-factures-panel-target="backdrop" data-action="click->factures-panel#close" class="fixed inset-0 z-[44] hidden bg-navy-deep/20"></div>
+    <aside data-factures-panel-target="panel" class="fixed inset-y-0 right-0 z-[46] flex w-[48rem] max-w-[calc(100vw-48rem)] translate-x-full transform flex-col overflow-hidden border-r border-hairline bg-white shadow-2xl shadow-navy/30 transition-transform duration-200">
+        <div class="flex items-center gap-2 border-b border-hairline px-5 py-3">
+            <h2 class="flex-1 font-semibold text-navy">Factures du client</h2>
+            <button type="button" data-action="factures-panel#close" class="rounded-md p-1.5 text-ink/55 transition hover:bg-surface hover:text-navy" aria-label="Fermer">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+        {# Pas de padding ici : les barres collantes du fragment (recherche en haut,
+           actions en bas) doivent coller AU RAS du bord, sinon les cartes defilent
+           dans l'interstice et transparaissent. Le fragment gere son propre espacement. #}
+        <div data-factures-panel-target="content" class="flex-1 overflow-y-auto">
+            <p class="p-6 text-sm text-ink/50">Chargement...</p>
+        </div>
+    </aside>
+</div>
+{% endblock %}

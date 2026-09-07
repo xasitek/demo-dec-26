@@ -1,0 +1,51 @@
+{% extends 'emails/remboursement/_base.html.twig' %}
+
+{% block accent %}#16A34A{% endblock %}
+{% block titre %}Dossier à valider{% endblock %}
+
+{# Une ligne dossier INLINE : Refuser (gauche) | infos + Voir les pieces (milieu) | Valider (droite). #}
+{% macro ligne(d, neuf) %}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 10px; border:1px solid {{ neuf ? '#BBE7C9' : '#E3E3E8' }}; {{ neuf ? 'border-left:4px solid #16A34A;' }} background:{{ neuf ? '#F5FBF7' : '#FFFFFF' }};">
+        <tr><td style="padding:12px 14px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+                <td valign="top" style="line-height:1.35;">
+                    <span style="font-size:14px; font-weight:700; color:#2D3250;">{{ d.client }}</span>
+                    <span style="display:block; margin-top:3px; font-size:12px; color:#6B6F80;">{{ d.motif }} · {{ d.montant }} € · {{ d.cleLabel }} {{ d.cle ?: '—' }}</span>
+                    {# Qui a depose : le directeur sait a qui s'adresser sans ouvrir l'application. #}
+                    {% if d.secretaire|default('') %}
+                        <span style="display:block; margin-top:2px; font-size:12px; color:#9096A5;">Déposé par {{ d.secretaire }}</span>
+                    {% endif %}
+                </td>
+                <td valign="top" align="right" style="white-space:nowrap; padding-left:12px;">
+                    <a href="{{ d.lien_refuser }}" style="display:inline-block; margin-right:6px; background:#FFFFFF; color:#DC2626; border:1px solid #FCA5A5; font-size:12px; font-weight:700; text-decoration:none; padding:6px 13px;">Refuser</a>
+                    <a href="{{ d.lien_valider }}" style="display:inline-block; background:#16A34A; color:#FFFFFF; font-size:12px; font-weight:700; text-decoration:none; padding:7px 15px;">Valider</a>
+                </td>
+            </tr></table>
+            <a href="{{ d.lien_pieces }}" style="display:inline-block; margin-top:10px; font-size:12px; color:#2D3250; font-weight:600; text-decoration:underline;">Voir les pièces</a>
+        </td></tr>
+    </table>
+{% endmacro %}
+
+{% block contenu %}
+    <p style="margin:0 0 6px;">Bonjour,</p>
+    <p style="margin:0 0 20px;">Un dossier vient d'être contrôlé par la comptabilité et attend votre <strong style="color:#15803D;">validation</strong>. Consultez les pièces, puis validez ou refusez.</p>
+
+    {# Section : nouveau dossier (le declencheur) #}
+    {% if nouveau %}
+        <p style="margin:0 0 8px; font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#15803D;">Nouveau dossier</p>
+        {{ _self.ligne(nouveau, true) }}
+    {% endif %}
+
+    {# Section : autres dossiers a valider #}
+    {% if autres is not empty %}
+        <p style="margin:22px 0 8px; font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#9096A5;">Dossiers à valider ({{ autres|length }})</p>
+        {% for d in autres %}{{ _self.ligne(d, false) }}{% endfor %}
+
+        <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:16px auto 4px;"><tr>
+            <td align="center">
+                <a href="{{ lien_tout_valider }}" style="display:inline-block; background:#16A34A; color:#FFFFFF; font-size:14px; font-weight:700; text-decoration:none; padding:12px 32px;">Tout valider</a>
+            </td>
+        </tr></table>
+        <p style="margin:10px 0 0; font-size:12px; line-height:1.55; color:#9096A5; text-align:center;">Si vous refusez un dossier puis cliquez « Tout valider », le dossier refusé <strong>n'est pas modifié</strong>.</p>
+    {% endif %}
+{% endblock %}

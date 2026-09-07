@@ -1,0 +1,312 @@
+{% import _self as tl %}
+
+{% macro carte(ev) %}
+    {% if ev.type == 'relance' %}
+        {% set r = ev.relance %}
+        <div class="rounded-md border border-hairline bg-white px-3 py-2 text-sm">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="inline-flex items-center gap-1.5 font-medium text-navy">
+                    <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 text-navy/60" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                    Relance envoyée · niveau {{ r.niveau }} · {{ r.vecteur.libelle }}
+                    {%- if r.envoyePar %} · par {{ r.envoyePar }}{% endif %}
+                </span>
+                <span class="text-xs text-ink/45">{{ ev.date|date('d/m/Y à H\\hi') }}</span>
+            </div>
+            <p class="mt-0.5 text-xs text-ink/55">
+                {%- if r.referenceFacture %}Facture {{ r.referenceFacture }}
+                {%- elseif r.nbFactures > 0 %}{{ r.nbFactures }} {{ pluriel(r.nbFactures, 'facture', 'factures') }}{% endif -%}
+                {%- if r.montantSolde is not null %} · {{ r.montantSolde|number_format(2, ',', ' ') }} €{% endif -%}
+                {{ ' · ' ~ r.profil.libelle }}
+            </p>
+            {# Historique volontairement synthetique pour une relance : niveau + nb factures
+               + total suffisent. Pas de lien PDF ni de depliage du message envoye (le detail
+               n'apporte rien ici). Les MESSAGES du client, eux, restent depliables plus bas. #}
+        </div>
+    {% elseif ev.type == 'reponse' %}
+        {% set m = ev.message %}
+        <div class="rounded-md border border-l-2 border-l-navy/50 border-hairline bg-white px-3 py-2 text-sm">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="inline-flex items-center gap-1.5 font-medium text-navy">
+                    <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 text-navy/60" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17l-5-5 5-5"/><path d="M4 12h11a5 5 0 0 1 5 5v2"/></svg>
+                    Réponse envoyée{% if m.auteur %} · {{ m.auteur }}{% endif %}
+                </span>
+                <span class="text-xs text-ink/45">{{ ev.date|date('d/m/Y à H\\hi') }}</span>
+            </div>
+            {% if m.cc or m.cci %}
+                <p class="mt-0.5 text-xs text-ink/55">{% if m.cc %}Cc : {{ m.cc }}{% endif %}{% if m.cci %}{% if m.cc %} · {% endif %}Cci : {{ m.cci }}{% endif %}</p>
+            {% endif %}
+            {% if m.piecesJointes is not empty %}
+                <div class="mt-1.5 flex flex-wrap gap-2">
+                    {% for nom in m.piecesJointes %}
+                        <span class="inline-flex items-center gap-1 rounded border border-hairline bg-surface px-2 py-0.5 text-xs text-ink/65">
+                            <svg viewBox="0 0 24 24" class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                            {{ nom }}
+                        </span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% if m.corpsHtml %}
+                <details class="mt-1">
+                    <summary class="cursor-pointer text-xs font-medium text-gold-dark hover:underline">Voir la réponse</summary>
+                    {# |raw de confiance : m est un MessageSortant (reponse que NOUS avons
+                       envoyee, rendue depuis reponse.html.twig), pas un message client. #}
+                    <div class="mt-2 max-h-72 overflow-auto rounded border border-hairline bg-surface/40 p-2">{{ m.corpsHtml|raw }}</div>
+                </details>
+            {% endif %}
+        </div>
+    {% else %}
+        {% set ret = ev.retour %}
+        <div class="rounded-md border px-3 py-2 text-sm {{ ev.courant ? 'border-gold bg-gold/5' : 'border-hairline bg-surface/40' }}">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="inline-flex items-center gap-1.5 font-medium text-navy">
+                    <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 text-gold-dark" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h11M3 6h11M3 14h7"/><path d="M18 8l4 4-4 4"/></svg>
+                    Réponse du client{% if ev.courant %} <span class="text-xs font-normal text-gold-dark">(en cours)</span>{% endif %}
+                </span>
+                <span class="text-xs text-ink/45">{{ ev.date|date('d/m/Y à H\\hi') }}</span>
+            </div>
+            <p class="mt-0.5 truncate text-xs text-ink/55">{{ ret.sujet ?: '(sans objet)' }}</p>
+            {# Message non courant : on rappelle ici son cc et ses PJ (le message courant
+               est deja detaille en haut du panneau, inutile de dupliquer). #}
+            {% if not ev.courant %}
+                {% set msg = (ret.corpsTexte ?: (ret.corpsHtml ? ret.corpsHtml|striptags : ''))|message_principal|trim %}
+                {% if msg %}
+                    <details class="mt-1">
+                        <summary class="cursor-pointer text-xs font-medium text-gold-dark hover:underline">Voir le message</summary>
+                        <div class="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded border border-hairline bg-white p-2 text-ink/85">{{ msg }}</div>
+                    </details>
+                {% endif %}
+                {% if ret.cc %}
+                    <p class="mt-0.5 text-xs text-ink/55">Aussi adressé à : {{ ret.cc }}</p>
+                {% endif %}
+                {% if ev.pieces is defined and ev.pieces is not empty %}
+                    <div class="mt-1.5 flex flex-wrap gap-2">
+                        {% for p in ev.pieces %}
+                            <a href="{{ path('app_recouvrement_retour_piece', {id: ret.id, pieceId: p.id}) }}" target="_blank" rel="noopener"
+                               class="inline-flex items-center gap-1 rounded border border-hairline bg-white px-2 py-0.5 text-xs text-navy transition hover:border-navy-light hover:bg-surface">
+                                <svg viewBox="0 0 24 24" class="h-3 w-3 text-ink/55" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                                <span class="max-w-[12rem] truncate">{{ p.nom }}</span>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endif %}
+        </div>
+    {% endif %}
+{% endmacro %}
+
+{% set destinataire = retour.expediteur ?: (retour.relanceEnvoi ? retour.relanceEnvoi.destinataire : null) %}
+{% set initiales = (retour.compteCode ?: retour.expediteur ?: '?')|slice(0, 2)|upper %}
+{# Cle de conversation (compte sinon expediteur) : identique a cleConversation() cote
+   PHP. Sert a retirer la bonne ligne de la liste quand la conversation est traitee. #}
+{% set cle_conversation = retour.compteCode ?: retour.expediteur %}
+
+<turbo-frame id="retour-{{ retour.id }}-detail">
+    <div class="px-6 py-5">
+
+        {% if reponse_succes is defined and reponse_succes %}
+            <div class="mb-4 flex items-center gap-2 rounded-md border border-positive/30 bg-positive/10 px-4 py-3 text-sm text-positive">
+                <svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                Réponse envoyée au client. Le retour a été clôturé.
+            </div>
+        {% elseif traite_succes is defined and traite_succes %}
+            <div class="mb-4 flex items-center gap-2 rounded-md border border-positive/30 bg-positive/10 px-4 py-3 text-sm text-positive">
+                <svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                Retour marqué comme traité. Il a quitté la liste des retours à traiter.
+            </div>
+        {% endif %}
+
+        {% if erreur is defined and erreur %}
+            <div class="mb-4 rounded-md border border-negative/30 bg-negative/10 px-4 py-3 text-sm text-negative">{{ erreur }}</div>
+        {% endif %}
+
+        {# Identité du retour : avatar + sujet + méta #}
+        <div class="mb-5 flex items-start gap-3">
+            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-navy text-sm font-bold text-gold">{{ initiales }}</span>
+            <div class="min-w-0 flex-1">
+                <div class="mb-1 flex flex-wrap items-center gap-2">
+                    <span class="inline-block rounded-full bg-surface px-2 py-0.5 text-xs font-medium text-ink/55">{{ retour.source.libelle }}</span>
+                </div>
+                <h3 class="truncate text-base font-semibold text-navy">{{ retour.sujet ?: '(sans objet)' }}</h3>
+                <p class="mt-0.5 truncate text-xs text-ink/55">{{ retour.expediteur ?: '—' }} · {{ retour.recuLe|date('d/m/Y à H\\hi') }}</p>
+            </div>
+        </div>
+
+        {# Méta facture : compte + écriture (clic = copie dans le presse-papier) #}
+        <div class="mb-5 flex flex-wrap gap-2">
+            {% if retour.compteCode %}
+                <button type="button" data-controller="copy" data-copy-text-value="{{ retour.compteCode }}" data-action="click->copy#copier"
+                        class="inline-flex items-center gap-1.5 rounded-md border border-hairline bg-white px-2.5 py-1 text-xs transition hover:border-navy/40 hover:bg-surface" title="Cliquer pour copier le compte">
+                    <span class="uppercase tracking-wider text-ink/45">Compte</span>
+                    <span data-copy-target="label" class="font-medium text-navy">{{ retour.compteCode }}</span>
+                </button>
+            {% else %}
+                <span class="inline-flex items-center gap-1.5 rounded-md border border-hairline bg-white px-2.5 py-1 text-xs">
+                    <span class="uppercase tracking-wider text-ink/45">Compte</span>
+                    <span class="font-medium text-navy">—</span>
+                </span>
+            {% endif %}
+            {% if retour.ecritureId %}
+                <button type="button" data-controller="copy" data-copy-text-value="{{ retour.ecritureId }}" data-action="click->copy#copier"
+                        class="inline-flex items-center gap-1.5 rounded-md border border-hairline bg-white px-2.5 py-1 text-xs transition hover:border-navy/40 hover:bg-surface" title="Cliquer pour copier la clé écriture">
+                    <span class="uppercase tracking-wider text-ink/45">Écriture</span>
+                    <span data-copy-target="label" class="mono font-medium text-navy">{{ retour.ecritureId }}</span>
+                </button>
+            {% else %}
+                <span class="inline-flex items-center gap-1.5 rounded-md border border-hairline bg-white px-2.5 py-1 text-xs">
+                    <span class="uppercase tracking-wider text-ink/45">Écriture</span>
+                    <span class="mono font-medium text-navy">—</span>
+                </span>
+            {% endif %}
+            {% for tel in [telephones.telephone ?? null, telephones.portable ?? null] %}
+                {% if tel %}
+                    <a href="tel:{{ tel|replace({' ': '', '.': '', '-': ''}) }}"
+                       class="inline-flex items-center gap-1.5 rounded-md border border-hairline bg-white px-2.5 py-1 text-xs transition hover:border-navy/40 hover:bg-surface" title="Appeler">
+                        <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 text-ink/55" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        <span class="uppercase tracking-wider text-ink/45">Tél</span>
+                        <span class="font-medium text-navy">{{ tel }}</span>
+                    </a>
+                {% endif %}
+            {% endfor %}
+            {% if nb_factures is defined and nb_factures > 0 %}
+                <button type="button" data-action="factures-panel#open" data-factures-panel-compte-param="{{ retour.compteCode }}"
+                        class="inline-flex items-center gap-1.5 rounded-md border border-navy/30 bg-white px-2.5 py-1 text-xs font-medium text-navy transition hover:bg-navy hover:text-white">
+                    <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
+                    {{ pluriel(nb_factures, 'facture en cours', 'factures en cours') }}
+                </button>
+            {% endif %}
+        </div>
+
+        {# Message du client : bulle de citation, filet or #}
+        <section class="mb-6">
+            <h4 class="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-ink/45">
+                <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 text-gold-dark" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                Message du client
+            </h4>
+            <div class="rounded-r-md border-l-2 border-gold bg-gold/5 px-4 py-3 text-sm leading-relaxed text-ink/90">
+                {% if retour.corpsTexte %}
+                    <p class="whitespace-pre-wrap">{{ retour.corpsTexte|message_principal }}</p>
+                {% elseif retour.corpsHtml %}
+                    <p class="whitespace-pre-wrap">{{ retour.corpsHtml|striptags|message_principal }}</p>
+                {% else %}
+                    <p class="italic text-ink/50">Aucun contenu textuel.</p>
+                {% endif %}
+            </div>
+        </section>
+
+        {# En copie (CC) + pièces jointes du mail reçu #}
+        {% if retour.cc or pieces_jointes|default([]) is not empty %}
+            <section class="mb-6 space-y-3">
+                {% if retour.cc %}
+                    <div class="flex items-start gap-2 text-sm">
+                        <span class="mt-0.5 shrink-0 text-xs font-semibold uppercase tracking-wider text-ink/45">Aussi adressé à</span>
+                        <span class="text-ink/80">{{ retour.cc }}</span>
+                    </div>
+                {% endif %}
+                {% if pieces_jointes|default([]) is not empty %}
+                    <div>
+                        <h4 class="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-ink/45">
+                            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 text-gold-dark" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                            {{ pluriel(pieces_jointes|length, 'pièce jointe', 'pièces jointes') }}
+                        </h4>
+                        <ul class="flex flex-wrap gap-2">
+                            {% for p in pieces_jointes %}
+                                <li>
+                                    <a href="{{ path('app_recouvrement_retour_piece', {id: retour.id, pieceId: p.id}) }}"
+                                       target="_blank" rel="noopener"
+                                       class="inline-flex items-center gap-2 rounded-md border border-hairline bg-white px-3 py-1.5 text-sm text-navy transition hover:border-navy-light hover:bg-surface">
+                                        <svg viewBox="0 0 24 24" class="h-4 w-4 text-ink/55" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                                        <span class="max-w-[16rem] truncate">{{ p.nom }}</span>
+                                        <span class="text-xs text-ink/45">{{ (p.taille / 1024)|round }} Ko</span>
+                                    </a>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+            </section>
+        {% endif %}
+
+        {# Répondre au client : TOUJOURS disponible (une conversation se règle en un ou
+           plusieurs échanges). L'état se lit dans l'historique des échanges ci-dessous. #}
+        <section class="mb-6 rounded-md border border-hairline bg-white px-4 py-4 shadow-sm shadow-navy/5">
+                <h4 class="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-navy">
+                    <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 text-gold-dark" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+                    Répondre au client
+                </h4>
+                {% if destinataire %}
+                    <p class="mb-3 text-xs text-ink/55">La réponse partira à <span class="font-medium text-navy">{{ destinataire }}</span>.</p>
+                    <form method="post"
+                          action="{{ path('app_recouvrement_retour_repondre', {id: retour.id}) }}"
+                          enctype="multipart/form-data"
+                          data-turbo-frame="retour-{{ retour.id }}-detail"
+                          data-controller="reponse"
+                          data-reponse-cle-value="{{ cle_conversation }}"
+                          data-action="turbo:submit-start->reponse#debut turbo:submit-end->reponse#fin">
+                        <input type="hidden" name="_token" value="{{ csrf_token('retour-repondre-' ~ retour.id) }}">
+
+                        <textarea id="retour-{{ retour.id }}-message"
+                                  name="message"
+                                  rows="5"
+                                  maxlength="10000"
+                                  required
+                                  placeholder="Bonjour, ..."
+                                  class="fc-input mb-2 w-full text-sm"></textarea>
+
+                        <details class="mb-3"{% if retour.cc %} open{% endif %}>
+                            <summary class="cursor-pointer text-xs font-medium text-ink/55 hover:text-navy">Cc / Cci{% if retour.cc %} <span class="text-gold-dark">(destinataires du client repris)</span>{% endif %}</summary>
+                            <div class="mt-2 space-y-2">
+                                {% if retour.cc %}
+                                    <p class="text-xs text-ink/55">Le client avait mis ces personnes en copie. Elles sont reprises dans votre réponse — retirez-en si besoin.</p>
+                                {% endif %}
+                                <input name="cc" value="{{ retour.cc }}" placeholder="Cc (adresses séparées par des virgules)" class="fc-input w-full text-sm">
+                                <input name="cci" placeholder="Cci (adresses séparées par des virgules)" class="fc-input w-full text-sm">
+                            </div>
+                        </details>
+
+                        <div data-controller="attachments">
+                            <div data-attachments-target="list" class="mb-2 flex flex-wrap gap-2"></div>
+                            <div data-attachments-target="inputs" class="hidden"></div>
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <button type="button" data-action="attachments#add" class="inline-flex items-center gap-1.5 text-xs font-medium text-ink/60 transition hover:text-navy">
+                                    <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                                    Joindre un fichier
+                                </button>
+                                <button type="submit" data-reponse-target="bouton" data-label-chargement="Envoi…" class="inline-flex items-center gap-1.5 rounded-md bg-navy px-4 py-1.5 text-sm font-medium text-white transition hover:bg-navy-light disabled:cursor-not-allowed disabled:opacity-60">
+                                    <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                                    Envoyer la réponse
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                {% else %}
+                    <p class="text-sm italic text-ink/50">Aucune adresse client connue pour ce retour : réponse impossible. Vous pouvez le clôturer sans répondre.</p>
+                {% endif %}
+            </section>
+
+        {# Historique des échanges (2 plus récents + voir +) #}
+        <section>
+            <h4 class="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-ink/45">
+                <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 text-gold-dark" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+                Historique des échanges
+            </h4>
+            {% set recents = (timeline is defined ? timeline : [])|slice(0, 2) %}
+            {% set reste = (timeline is defined ? timeline : [])|slice(2) %}
+            {% if recents is not empty %}
+                <div class="space-y-2">
+                    {% for ev in recents %}{{ tl.carte(ev) }}{% endfor %}
+                </div>
+                {% if reste is not empty %}
+                    <details class="mt-2">
+                        <summary class="cursor-pointer text-xs font-medium text-gold-dark hover:underline">Voir tout l'historique ({{ reste|length }} de plus)</summary>
+                        <div class="mt-2 space-y-2">
+                            {% for ev in reste %}{{ tl.carte(ev) }}{% endfor %}
+                        </div>
+                    </details>
+                {% endif %}
+            {% else %}
+                <p class="rounded-md border border-hairline bg-surface/50 px-4 py-3 text-sm italic text-ink/50">Aucun échange enregistré pour ce client.</p>
+            {% endif %}
+        </section>
+
+    </div>
+</turbo-frame>
